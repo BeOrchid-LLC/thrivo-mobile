@@ -1,23 +1,14 @@
-import { StyleSheet, View } from "react-native";
-import { Screen, Text } from "@/components";
-import { spacing } from "@/theme";
+import { Screen, LoadingState } from "@/components";
 
+/**
+ * Entry route. The root guard (app/_layout) redirects to the correct group as
+ * soon as auth/onboarding state resolves; until then we hold a loading view
+ * (the splash screen is also held), never a blank flash.
+ */
 export default function Index() {
   return (
-    <Screen>
-      <View style={styles.center}>
-        <Text variant="heading1" color="dark" style={styles.title}>
-          Thrivo
-        </Text>
-        <Text variant="body" color="muted">
-          Weight loss that actually works.
-        </Text>
-      </View>
+    <Screen padded={false}>
+      <LoadingState />
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  title: { marginBottom: spacing.md },
-});
