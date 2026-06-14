@@ -1,4 +1,4 @@
 /// <reference types="expo/types" />
 
-// NOTE: This file should not be edited and should be in your git ignore list per Expo.
-// It is kept committed here so `tsc --noEmit` resolves Expo's ambient types in CI.
+// Ambient Expo types. Committed (rather than gitignored) so `tsc --noEmit`
+// resolves Expo's types on a fresh checkout / in CI without first running Expo.
