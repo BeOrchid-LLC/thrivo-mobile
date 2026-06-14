@@ -1,9 +1,6 @@
-import { PlaceholderScreen } from "@/components";
+import { SignInScreen } from "@/features/auth";
 
-/**
- * Onboarding S2 auth gate: Google · Apple · email (password|OTP) (ADR-0017).
- * Phase 6 replaces this with the auth feature's SignInScreen.
- */
+/** Route delegates to the auth feature screen (app/ stays thin — §3). */
 export default function SignIn() {
-  return <PlaceholderScreen title="Sign in" subtitle="Google · Apple · email" />;
+  return <SignInScreen />;
 }

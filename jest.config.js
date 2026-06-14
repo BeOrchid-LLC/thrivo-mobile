@@ -2,6 +2,8 @@
 module.exports = {
   preset: "jest-expo",
   setupFilesAfterEnv: ["<rootDir>/jest-setup.ts"],
+  // jest-expo cold-start + RNTL render is slow on first suite; give it headroom.
+  testTimeout: 30000,
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
   },
