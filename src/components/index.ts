@@ -14,3 +14,5 @@ export { ErrorState } from "./ErrorState";
 export type { ErrorStateProps } from "./ErrorState";
 export { PlaceholderScreen } from "./PlaceholderScreen";
 export type { PlaceholderScreenProps } from "./PlaceholderScreen";
+export { BrandSplash } from "./BrandSplash";
+export type { BrandSplashProps } from "./BrandSplash";

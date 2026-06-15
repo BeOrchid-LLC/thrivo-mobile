@@ -51,14 +51,24 @@ export function Button({
       accessibilityRole="button"
       accessibilityState={{ disabled: Boolean(isDisabled), busy: loading }}
       disabled={isDisabled}
-      style={({ pressed }) => [
-        styles.base,
-        containerFor[variant],
-        fullWidth && styles.fullWidth,
-        pressed && styles.pressed,
-        isDisabled && styles.disabled,
-        style,
-      ]}
+      style={(state) => {
+        // `hovered` is provided by react-native-web; absent (undefined) on native.
+        const { pressed } = state;
+        const hovered = (state as { hovered?: boolean }).hovered;
+        const isPrimary = variant === "primary";
+        return [
+          styles.base,
+          containerFor[variant],
+          fullWidth && styles.fullWidth,
+          // Primary swaps the green for the design-system hover/active shades;
+          // secondary/ghost have no green fill, so they use the opacity dim.
+          isPrimary && hovered ? { backgroundColor: colors.primaryHover } : null,
+          isPrimary && pressed ? { backgroundColor: colors.primaryActive } : null,
+          !isPrimary && pressed ? styles.pressed : null,
+          isDisabled && styles.disabled,
+          style,
+        ];
+      }}
       {...rest}
     >
       {loading ? (
