@@ -13,7 +13,7 @@
     },
     "assetBundlePatterns": ["**/*"],
     "ios": {
-      "supportsTabletMode": true,
+      "supportsTablet": true,
       "bundleIdentifier": "com.beorchid.thrivo"
     },
     "android": {
