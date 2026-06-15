@@ -16,3 +16,5 @@ export { PlaceholderScreen } from "./PlaceholderScreen";
 export type { PlaceholderScreenProps } from "./PlaceholderScreen";
 export { BrandSplash } from "./BrandSplash";
 export type { BrandSplashProps } from "./BrandSplash";
+export { Segmented } from "./Segmented";
+export type { SegmentedProps, SegmentedOption } from "./Segmented";
