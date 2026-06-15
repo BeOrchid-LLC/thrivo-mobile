@@ -14,3 +14,11 @@ export {
   useOnboardingDraftActions,
   type OnboardingDraft,
 } from "./onboarding-draft.store";
+export {
+  useDemoProfileStore,
+  useDemoProfile,
+  useDemoEntries,
+  useDemoProfileActions,
+  type DemoProfile,
+  type DemoMealItem,
+} from "./demo-profile.store";
