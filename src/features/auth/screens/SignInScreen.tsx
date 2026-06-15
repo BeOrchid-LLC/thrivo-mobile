@@ -1,38 +1,41 @@
+import { router } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { Button, Input, Screen, Text } from "@/components";
-import { isApiError } from "@/api";
-import { signInPayload, type SignInPayload } from "@/contracts";
+import { otpRequestPayload, type OtpRequestPayload } from "@/contracts";
 import { spacing } from "@/theme";
-import { useSignIn } from "../hooks/useAuth";
+import { SocialAuthButtons } from "../components/SocialAuthButtons";
+import { useDemoAuth } from "../hooks/useDemoAuth";
 
 /**
- * Auth gate (ADR-0017). Email+password is wired end-to-end through the typed
- * client; OAuth/Apple are present but disabled until their native flows land.
- * On success the session store updates and the root guard routes onward.
+ * Auth gate — Figma "Sign In to Thrivo" (returning user). Magic-link by email or
+ * a social provider; iOS additionally shows Apple (see `SocialAuthButtons`). In
+ * demo mode every path fabricates a session via `useDemoAuth` (no network) and
+ * the root guard routes onward. The real password/OAuth wiring lives in
+ * `useAuth` for when the backend lands.
  */
 export function SignInScreen() {
-  const signIn = useSignIn();
+  const { signIn, isPending } = useDemoAuth();
   const {
     control,
     handleSubmit,
     formState: { errors },
-  } = useForm<SignInPayload>({
-    resolver: zodResolver(signInPayload),
-    defaultValues: { email: "", password: "" },
+  } = useForm<OtpRequestPayload>({
+    resolver: zodResolver(otpRequestPayload),
+    defaultValues: { email: "" },
   });
 
-  const onSubmit = handleSubmit((values) => signIn.mutate(values));
-
-  const errorMessage =
-    signIn.isError && isApiError(signIn.error) ? signIn.error.message : undefined;
+  const onRequestLink = handleSubmit(() => signIn("magic-link"));
 
   return (
     <Screen scroll>
       <View style={styles.container}>
-        <Text variant="heading1" color="dark" style={styles.title}>
-          Welcome back
+        <Text variant="heading2" color="dark" style={styles.title}>
+          Sign in to Thrivo
+        </Text>
+        <Text variant="body" color="muted" style={styles.subtitle}>
+          Welcome back. We&apos;ll email you a magic link to continue.
         </Text>
 
         <Controller
@@ -53,38 +56,23 @@ export function SignInScreen() {
           )}
         />
 
-        <Controller
-          control={control}
-          name="password"
-          render={({ field: { onChange, onBlur, value } }) => (
-            <Input
-              label="Password"
-              placeholder="••••••••"
-              secureTextEntry
-              autoComplete="password"
-              value={value}
-              onChangeText={onChange}
-              onBlur={onBlur}
-              error={errors.password?.message}
-            />
-          )}
-        />
-
-        {errorMessage ? (
-          <Text variant="caption" color="error" accessibilityRole="alert">
-            {errorMessage}
-          </Text>
-        ) : null}
-
-        <Button label="Sign in" loading={signIn.isPending} onPress={onSubmit} />
+        <Button label="Request magic link" loading={isPending} onPress={onRequestLink} />
 
         <Text variant="caption" color="muted" style={styles.divider}>
           or continue with
         </Text>
 
-        {/* TODO(Phase: auth): wire expo-auth-session / expo-apple-authentication. */}
-        <Button label="Continue with Google" variant="secondary" disabled />
-        <Button label="Continue with Apple" variant="secondary" disabled />
+        <SocialAuthButtons onProvider={(provider) => signIn(provider)} disabled={isPending} />
+
+        <Pressable onPress={() => router.push("/(auth)/welcome")} style={styles.footer}>
+          <Text variant="caption" color="muted">
+            Don&apos;t have an account? <Text color="primary">Sign up</Text>
+          </Text>
+        </Pressable>
+
+        <Text variant="caption" color="muted" style={styles.demoNote}>
+          Demo mode — no real account or email needed.
+        </Text>
       </View>
     </Screen>
   );
@@ -92,6 +80,9 @@ export function SignInScreen() {
 
 const styles = StyleSheet.create({
   container: { gap: spacing.lg, paddingTop: spacing.xl },
-  title: { marginBottom: spacing.sm },
+  title: { marginBottom: spacing.xs },
+  subtitle: { marginBottom: spacing.sm },
   divider: { textAlign: "center", marginVertical: spacing.xs },
+  footer: { alignItems: "center", marginTop: spacing.sm },
+  demoNote: { textAlign: "center", marginTop: spacing.xs },
 });
