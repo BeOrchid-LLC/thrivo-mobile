@@ -1,9 +1,11 @@
 import { useEffect } from "react";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
+import { useFonts, Inter_400Regular, Inter_600SemiBold } from "@expo-google-fonts/inter";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { queryClient, persistOptions } from "@/api";
+import { BrandSplash, Screen } from "@/components";
 import { wireApiSeams } from "@/lib";
 import { useSessionInit } from "@/hooks";
 import { useAuthStatus, useIsOnboarded } from "@/stores";
@@ -19,7 +21,7 @@ void SplashScreen.preventAutoHideAsync();
  *   session, not onboarded → (onboarding)
  *   session + onboarded    → (app)
  */
-function RootNavigator() {
+function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
   const status = useAuthStatus();
   const isOnboarded = useIsOnboarded();
   const segments = useSegments();
@@ -27,8 +29,10 @@ function RootNavigator() {
 
   useSessionInit();
 
+  const ready = fontsLoaded && status !== "loading";
+
   useEffect(() => {
-    if (status === "loading") return;
+    if (!ready) return;
 
     const group = segments[0];
     const inAuth = group === "(auth)";
@@ -43,16 +47,28 @@ function RootNavigator() {
     }
 
     void SplashScreen.hideAsync();
-  }, [status, isOnboarded, segments, router]);
+  }, [ready, status, isOnboarded, segments, router]);
+
+  // Hold the branded splash until fonts + auth resolve so Inter never flashes
+  // the fallback face and no screen renders before the guard decides the route.
+  if (!ready) {
+    return (
+      <Screen padded={false}>
+        <BrandSplash />
+      </Screen>
+    );
+  }
 
   return <Stack screenOptions={{ headerShown: false }} />;
 }
 
 export default function RootLayout() {
+  const [fontsLoaded] = useFonts({ Inter_400Regular, Inter_600SemiBold });
+
   return (
     <SafeAreaProvider>
       <PersistQueryClientProvider client={queryClient} persistOptions={persistOptions}>
-        <RootNavigator />
+        <RootNavigator fontsLoaded={fontsLoaded} />
       </PersistQueryClientProvider>
     </SafeAreaProvider>
   );

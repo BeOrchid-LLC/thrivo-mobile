@@ -1,5 +1,12 @@
-import { forwardRef } from "react";
-import { StyleSheet, TextInput, View, type TextInputProps } from "react-native";
+import { forwardRef, useState } from "react";
+import {
+  StyleSheet,
+  TextInput,
+  View,
+  type NativeSyntheticEvent,
+  type TextInputFocusEventData,
+  type TextInputProps,
+} from "react-native";
 import { colors, radii, spacing } from "@/theme";
 import { Text } from "./Text";
 
@@ -8,11 +15,26 @@ export interface InputProps extends TextInputProps {
   error?: string;
 }
 
-/** Themed text input with optional label + inline error. Tokens only. */
+/**
+ * Themed text input with optional label + inline error. The focused state shows
+ * the green active ring (`colors.primary`); an `error` always wins over focus.
+ * Tokens only.
+ */
 export const Input = forwardRef<TextInput, InputProps>(function Input(
-  { label, error, style, ...rest },
+  { label, error, style, onFocus, onBlur, ...rest },
   ref
 ) {
+  const [focused, setFocused] = useState(false);
+
+  const handleFocus = (e: NativeSyntheticEvent<TextInputFocusEventData>) => {
+    setFocused(true);
+    onFocus?.(e);
+  };
+  const handleBlur = (e: NativeSyntheticEvent<TextInputFocusEventData>) => {
+    setFocused(false);
+    onBlur?.(e);
+  };
+
   return (
     <View style={styles.container}>
       {label ? (
@@ -23,7 +45,14 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
       <TextInput
         ref={ref}
         placeholderTextColor={colors.gray[400]}
-        style={[styles.input, error ? styles.inputError : null, style]}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+        style={[
+          styles.input,
+          focused && !error ? styles.inputFocused : null,
+          error ? styles.inputError : null,
+          style,
+        ]}
         {...rest}
       />
       {error ? (
@@ -48,6 +77,7 @@ const styles = StyleSheet.create({
     color: colors.dark,
     backgroundColor: colors.white,
   },
+  inputFocused: { borderColor: colors.primary },
   inputError: { borderColor: colors.error },
   errorText: { marginLeft: spacing.xs },
 });
