@@ -1,9 +1,17 @@
+/**
+ * Brand color tokens. Hex values sourced from the Thrivo App Figma "Design
+ * Guide" page (Figma variables) — keep these in sync with that file, not the
+ * other way around. The neutral `gray` ramp is a local utility scale for
+ * borders/dividers/disabled states that the design guide leaves unspecified.
+ */
 export const colors = {
-  primary: "#27AE60",
-  dark: "#1A1A2E",
-  light: "#F4F6F9",
-  accent: "#F39C12",
-  white: "#FFFFFF",
+  primary: "#27AE60", // Figma: Thrivo Green
+  primaryHover: "#08C759", // Figma: Hover Green
+  primaryActive: "#0B8D42", // Figma: 'Clicked' Green
+  dark: "#1A1A2E", // Figma: Gray 1 (primary text)
+  light: "#F4F6F9", // page background / input fields
+  accent: "#F39C12", // Figma: Orange
+  white: "#FFFFFF", // Figma: White
   gray: {
     50: "#F9FAFB",
     100: "#F3F4F6",
@@ -16,9 +24,9 @@ export const colors = {
     800: "#1F2937",
     900: "#111827",
   },
-  success: "#10B981",
-  warning: "#F39C12",
-  error: "#EF4444",
+  success: "#27AE60", // shares Thrivo Green
+  warning: "#F39C12", // shares Orange accent
+  error: "#C0392B", // Figma: Thrivo Red
 };
 
 export type Colors = typeof colors;
