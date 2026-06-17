@@ -32,6 +32,15 @@
       "expo-router",
       "expo-font"
     ],
-    "scheme": "thrivo"
+    "scheme": "thrivo",
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "d24d4616-0673-459c-9d34-ced491ef777e"
+      }
+    },
+    "owner": "beorchid-llc"
   }
 }
