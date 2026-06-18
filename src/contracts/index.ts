@@ -1,10 +1,10 @@
 /**
  * Local Zod contracts for the Thrivo backend (`/api/v1`).
  *
- * These intentionally live in the mobile repo for now. When the shared
- * `@thrivo/contracts` package (BACKEND_ARCHITECTURE §3) ships, this barrel
- * becomes the single swap point — re-export from the package here and the rest
- * of the app (which only imports `@/contracts`) is unaffected.
+ * These intentionally live in the mobile repo until each backend surface lands
+ * in `@beorchid-llc/thrivo-contracts`. `/users/me` is already parsed directly
+ * from the published package in `src/api/endpoints.ts`; the remaining local
+ * mirrors stay here until the A2 schemas ship.
  */
 export * from "./common";
 export * from "./auth";
