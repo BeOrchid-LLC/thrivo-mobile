@@ -6,10 +6,12 @@ module.exports = {
   testTimeout: 30000,
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
+    "^@beorchid-llc/thrivo-contracts/users$":
+      "<rootDir>/node_modules/@beorchid-llc/thrivo-contracts/dist/users.js",
   },
   // Transform RN / Expo ESM packages that ship untranspiled.
   transformIgnorePatterns: [
-    "node_modules/(?!((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg|@shopify/flash-list|@tanstack/.*))",
+    "node_modules/(?!((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|@beorchid-llc/thrivo-contracts|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg|@shopify/flash-list|@tanstack/.*))",
   ],
   collectCoverageFrom: ["src/**/*.{ts,tsx}", "app/**/*.{ts,tsx}"],
 };

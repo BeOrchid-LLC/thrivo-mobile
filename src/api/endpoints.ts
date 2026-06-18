@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { userProfileSchema } from "@beorchid-llc/thrivo-contracts/users";
 import * as c from "@/contracts";
 
 /**
@@ -92,7 +93,7 @@ export const ENDPOINTS = {
     path: "/users/me",
     method: "GET",
     auth: true,
-    response: c.meResponse,
+    response: userProfileSchema,
   },
   UPDATE_PROFILE: {
     path: "/users/me/profile",

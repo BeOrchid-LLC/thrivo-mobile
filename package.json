@@ -18,6 +18,7 @@
     "checks": "npm run typecheck && npm run lint && npm run format:check"
   },
   "dependencies": {
+    "@beorchid-llc/thrivo-contracts": "0.1.0",
     "@expo-google-fonts/inter": "^0.4.2",
     "@hookform/resolvers": "^3.9.0",
     "@react-native-async-storage/async-storage": "1.23.1",
