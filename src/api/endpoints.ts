@@ -92,14 +92,14 @@ export const ENDPOINTS = {
     path: "/users/me",
     method: "GET",
     auth: true,
-    response: c.meResponse,
+    response: c.userSchema,
   },
   UPDATE_PROFILE: {
     path: "/users/me/profile",
     method: "PATCH",
     auth: true,
     payload: c.updateProfilePayload,
-    response: c.meResponse,
+    response: c.userSchema,
   },
 
   // --- Foods (free tier) ---

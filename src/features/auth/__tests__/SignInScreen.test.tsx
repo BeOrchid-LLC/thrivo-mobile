@@ -1,36 +1,45 @@
 import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import { SignInScreen } from "../screens/SignInScreen";
-import { setToken } from "@/lib";
-import { useSessionStore } from "@/stores";
 
-// Mock the device seams; everything else (form, store, demo hook) runs for real.
-jest.mock("@/lib", () => ({
-  setToken: jest.fn().mockResolvedValue(undefined),
-  clearToken: jest.fn().mockResolvedValue(undefined),
-  analytics: { identify: jest.fn(), reset: jest.fn() },
+const mockRequestMagicLink = jest.fn();
+const mockGoogleMutate = jest.fn();
+const mockAppleMutate = jest.fn();
+
+jest.mock("../hooks/useAuth", () => ({
+  useRequestMagicLink: () => ({
+    mutateAsync: mockRequestMagicLink,
+    isPending: false,
+    error: null,
+  }),
+  useGoogleSignIn: () => ({
+    mutate: mockGoogleMutate,
+    isPending: false,
+    error: null,
+  }),
+  useAppleSignIn: () => ({
+    mutate: mockAppleMutate,
+    isPending: false,
+    error: null,
+  }),
 }));
 
-const mockSetToken = setToken as jest.MockedFunction<typeof setToken>;
-
-describe("Phase 6 — SignInScreen (demo auth)", () => {
+describe("SignInScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    useSessionStore.getState().actions.clearSession();
+    mockRequestMagicLink.mockResolvedValue({ status: true });
   });
 
-  it("fabricates an un-onboarded session on magic-link request (demo, no network)", async () => {
+  it("requests a real magic link and shows the sent state", async () => {
     const screen = render(<SignInScreen />);
 
     fireEvent.changeText(screen.getByPlaceholderText("you@example.com"), "ada@example.com");
     fireEvent.press(screen.getByText("Request magic link"));
 
-    await waitFor(() => expect(mockSetToken).toHaveBeenCalled());
-
-    const state = useSessionStore.getState();
-    expect(state.status).toBe("authenticated");
-    expect(state.userId).toBe("demo-user");
-    // New demo users start un-onboarded so the guard routes into onboarding.
-    expect(state.isOnboarded).toBe(false);
+    await waitFor(() =>
+      expect(mockRequestMagicLink).toHaveBeenCalledWith({ email: "ada@example.com" })
+    );
+    expect(screen.getByText("Check your email")).toBeTruthy();
+    expect(screen.getByText("Resend in 60s")).toBeTruthy();
   });
 
   it("blocks the magic-link request and shows a validation error for an invalid email", async () => {
@@ -40,7 +49,14 @@ describe("Phase 6 — SignInScreen (demo auth)", () => {
     fireEvent.press(screen.getByText("Request magic link"));
 
     await waitFor(() => expect(screen.getByText("Invalid email")).toBeTruthy());
-    expect(mockSetToken).not.toHaveBeenCalled();
-    expect(useSessionStore.getState().status).toBe("unauthenticated");
+    expect(mockRequestMagicLink).not.toHaveBeenCalled();
+  });
+
+  it("routes social button presses through the real social hooks", () => {
+    const screen = render(<SignInScreen />);
+
+    fireEvent.press(screen.getByText("Continue with Google"));
+
+    expect(mockGoogleMutate).toHaveBeenCalledTimes(1);
   });
 });

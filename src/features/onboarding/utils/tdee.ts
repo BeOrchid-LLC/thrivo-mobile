@@ -37,7 +37,9 @@ export interface BmrInput {
 /** Mifflin-St Jeor basal metabolic rate (kcal/day). */
 export function bmrMifflinStJeor({ sex, weightKg, heightCm, ageYears }: BmrInput): number {
   const base = 10 * weightKg + 6.25 * heightCm - 5 * ageYears;
-  return sex === "male" ? base + 5 : base - 161;
+  if (sex === "male") return base + 5;
+  if (sex === "female") return base - 161;
+  return base - 78;
 }
 
 /** Daily kcal delta for the goal: ~0.5 kg/week deficit for loss, surplus for gain. */

@@ -1,12 +1,16 @@
 import { create } from "zustand";
-import type { Goal, Sex, UnitSystem } from "@/contracts";
+import { createJSONStorage, persist } from "zustand/middleware";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import type { ActivityLevel, Goal, Sex, UnitSystem } from "@/contracts";
 
 /**
  * The multi-screen onboarding form draft (MOBILE_ARCHITECTURE §4.2). Keeps
- * answers from screens S3–S6 in memory so back/forward navigation doesn't lose
- * data or hit the network per step. Persisted server-side only on completion.
+ * answers from the reusable onboarding flow in local storage so back/forward
+ * navigation, cold starts, and later lifecycle revisits do not lose progress.
+ * Server remains the source of truth once skip/complete/start trial submits.
  */
 export interface OnboardingDraft {
+  firstName?: string;
   goal?: Goal;
   currentWeightKg?: number;
   targetWeightKg?: number;
@@ -14,6 +18,11 @@ export interface OnboardingDraft {
   ageYears?: number;
   sex?: Sex;
   unitSystem?: UnitSystem;
+  activityLevel?: ActivityLevel;
+  manualDailyTargetKcal?: number;
+  notifyAt?: string;
+  timezone?: string;
+  onboardingStep?: number;
 }
 
 interface OnboardingDraftState {
@@ -25,13 +34,22 @@ interface OnboardingDraftState {
   };
 }
 
-export const useOnboardingDraftStore = create<OnboardingDraftState>((set) => ({
-  draft: {},
-  actions: {
-    setFields: (fields) => set((state) => ({ draft: { ...state.draft, ...fields } })),
-    reset: () => set({ draft: {} }),
-  },
-}));
+export const useOnboardingDraftStore = create<OnboardingDraftState>()(
+  persist(
+    (set) => ({
+      draft: {},
+      actions: {
+        setFields: (fields) => set((state) => ({ draft: { ...state.draft, ...fields } })),
+        reset: () => set({ draft: {} }),
+      },
+    }),
+    {
+      name: "thrivo.onboarding-draft",
+      storage: createJSONStorage(() => AsyncStorage),
+      partialize: (state) => ({ draft: state.draft }),
+    }
+  )
+);
 
 export const useOnboardingDraft = () => useOnboardingDraftStore((s) => s.draft);
 export const useOnboardingDraftActions = () => useOnboardingDraftStore((s) => s.actions);
