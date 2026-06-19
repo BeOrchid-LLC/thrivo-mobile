@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { router } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Platform, Pressable, StyleSheet, View } from "react-native";
 import { Button, Card, Input, Screen, Text } from "@/components";
 import { magicLinkRequestPayload, type MagicLinkRequestPayload } from "@/contracts";
 import { spacing } from "@/theme";
@@ -21,6 +21,7 @@ export function SignInScreen() {
       ? "apple"
       : null;
   const socialError = google.error ?? apple.error;
+  const showSocialAuth = google.isConfigured || Platform.OS === "ios";
 
   const {
     control,
@@ -117,20 +118,25 @@ export function SignInScreen() {
           </>
         )}
 
-        <Text variant="caption" color="muted" style={styles.divider}>
-          or continue with
-        </Text>
+        {showSocialAuth ? (
+          <>
+            <Text variant="caption" color="muted" style={styles.divider}>
+              or continue with
+            </Text>
 
-        <SocialAuthButtons
-          onProvider={onProvider}
-          disabled={Boolean(loadingProvider)}
-          loadingProvider={loadingProvider}
-        />
+            <SocialAuthButtons
+              onProvider={onProvider}
+              disabled={Boolean(loadingProvider)}
+              hiddenProviders={google.isConfigured ? [] : ["google"]}
+              loadingProvider={loadingProvider}
+            />
 
-        {socialError ? (
-          <Text variant="caption" color="error" selectable style={styles.centerText}>
-            {socialError.message}
-          </Text>
+            {socialError ? (
+              <Text variant="caption" color="error" selectable style={styles.centerText}>
+                {socialError.message}
+              </Text>
+            ) : null}
+          </>
         ) : null}
 
         <Pressable onPress={() => router.push("/(auth)/welcome")} style={styles.footer}>

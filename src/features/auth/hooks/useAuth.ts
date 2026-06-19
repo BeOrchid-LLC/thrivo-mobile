@@ -2,6 +2,7 @@ import * as AppleAuthentication from "expo-apple-authentication";
 import * as Google from "expo-auth-session/providers/google";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { QueryClient } from "@tanstack/react-query";
+import { Platform } from "react-native";
 import { queryKeys } from "@/api";
 import { ApiError, isApiError } from "@/api/errors";
 import { env } from "@/config/env";
@@ -16,6 +17,14 @@ import {
   verifyMagicLink,
   logout,
 } from "../api/auth.api";
+
+const MISSING_GOOGLE_CLIENT_ID = "missing-google-client-id.apps.googleusercontent.com";
+
+function googleClientIdForPlatform(): string | undefined {
+  if (Platform.OS === "android") return env.googleAndroidClientId;
+  if (Platform.OS === "ios") return env.googleIosClientId;
+  return env.googleWebClientId;
+}
 
 /**
  * Persist a freshly-issued session: token → secure-store (source of truth),
@@ -135,19 +144,22 @@ export function useAppleSignIn() {
 export function useGoogleSignIn() {
   const { setSession } = useSessionActions();
   const queryClient = useQueryClient();
+  const googleClientId = googleClientIdForPlatform();
+  const isConfigured = Boolean(googleClientId);
   const [request, , promptAsync] = Google.useIdTokenAuthRequest({
     webClientId: env.googleWebClientId,
     iosClientId: env.googleIosClientId,
     androidClientId: env.googleAndroidClientId,
+    clientId: googleClientId ?? MISSING_GOOGLE_CLIENT_ID,
     selectAccount: true,
   });
 
-  return useMutation({
+  const mutation = useMutation({
     mutationFn: async () => {
-      if (!env.googleWebClientId && !env.googleIosClientId && !env.googleAndroidClientId) {
+      if (!isConfigured) {
         throw new ApiError({
           code: "UNKNOWN",
-          message: "Google sign-in is not configured for this build.",
+          message: "Google sign-in is not configured for this platform.",
           status: 0,
         });
       }
@@ -183,6 +195,8 @@ export function useGoogleSignIn() {
       return applyToken(token, setSession, queryClient);
     },
   });
+
+  return { ...mutation, isConfigured };
 }
 
 /** Sign out: revoke server session, then clear local token + caches regardless. */
