@@ -43,7 +43,7 @@ function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
       router.replace("/(auth)/welcome");
     } else if (status === "authenticated" && !isOnboarded && !inOnboarding) {
       router.replace("/(onboarding)/name");
-    } else if (status === "authenticated" && isOnboarded && inAuth) {
+    } else if (status === "authenticated" && isOnboarded && (inAuth || inOnboarding)) {
       router.replace("/(app)/dashboard");
     }
 

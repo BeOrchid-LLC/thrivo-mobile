@@ -4,7 +4,7 @@ import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Pressable, StyleSheet, View } from "react-native";
 import { Button, Card, Input, Screen, Text } from "@/components";
-import { otpRequestPayload, type OtpRequestPayload } from "@/contracts";
+import { magicLinkRequestPayload, type MagicLinkRequestPayload } from "@/contracts";
 import { spacing } from "@/theme";
 import { SocialAuthButtons, type SocialAuthProvider } from "../components/SocialAuthButtons";
 import { useAppleSignIn, useGoogleSignIn, useRequestMagicLink } from "../hooks/useAuth";
@@ -27,8 +27,8 @@ export function SignInScreen() {
     handleSubmit,
     getValues,
     formState: { errors },
-  } = useForm<OtpRequestPayload>({
-    resolver: zodResolver(otpRequestPayload),
+  } = useForm<MagicLinkRequestPayload>({
+    resolver: zodResolver(magicLinkRequestPayload),
     defaultValues: { email: "" },
   });
 
