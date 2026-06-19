@@ -20,7 +20,7 @@ import {
 /**
  * Persist a freshly-issued session: token → secure-store (source of truth),
  * session facts → store. The root guard then reacts and routes to (onboarding)
- * or (app). Kept in one place so every auth path (password/OAuth/OTP) is uniform.
+ * or (app). Kept in one place so every token-returning auth path is uniform.
  */
 async function applySession(
   session: AuthSession,
@@ -33,6 +33,7 @@ async function applySession(
     token: session.token,
     userId: session.user.id,
     accountStatus: session.user.accountStatus,
+    isOnboarded: session.user.isOnboarded,
   });
   analytics.identify(session.user.id);
   return session.user;
@@ -47,7 +48,12 @@ async function applyToken(
   try {
     const user = await getMe();
     queryClient.setQueryData(queryKeys.me(), user);
-    setSession({ token, userId: user.id, accountStatus: user.accountStatus });
+    setSession({
+      token,
+      userId: user.id,
+      accountStatus: user.accountStatus,
+      isOnboarded: user.isOnboarded,
+    });
     analytics.identify(user.id);
     return user;
   } catch (error) {

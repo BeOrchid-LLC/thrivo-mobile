@@ -31,7 +31,12 @@ export function useSessionInit(): void {
         const user = await getMe();
         if (!active) return;
         queryClient.setQueryData(queryKeys.me(), user);
-        actions.setSession({ token, userId: user.id, accountStatus: user.accountStatus });
+        actions.setSession({
+          token,
+          userId: user.id,
+          accountStatus: user.accountStatus,
+          isOnboarded: user.isOnboarded,
+        });
       } catch (error) {
         if (!active) return;
         if (isApiError(error) && error.isAuthError) {

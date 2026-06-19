@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import type { User, ActivationIntent, UpdateProfilePayload } from "@/contracts";
+import type { User, ActivationIntent, AccountStatus, UpdateProfilePayload } from "@/contracts";
 import { useUpdateProfile } from "@/features/profile";
 import {
   useAccountStatus,
@@ -37,7 +37,7 @@ export function useSubmitOnboarding() {
   const draft = useOnboardingDraft();
   const { reset } = useOnboardingDraftActions();
   const accountStatus = useAccountStatus();
-  const { setAccountStatus } = useSessionActions();
+  const { setProfileStatus } = useSessionActions();
   const updateProfile = useUpdateProfile();
 
   const submit = useCallback(
@@ -58,15 +58,15 @@ export function useSubmitOnboarding() {
         return user;
       } catch (error) {
         if (options.silent) {
-          if (accountStatus === "dormant") {
-            setAccountStatus("free_trial");
-          }
+          const fallbackStatus: AccountStatus =
+            accountStatus === null || accountStatus === "dormant" ? "free_trial" : accountStatus;
+          setProfileStatus({ accountStatus: fallbackStatus, isOnboarded: true });
           return null;
         }
         throw error;
       }
     },
-    [accountStatus, draft, reset, setAccountStatus, updateProfile]
+    [accountStatus, draft, reset, setProfileStatus, updateProfile]
   );
 
   return {
