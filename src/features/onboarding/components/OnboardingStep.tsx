@@ -3,7 +3,7 @@ import { StyleSheet, View } from "react-native";
 import { Screen, Text } from "@/components";
 import { colors, radii, spacing } from "@/theme";
 
-const TOTAL_STEPS = 8;
+const TOTAL_STEPS = 7;
 
 interface OnboardingStepProps {
   /** 1-based step index used for the progress bar (of 8). */
@@ -18,7 +18,7 @@ interface OnboardingStepProps {
 /** Shared chrome for an onboarding step: progress bar, title/subtitle, content, footer. */
 export function OnboardingStep({ step, title, subtitle, children, footer }: OnboardingStepProps) {
   return (
-    <Screen>
+    <Screen scroll style={styles.screen}>
       <View style={styles.container}>
         <View style={styles.progress}>
           {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
@@ -46,6 +46,7 @@ export function OnboardingStep({ step, title, subtitle, children, footer }: Onbo
 }
 
 const styles = StyleSheet.create({
+  screen: { flexGrow: 1 },
   container: { flex: 1, gap: spacing.xl },
   progress: { flexDirection: "row", gap: spacing.xs },
   segment: {

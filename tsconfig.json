@@ -8,6 +8,9 @@
     "esModuleInterop": true,
     "baseUrl": ".",
     "paths": {
+      "@beorchid-llc/thrivo-contracts/users": [
+        "node_modules/@beorchid-llc/thrivo-contracts/dist/users.d.ts"
+      ],
       "@/*": [
         "src/*"
       ]

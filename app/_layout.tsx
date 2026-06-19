@@ -5,10 +5,10 @@ import { useFonts, Inter_400Regular, Inter_600SemiBold } from "@expo-google-font
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { queryClient, persistOptions } from "@/api";
-import { BrandSplash, Screen } from "@/components";
+import { BrandSplash, ErrorState, Screen } from "@/components";
 import { wireApiSeams } from "@/lib";
 import { useSessionInit } from "@/hooks";
-import { useAuthStatus, useIsOnboarded } from "@/stores";
+import { useAuthStatus, useIsOnboarded, useSessionActions } from "@/stores";
 
 // Wire the API client's token/unauthenticated seams once, at module load.
 wireApiSeams();
@@ -26,6 +26,7 @@ function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
   const isOnboarded = useIsOnboarded();
   const segments = useSegments();
   const router = useRouter();
+  const { setStatus } = useSessionActions();
 
   useSessionInit();
 
@@ -41,8 +42,8 @@ function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
     if (status === "unauthenticated" && !inAuth) {
       router.replace("/(auth)/welcome");
     } else if (status === "authenticated" && !isOnboarded && !inOnboarding) {
-      router.replace("/(onboarding)/goal");
-    } else if (status === "authenticated" && isOnboarded && (inAuth || inOnboarding)) {
+      router.replace("/(onboarding)/name");
+    } else if (status === "authenticated" && isOnboarded && inAuth) {
       router.replace("/(app)/dashboard");
     }
 
@@ -55,6 +56,19 @@ function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
     return (
       <Screen padded={false}>
         <BrandSplash />
+      </Screen>
+    );
+  }
+
+  if (status === "restore_error") {
+    return (
+      <Screen>
+        <ErrorState
+          title="Could not restore your session"
+          message="Check your connection and try again."
+          retryLabel="Try again"
+          onRetry={() => setStatus("loading")}
+        />
       </Screen>
     );
   }

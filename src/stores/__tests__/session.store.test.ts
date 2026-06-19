@@ -15,22 +15,22 @@ describe("Phase 3 — session store", () => {
   it("setSession marks the user authenticated with session facts", () => {
     useSessionStore
       .getState()
-      .actions.setSession({ token: "tok_1", userId: "u_1", isOnboarded: true });
+      .actions.setSession({ token: "tok_1", userId: "u_1", accountStatus: "free_trial" });
     const state = useSessionStore.getState();
     expect(state.status).toBe("authenticated");
     expect(state.token).toBe("tok_1");
     expect(state.userId).toBe("u_1");
-    expect(state.isOnboarded).toBe(true);
+    expect(state.accountStatus).toBe("free_trial");
   });
 
-  it("clearSession wipes the token and resets onboarding", () => {
+  it("clearSession wipes the token and resets account status", () => {
     const { actions } = useSessionStore.getState();
-    actions.setSession({ token: "tok_1", userId: "u_1", isOnboarded: true });
+    actions.setSession({ token: "tok_1", userId: "u_1", accountStatus: "free_trial" });
     actions.clearSession();
     const state = useSessionStore.getState();
     expect(state.status).toBe("unauthenticated");
     expect(state.token).toBeNull();
-    expect(state.isOnboarded).toBe(false);
+    expect(state.accountStatus).toBeNull();
   });
 
   it("action references are stable across updates", () => {
