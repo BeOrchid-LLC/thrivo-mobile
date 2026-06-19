@@ -41,6 +41,12 @@ export type OAuthPayload = z.infer<typeof oauthPayload>;
 export const otpRequestPayload = z.object({ email: emailSchema });
 export type OtpRequestPayload = z.infer<typeof otpRequestPayload>;
 
+export const magicLinkRequestPayload = z.object({
+  email: emailSchema,
+  firstName: z.string().trim().min(1).optional(),
+});
+export type MagicLinkRequestPayload = z.infer<typeof magicLinkRequestPayload>;
+
 export const otpVerifyPayload = z.object({
   email: emailSchema,
   code: z.string().min(4),

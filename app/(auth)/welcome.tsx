@@ -1,37 +1,31 @@
 import { router } from "expo-router";
-import { Controller, useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { Pressable, StyleSheet, View } from "react-native";
-import { z } from "zod";
-import { Button, Input, Screen, Text } from "@/components";
-import { emailSchema } from "@/contracts";
+import { Button, Screen, Text } from "@/components";
+import {
+  SocialAuthButtons,
+  type SocialAuthProvider,
+  useAppleSignIn,
+  useGoogleSignIn,
+} from "@/features/auth";
 import { colors, spacing } from "@/theme";
-import { SocialAuthButtons } from "@/features/auth/components/SocialAuthButtons";
-import { useDemoAuth } from "@/features/auth/hooks/useDemoAuth";
 
-const welcomeForm = z.object({
-  name: z.string().min(1, "Enter your name"),
-  email: emailSchema,
-});
-type WelcomeForm = z.infer<typeof welcomeForm>;
-
-/**
- * Onboarding S1 — Figma "Welcome to Thrivo!". Sign-up entry: name + email →
- * magic link, or a social provider. In demo mode every path fabricates a session
- * (no email is actually sent) and the root guard routes on to onboarding.
- */
 export default function Welcome() {
-  const { signIn, isPending } = useDemoAuth();
-  const {
-    control,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<WelcomeForm>({
-    resolver: zodResolver(welcomeForm),
-    defaultValues: { name: "", email: "" },
-  });
+  const google = useGoogleSignIn();
+  const apple = useAppleSignIn();
+  const loadingProvider: SocialAuthProvider | null = google.isPending
+    ? "google"
+    : apple.isPending
+      ? "apple"
+      : null;
+  const error = google.error ?? apple.error;
 
-  const onRequestLink = handleSubmit(() => signIn("magic-link"));
+  const onProvider = (provider: SocialAuthProvider) => {
+    if (provider === "google") {
+      google.mutate();
+      return;
+    }
+    apple.mutate();
+  };
 
   return (
     <Screen scroll>
@@ -41,86 +35,57 @@ export default function Welcome() {
             <Text style={styles.markGlyph}>T</Text>
           </View>
           <Text variant="heading2" color="dark" style={styles.title}>
-            Welcome to Thrivo!
+            Welcome to Thrivo
           </Text>
           <Text variant="body" color="muted" style={styles.subtitle}>
-            Enter your details to receive a magic link and get started.
+            Track food, hit your targets, and build a routine that fits your day.
           </Text>
         </View>
 
-        <Controller
-          control={control}
-          name="name"
-          render={({ field: { onChange, onBlur, value } }) => (
-            <Input
-              label="Name"
-              placeholder="Jane Doe"
-              autoCapitalize="words"
-              autoComplete="name"
-              value={value}
-              onChangeText={onChange}
-              onBlur={onBlur}
-              error={errors.name?.message}
-            />
-          )}
+        <SocialAuthButtons
+          onProvider={onProvider}
+          disabled={Boolean(loadingProvider)}
+          loadingProvider={loadingProvider}
         />
 
-        <Controller
-          control={control}
-          name="email"
-          render={({ field: { onChange, onBlur, value } }) => (
-            <Input
-              label="Email"
-              placeholder="you@example.com"
-              autoCapitalize="none"
-              keyboardType="email-address"
-              autoComplete="email"
-              value={value}
-              onChangeText={onChange}
-              onBlur={onBlur}
-              error={errors.email?.message}
-            />
-          )}
+        <Button
+          label="Continue with magic link"
+          variant="secondary"
+          disabled={Boolean(loadingProvider)}
+          onPress={() => router.push("/(auth)/magic-link")}
         />
 
-        <Button label="Request magic link" loading={isPending} onPress={onRequestLink} />
-
-        <Text variant="caption" color="muted" style={styles.divider}>
-          or continue with
-        </Text>
-
-        <SocialAuthButtons onProvider={(provider) => signIn(provider)} disabled={isPending} />
+        {error ? (
+          <Text variant="caption" color="error" selectable style={styles.error}>
+            {error.message}
+          </Text>
+        ) : null}
 
         <Pressable onPress={() => router.push("/(auth)/sign-in")} style={styles.footer}>
           <Text variant="caption" color="muted">
             Already have an account? <Text color="primary">Sign in</Text>
           </Text>
         </Pressable>
-
-        <Text variant="caption" color="muted" style={styles.demoNote}>
-          Demo mode — no real account or email needed.
-        </Text>
       </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { gap: spacing.lg, paddingTop: spacing.lg },
-  hero: { alignItems: "center", gap: spacing.xs, marginBottom: spacing.md },
+  container: { gap: spacing.lg, paddingTop: spacing.xl },
+  hero: { alignItems: "center", gap: spacing.xs, marginBottom: spacing.lg },
   mark: {
-    width: 56,
-    height: 56,
-    borderRadius: 14,
+    width: 64,
+    height: 64,
+    borderRadius: 16,
     backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: spacing.sm,
+    marginBottom: spacing.md,
   },
-  markGlyph: { color: colors.white, fontSize: 32, fontWeight: "700", lineHeight: 38 },
+  markGlyph: { color: colors.white, fontSize: 36, fontWeight: "700", lineHeight: 42 },
   title: { textAlign: "center" },
   subtitle: { textAlign: "center" },
-  divider: { textAlign: "center", marginVertical: spacing.xs },
+  error: { textAlign: "center" },
   footer: { alignItems: "center", marginTop: spacing.sm },
-  demoNote: { textAlign: "center", marginTop: spacing.xs },
 });
