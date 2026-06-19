@@ -7,15 +7,17 @@
 export type AuthStackParamList = {
   welcome: undefined;
   "sign-in": undefined;
+  "magic-link": { token?: string } | undefined;
 };
 
 export type OnboardingStackParamList = {
+  name: undefined;
   goal: undefined;
   weight: undefined;
   body: undefined;
   target: undefined;
   "start-free": undefined;
-  premium: undefined;
+  notifications: undefined;
 };
 
 /** Tabs in the authenticated group (free + premium; premium gated in-screen). */

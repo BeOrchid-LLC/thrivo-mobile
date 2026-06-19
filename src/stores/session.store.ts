@@ -4,9 +4,9 @@ import type { AccountStatus } from "@/contracts";
 /**
  * Client-only auth/session state (MOBILE_ARCHITECTURE §4.2). Holds the auth
  * status, an in-memory mirror of the token (source of truth is expo-secure-store),
- * and lightweight session facts (`userId`, `accountStatus`) used by the
- * navigation guard. The full user profile is server data and lives in TanStack
- * Query — it is never duplicated here.
+ * and lightweight session facts (`userId`, `accountStatus`, `isOnboarded`)
+ * used by the navigation guard. The full user profile is server data and lives
+ * in TanStack Query — it is never duplicated here.
  */
 export type AuthStatus = "loading" | "authenticated" | "unauthenticated" | "restore_error";
 
@@ -15,11 +15,17 @@ interface SessionState {
   token: string | null;
   userId: string | null;
   accountStatus: AccountStatus | null;
+  isOnboarded: boolean;
   actions: {
     /** Set after a successful auth/session restore. */
-    setSession: (input: { token: string; userId: string; accountStatus: AccountStatus }) => void;
-    /** Update just the lifecycle status (e.g. after onboarding activation). */
-    setAccountStatus: (accountStatus: AccountStatus) => void;
+    setSession: (input: {
+      token: string;
+      userId: string;
+      accountStatus: AccountStatus;
+      isOnboarded: boolean;
+    }) => void;
+    /** Update lifecycle/onboarding flags after profile changes. */
+    setProfileStatus: (input: { accountStatus: AccountStatus; isOnboarded: boolean }) => void;
     setStatus: (status: AuthStatus) => void;
     /** Clear on logout / 401. */
     clearSession: () => void;
@@ -31,17 +37,24 @@ const initialState = {
   token: null,
   userId: null,
   accountStatus: null,
+  isOnboarded: false,
 };
 
 export const useSessionStore = create<SessionState>((set) => ({
   ...initialState,
   actions: {
-    setSession: ({ token, userId, accountStatus }) =>
-      set({ status: "authenticated", token, userId, accountStatus }),
-    setAccountStatus: (accountStatus) => set({ accountStatus }),
+    setSession: ({ token, userId, accountStatus, isOnboarded }) =>
+      set({ status: "authenticated", token, userId, accountStatus, isOnboarded }),
+    setProfileStatus: ({ accountStatus, isOnboarded }) => set({ accountStatus, isOnboarded }),
     setStatus: (status) => set({ status }),
     clearSession: () =>
-      set({ status: "unauthenticated", token: null, userId: null, accountStatus: null }),
+      set({
+        status: "unauthenticated",
+        token: null,
+        userId: null,
+        accountStatus: null,
+        isOnboarded: false,
+      }),
   },
 }));
 
@@ -49,7 +62,6 @@ export const useSessionStore = create<SessionState>((set) => ({
 export const useAuthStatus = () => useSessionStore((s) => s.status);
 export const useIsAuthenticated = () => useSessionStore((s) => s.status === "authenticated");
 export const useAccountStatus = () => useSessionStore((s) => s.accountStatus);
-export const useIsOnboarded = () =>
-  useSessionStore((s) => s.accountStatus !== null && s.accountStatus !== "dormant");
+export const useIsOnboarded = () => useSessionStore((s) => s.isOnboarded);
 export const useSessionToken = () => useSessionStore((s) => s.token);
 export const useSessionActions = () => useSessionStore((s) => s.actions);
