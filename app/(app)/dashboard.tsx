@@ -1,211 +1,142 @@
-import { useMemo, useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
-import { Flame, Lock, Plus } from "phosphor-react-native";
-import { Button, Card, CalorieRing, Screen, Segmented, Text } from "@/components";
-import { colors, radii, spacing } from "@/theme";
-import type { MealType } from "@/contracts";
-import { useDemoEntries, useDemoProfile, useDemoProfileActions } from "@/stores";
+import { router } from "expo-router";
+import { StyleSheet, View } from "react-native";
+import { Drop, ForkKnife } from "phosphor-react-native";
+import { Button, Card, CalorieRing, ErrorState, LoadingState, Screen, Text } from "@/components";
+import { useMe } from "@/features/profile";
 import { MacroBars } from "@/features/dashboard/components/MacroBars";
-
-type Tier = "personalized" | "free";
-
-/** Free tier dashboards against a flat 2,000 kcal default (DECISION_LOG). */
-const FREE_TARGET_KCAL = 2000;
-
-const MEALS: { key: MealType; label: string }[] = [
-  { key: "breakfast", label: "Breakfast" },
-  { key: "lunch", label: "Lunch" },
-  { key: "dinner", label: "Dinner" },
-  { key: "snack", label: "Snacks" },
-];
+import { deriveMacroTargets } from "@/features/onboarding/utils/tdee";
+import { colors, radii, spacing } from "@/theme";
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
 const todayLabel = (): string => {
   const d = new Date();
   return `${WEEKDAYS[d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()}`;
 };
 
-/** Tier-gated home (Figma dashboard). Personalized shows the onboarding target +
- *  macros + streak; free dashboards against 2,000 kcal with macros/streak locked. */
 export default function Dashboard() {
-  const profile = useDemoProfile();
-  const entries = useDemoEntries();
-  const { addQuickEntry } = useDemoProfileActions();
-  const [tier, setTier] = useState<Tier>("personalized");
+  const me = useMe();
 
-  const totals = useMemo(
-    () =>
-      entries.reduce(
-        (acc, e) => ({
-          calories: acc.calories + e.calories,
-          proteinG: acc.proteinG + e.proteinG,
-          carbsG: acc.carbsG + e.carbsG,
-          fatG: acc.fatG + e.fatG,
-        }),
-        { calories: 0, proteinG: 0, carbsG: 0, fatG: 0 }
-      ),
-    [entries]
-  );
-
-  // Profile is seeded on onboarding completion; this is a safety net only.
-  if (!profile) {
+  if (me.isLoading) {
     return (
       <Screen>
-        <Text variant="body" color="muted">
-          Finish onboarding to see your dashboard.
-        </Text>
+        <LoadingState message="Loading your dashboard..." />
       </Screen>
     );
   }
 
-  const isPremium = tier === "personalized";
-  const target = isPremium ? profile.dailyTargetKcal : FREE_TARGET_KCAL;
-  const remaining = Math.max(target - totals.calories, 0);
+  if (me.isError || !me.data) {
+    return (
+      <Screen>
+        <ErrorState
+          title="Could not load your dashboard"
+          message="Please try again."
+          onRetry={() => void me.refetch()}
+        />
+      </Screen>
+    );
+  }
+
+  const profile = me.data;
+  const target = profile.dailyTargetKcal ?? profile.manualDailyTargetKcal ?? 1800;
+  const macroTarget =
+    profile.targetProteinG && profile.targetCarbsG && profile.targetFatG
+      ? {
+          proteinG: profile.targetProteinG,
+          carbsG: profile.targetCarbsG,
+          fatG: profile.targetFatG,
+        }
+      : deriveMacroTargets(target);
+  const zeroTotals = { calories: 0, proteinG: 0, carbsG: 0, fatG: 0 };
 
   return (
     <Screen scroll>
-      <View style={styles.headerRow}>
-        <View>
-          <Text variant="heading2" color="dark">
-            Today
-          </Text>
-          <Text variant="body" color="muted">
-            {todayLabel()}
-          </Text>
-        </View>
-      </View>
-
-      <Segmented<Tier>
-        style={styles.tier}
-        options={[
-          { label: "Personalized", value: "personalized" },
-          { label: "Free", value: "free" },
-        ]}
-        value={tier}
-        onChange={setTier}
-      />
-
-      <Card style={styles.calorieCard}>
-        <CalorieRing consumed={totals.calories} target={target} />
-        <View style={styles.calorieNumbers}>
-          <Text variant="heading1" color="dark">
-            {totals.calories.toLocaleString()}
-          </Text>
-          <Text variant="body" color="muted">
-            of {target.toLocaleString()} kcal
-          </Text>
-          <Text variant="body" color="primary">
-            {remaining.toLocaleString()} remaining
-          </Text>
-        </View>
-      </Card>
-
-      {isPremium ? (
-        <>
-          <Card>
-            <MacroBars consumed={totals} target={profile.macroTargets} />
-          </Card>
-          <View style={styles.streak}>
-            <Flame size={20} color={colors.accent} weight="fill" />
-            <Text variant="body" color="dark" style={styles.streakText}>
-              {profile.streakDays}-day streak — keep it up!
+      <View style={styles.container}>
+        <View style={styles.headerRow}>
+          <View>
+            <Text variant="heading2" color="dark">
+              Hi, {profile.name || "there"}
+            </Text>
+            <Text variant="body" color="muted">
+              {todayLabel()}
             </Text>
           </View>
-        </>
-      ) : (
-        <Card style={styles.locked}>
-          <Lock size={24} color={colors.gray[500]} />
-          <Text variant="heading3" color="dark">
-            Macros & streak are Premium
-          </Text>
-          <Text variant="caption" color="muted" style={styles.lockedText}>
-            Unlock your personalized target, protein/carbs/fat, and your streak.
-          </Text>
-          <Button label="Unlock Premium" onPress={() => setTier("personalized")} />
+        </View>
+
+        <Card style={styles.calorieCard}>
+          <CalorieRing consumed={zeroTotals.calories} target={target} />
+          <View style={styles.calorieNumbers}>
+            <Text variant="heading1" color="dark">
+              0
+            </Text>
+            <Text variant="body" color="muted">
+              of {target.toLocaleString()} kcal
+            </Text>
+            <Text variant="body" color="primary">
+              {target.toLocaleString()} remaining
+            </Text>
+          </View>
         </Card>
-      )}
 
-      <View style={styles.meals}>
-        {MEALS.map((meal) => {
-          const items = entries.filter((e) => e.meal === meal.key);
-          const subtotal = items.reduce((sum, e) => sum + e.calories, 0);
-          return (
-            <Card key={meal.key}>
-              <View style={styles.mealHeader}>
-                <Text variant="heading3" color="dark">
-                  {meal.label}
-                </Text>
-                <Text variant="caption" color="muted">
-                  {subtotal} kcal
-                </Text>
-              </View>
+        <Card>
+          <MacroBars consumed={zeroTotals} target={macroTarget} />
+        </Card>
 
-              {items.map((item) => (
-                <View key={item.id} style={styles.item}>
-                  <Text variant="body" color="dark" style={styles.itemName}>
-                    {item.name}
-                  </Text>
-                  <Text variant="body" color="muted">
-                    {item.calories} kcal
-                  </Text>
-                </View>
-              ))}
+        <Card style={styles.waterCard}>
+          <View style={styles.waterIcon}>
+            <Drop size={22} color={colors.primary} weight="fill" />
+          </View>
+          <View style={styles.waterText}>
+            <Text variant="heading3" color="dark">
+              Water
+            </Text>
+            <Text variant="body" color="muted">
+              0 of 8 cups today
+            </Text>
+          </View>
+        </Card>
 
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => addQuickEntry(meal.key)}
-                style={styles.addRow}
-              >
-                <Plus size={18} color={colors.primary} weight="bold" />
-                <Text variant="body" color="primary">
-                  Add food
-                </Text>
-              </Pressable>
-            </Card>
-          );
-        })}
+        <Card style={styles.emptyCard}>
+          <View style={styles.emptyIcon}>
+            <ForkKnife size={24} color={colors.white} weight="bold" />
+          </View>
+          <Text variant="heading3" color="dark" style={styles.centerText}>
+            Your food log is empty
+          </Text>
+          <Text variant="body" color="muted" style={styles.centerText}>
+            Add your first meal to start tracking calories and macros for today.
+          </Text>
+          <Button label="Log first meal" onPress={() => router.push("/(app)/log")} />
+        </Card>
       </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  headerRow: { marginBottom: spacing.lg },
-  tier: { marginBottom: spacing.lg },
+  container: { gap: spacing.lg },
+  headerRow: { marginBottom: spacing.xs },
   calorieCard: { flexDirection: "row", alignItems: "center", gap: spacing.lg },
   calorieNumbers: { flex: 1, gap: spacing.xs },
-  streak: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
+  waterCard: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+  waterIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: radii.pill,
     backgroundColor: colors.gray[100],
-    borderRadius: radii.lg,
-    padding: spacing.lg,
-    marginTop: spacing.md,
-  },
-  streakText: { flex: 1 },
-  locked: { alignItems: "center", gap: spacing.sm, marginTop: spacing.md },
-  lockedText: { textAlign: "center" },
-  meals: { gap: spacing.md, marginTop: spacing.lg },
-  mealHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: spacing.sm,
+    justifyContent: "center",
   },
-  item: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingVertical: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.gray[100],
-  },
-  itemName: { flex: 1 },
-  addRow: {
-    flexDirection: "row",
+  waterText: { flex: 1, gap: spacing.xs },
+  emptyCard: { alignItems: "center", gap: spacing.md },
+  emptyIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: colors.primary,
     alignItems: "center",
-    gap: spacing.xs,
-    paddingTop: spacing.md,
+    justifyContent: "center",
   },
+  centerText: { textAlign: "center" },
 });

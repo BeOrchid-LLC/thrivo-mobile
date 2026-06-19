@@ -1,5 +1,6 @@
 export {
   useSessionStore,
+  useAccountStatus,
   useAuthStatus,
   useIsAuthenticated,
   useIsOnboarded,

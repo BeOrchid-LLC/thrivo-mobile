@@ -1,48 +1,68 @@
 import { fireEvent, render } from "@testing-library/react-native";
+import { router } from "expo-router";
 import Dashboard from "../../../../app/(app)/dashboard";
-import { useDemoProfileStore } from "@/stores";
+import type { User } from "@/contracts";
 
-describe("Phase 5 — Dashboard (demo)", () => {
+const mockUseMe = jest.fn();
+const mockPush = jest.fn();
+
+jest.mock("@/features/profile", () => ({
+  useMe: () => mockUseMe(),
+}));
+
+const profile: User = {
+  id: "68711c81-d52c-4798-9fb0-ccda25f27a24",
+  email: "ada@example.com",
+  name: "Ada",
+  goal: "lose",
+  sex: "female",
+  age: 34,
+  heightCm: "170.0",
+  weightKg: "82.5",
+  targetWeightKg: "74.0",
+  tdeeKcal: 2200,
+  dailyTargetKcal: 1800,
+  targetProteinG: 135,
+  targetCarbsG: 180,
+  targetFatG: 60,
+  activityLevel: "moderate",
+  manualDailyTargetKcal: null,
+  notifyAt: null,
+  timezone: "Africa/Lagos",
+  tier: "free",
+  accountStatus: "free_trial",
+  trialEndsAt: "2026-06-26T00:00:00.000Z",
+  onboardingStep: 7,
+  isOnboarded: true,
+  createdAt: "2026-06-18T00:00:00.000Z",
+};
+
+describe("Dashboard empty state", () => {
   beforeEach(() => {
-    // Seed a known profile: male 80kg/180cm/30y, lose → 1,640 kcal target.
-    useDemoProfileStore.getState().actions.seedFromDraft({
-      goal: "lose",
-      sex: "male",
-      currentWeightKg: 80,
-      heightCm: 180,
-      ageYears: 30,
+    jest.clearAllMocks();
+    (router as unknown as { push: jest.Mock }).push = mockPush;
+    mockUseMe.mockReturnValue({
+      data: profile,
+      isLoading: false,
+      isError: false,
+      refetch: jest.fn(),
     });
   });
 
-  it("renders the personalized target, a seeded meal item, and the streak", () => {
+  it("renders the profile-backed greeting, zero totals, and first-meal CTA", () => {
     const screen = render(<Dashboard />);
 
-    expect(screen.getByText(/of 1,640 kcal/)).toBeTruthy();
-    expect(screen.getByText("Greek yoghurt, 150g")).toBeTruthy();
-    expect(screen.getByText(/3-day streak/)).toBeTruthy();
+    expect(screen.getByText("Hi, Ada")).toBeTruthy();
+    expect(screen.getByText("of 1,800 kcal")).toBeTruthy();
+    expect(screen.getByText("0 of 8 cups today")).toBeTruthy();
+    expect(screen.getByText("Your food log is empty")).toBeTruthy();
   });
 
-  it("swaps to the locked free-tier view when the tier toggle is switched to Free", () => {
+  it("opens the log tab from the first-meal CTA", () => {
     const screen = render(<Dashboard />);
 
-    // Personalized first: no lock card.
-    expect(screen.queryByText("Macros & streak are Premium")).toBeNull();
+    fireEvent.press(screen.getByText("Log first meal"));
 
-    fireEvent.press(screen.getByText("Free"));
-
-    expect(screen.getByText("Macros & streak are Premium")).toBeTruthy();
-    expect(screen.getByText(/of 2,000 kcal/)).toBeTruthy();
-  });
-
-  it("adds a food via the per-meal quick-add", () => {
-    const screen = render(<Dashboard />);
-
-    // Breakfast subtotal starts at 430 (130 + 90 + 210).
-    expect(screen.getByText("430 kcal")).toBeTruthy();
-
-    fireEvent.press(screen.getAllByText("Add food")[0]);
-
-    // Apple (95 kcal) lands in breakfast → 525.
-    expect(screen.getByText("525 kcal")).toBeTruthy();
+    expect(mockPush).toHaveBeenCalledWith("/(app)/log");
   });
 });

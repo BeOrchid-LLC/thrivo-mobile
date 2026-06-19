@@ -25,7 +25,7 @@ export function useDemoAuth() {
       // keeps the demo session (useSessionInit re-hydrates from it).
       const token = `demo.${Date.now()}`;
       await setToken(token);
-      setSession({ token, userId: "demo-user", isOnboarded: false });
+      setSession({ token, userId: "demo-user", accountStatus: "dormant" });
       analytics.identify("demo-user");
       setIsPending(false);
     },
