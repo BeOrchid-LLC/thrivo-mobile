@@ -45,6 +45,7 @@ export default function Welcome() {
         <SocialAuthButtons
           onProvider={onProvider}
           disabled={Boolean(loadingProvider)}
+          hiddenProviders={google.isConfigured ? [] : ["google"]}
           loadingProvider={loadingProvider}
         />
 

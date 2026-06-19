@@ -15,6 +15,7 @@ jest.mock("../hooks/useAuth", () => ({
     mutate: mockGoogleMutate,
     isPending: false,
     error: null,
+    isConfigured: true,
   }),
   useAppleSignIn: () => ({
     mutate: mockAppleMutate,
