@@ -1,12 +1,11 @@
 import { router } from "expo-router";
-import { StyleSheet, View } from "react-native";
+import { View } from "react-native";
 import { Button, Screen, Text } from "@/components";
-import { spacing } from "@/theme";
 
 export default function Settings() {
   return (
     <Screen>
-      <View style={styles.container}>
+      <View className="flex-1 gap-lg pt-lg">
         <Text variant="heading2" color="dark">
           Settings
         </Text>
@@ -19,7 +18,3 @@ export default function Settings() {
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, gap: spacing.lg, paddingTop: spacing.lg },
-});

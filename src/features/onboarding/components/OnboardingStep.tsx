@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
-import { StyleSheet, View } from "react-native";
+import { View } from "react-native";
 import { Screen, Text } from "@/components";
-import { colors, radii, spacing } from "@/theme";
 
 const TOTAL_STEPS = 7;
 
@@ -18,15 +17,18 @@ interface OnboardingStepProps {
 /** Shared chrome for an onboarding step: progress bar, title/subtitle, content, footer. */
 export function OnboardingStep({ step, title, subtitle, children, footer }: OnboardingStepProps) {
   return (
-    <Screen scroll style={styles.screen}>
-      <View style={styles.container}>
-        <View style={styles.progress}>
+    <Screen scroll style={{ flexGrow: 1 }}>
+      <View className="flex-1 gap-xl">
+        <View className="flex-row gap-xs">
           {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
-            <View key={i} style={[styles.segment, i < step && styles.segmentFilled]} />
+            <View
+              key={i}
+              className={`h-[4px] flex-1 rounded-pill ${i < step ? "bg-primary" : "bg-gray-200"}`}
+            />
           ))}
         </View>
 
-        <View style={styles.heading}>
+        <View className="gap-xs">
           <Text variant="heading2" color="dark">
             {title}
           </Text>
@@ -37,26 +39,10 @@ export function OnboardingStep({ step, title, subtitle, children, footer }: Onbo
           ) : null}
         </View>
 
-        <View style={styles.content}>{children}</View>
+        <View className="flex-1 gap-md">{children}</View>
 
-        <View style={styles.footer}>{footer}</View>
+        <View className="gap-sm">{footer}</View>
       </View>
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: { flexGrow: 1 },
-  container: { flex: 1, gap: spacing.xl },
-  progress: { flexDirection: "row", gap: spacing.xs },
-  segment: {
-    flex: 1,
-    height: 4,
-    borderRadius: radii.pill,
-    backgroundColor: colors.gray[200],
-  },
-  segmentFilled: { backgroundColor: colors.primary },
-  heading: { gap: spacing.xs },
-  content: { flex: 1, gap: spacing.md },
-  footer: { gap: spacing.sm },
-});

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { ScrollView, StyleSheet, View, type ViewStyle } from "react-native";
+import { ScrollView, View, type ViewStyle } from "react-native";
 import { SafeAreaView, type Edge } from "react-native-safe-area-context";
 import { colors, spacing } from "@/theme";
 
@@ -18,7 +18,8 @@ export interface ScreenProps {
 /**
  * Base screen container: safe-area aware + themed background. Every screen
  * renders inside a Screen so status-bar insets are never hardcoded
- * (MOBILE_ARCHITECTURE §7).
+ * (MOBILE_ARCHITECTURE §7). SafeAreaView is a third-party wrapper, so its
+ * background (a runtime prop) stays a token-sourced style.
  */
 export function Screen({
   children,
@@ -28,22 +29,21 @@ export function Screen({
   style,
   backgroundColor = colors.light,
 }: ScreenProps) {
-  const content = padded ? styles.padded : undefined;
+  const padding: ViewStyle | undefined = padded
+    ? { paddingHorizontal: spacing.lg, paddingVertical: spacing.lg }
+    : undefined;
 
   return (
-    <SafeAreaView style={[styles.flex, { backgroundColor }]} edges={edges}>
+    <SafeAreaView style={{ flex: 1, backgroundColor }} edges={edges}>
       {scroll ? (
-        <ScrollView contentContainerStyle={[content, style]} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={[padding, style]} keyboardShouldPersistTaps="handled">
           {children}
         </ScrollView>
       ) : (
-        <View style={[styles.flex, content, style]}>{children}</View>
+        <View className="flex-1" style={[padding, style]}>
+          {children}
+        </View>
       )}
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  padded: { paddingHorizontal: spacing.lg, paddingVertical: spacing.lg },
-});

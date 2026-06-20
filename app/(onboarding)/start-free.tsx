@@ -1,9 +1,8 @@
 import { useState } from "react";
 import { router } from "expo-router";
-import { StyleSheet, View } from "react-native";
+import { View } from "react-native";
 import { Button, Card, Text } from "@/components";
 import { addDays, localDay } from "@/utils";
-import { colors, spacing } from "@/theme";
 import { OnboardingStep } from "@/features/onboarding/components/OnboardingStep";
 import { useSubmitOnboarding } from "@/features/onboarding/hooks/useCompleteOnboarding";
 
@@ -53,7 +52,7 @@ export default function StartFreeStep() {
         </>
       }
     >
-      <Card style={styles.priceCard}>
+      <Card className="gap-xs">
         <Text variant="heading1" color="dark">
           Free
           <Text variant="body" color="muted">
@@ -66,10 +65,10 @@ export default function StartFreeStep() {
         </Text>
       </Card>
 
-      <View style={styles.list}>
+      <View className="gap-md">
         {TRIAL_FEATURES.map((feature) => (
-          <View key={feature} style={styles.row}>
-            <Text style={styles.check} color="primary">
+          <View key={feature} className="flex-row items-center gap-sm">
+            <Text color="primary" className="text-[18px] leading-[24px]">
               ✓
             </Text>
             <Text variant="body" color="dark">
@@ -87,10 +86,3 @@ export default function StartFreeStep() {
     </OnboardingStep>
   );
 }
-
-const styles = StyleSheet.create({
-  priceCard: { gap: spacing.xs },
-  list: { gap: spacing.md },
-  row: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  check: { fontSize: 18, lineHeight: 24, color: colors.primary },
-});

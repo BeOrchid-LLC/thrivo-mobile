@@ -1,5 +1,4 @@
-import { StyleSheet, View } from "react-native";
-import { spacing } from "@/theme";
+import { View } from "react-native";
 import { Text } from "./Text";
 import { Button } from "./Button";
 
@@ -21,11 +20,11 @@ export function ErrorState({
   retryLabel = "Retry",
 }: ErrorStateProps) {
   return (
-    <View style={styles.container} accessibilityRole="alert">
+    <View className="flex-1 items-center justify-center gap-sm p-xl" accessibilityRole="alert">
       <Text variant="heading3" color="dark">
         {title}
       </Text>
-      <Text variant="body" color="muted" style={styles.message}>
+      <Text variant="body" color="muted" className="mb-md text-center">
         {message}
       </Text>
       {onRetry ? (
@@ -34,14 +33,3 @@ export function ErrorState({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: spacing.xl,
-    gap: spacing.sm,
-  },
-  message: { textAlign: "center", marginBottom: spacing.md },
-});

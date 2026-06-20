@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { Platform, StyleSheet, Text, View } from "react-native";
+import { Platform, Text, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { ThrivoMark } from "@/components";
 import {
@@ -25,16 +25,24 @@ export default function Welcome() {
   const error = google.error ?? apple.error;
 
   return (
-    <LinearGradient colors={["#F4F6F9", "#E8F7EE"]} style={styles.screen}>
-      <View style={styles.hero}>
+    <LinearGradient
+      // First stop is the page background token; second is a soft green tint.
+      colors={[colors.light, "#E8F7EE"]}
+      style={{ flex: 1, paddingHorizontal: 24, paddingTop: 67, paddingBottom: 50 }}
+    >
+      <View className="h-[206px] items-center pt-[48px]">
         <ThrivoMark size={64} />
-        <Text style={styles.wordmark}>THRIVO</Text>
-        <Text style={styles.tagline}>Weight loss that actually works</Text>
+        <Text className="mt-md text-[28px] font-bold leading-[42px] tracking-[-0.5px] text-dark">
+          THRIVO
+        </Text>
+        <Text className="mt-sm text-center text-[16px] font-regular leading-[24px] text-[#737373]">
+          Weight loss that actually works
+        </Text>
       </View>
 
-      <View style={styles.spacer} />
+      <View className="flex-1" />
 
-      <View style={styles.authGroup}>
+      <View className="w-full items-center gap-md">
         {google.isConfigured ? (
           <FigmaAuthRow
             icon={googleIcon}
@@ -64,7 +72,10 @@ export default function Welcome() {
         />
 
         {error ? (
-          <Text selectable style={styles.error}>
+          <Text
+            selectable
+            className="text-center text-[13px] font-regular leading-[18px] text-error"
+          >
             {error.message}
           </Text>
         ) : null}
@@ -72,48 +83,3 @@ export default function Welcome() {
     </LinearGradient>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 67,
-    paddingBottom: 50,
-  },
-  hero: {
-    height: 206,
-    alignItems: "center",
-    paddingTop: 48,
-  },
-  wordmark: {
-    marginTop: 12,
-    color: colors.dark,
-    fontFamily: "Inter_700Bold",
-    fontSize: 28,
-    fontWeight: "700",
-    letterSpacing: -0.5,
-    lineHeight: 42,
-  },
-  tagline: {
-    marginTop: 8,
-    color: "#737373",
-    fontFamily: "Inter_400Regular",
-    fontSize: 16,
-    fontWeight: "400",
-    lineHeight: 24,
-    textAlign: "center",
-  },
-  spacer: { flex: 1 },
-  authGroup: {
-    width: "100%",
-    alignItems: "center",
-    gap: 12,
-  },
-  error: {
-    color: colors.error,
-    fontFamily: "Inter_400Regular",
-    fontSize: 13,
-    lineHeight: 18,
-    textAlign: "center",
-  },
-});

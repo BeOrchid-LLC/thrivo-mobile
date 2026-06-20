@@ -1,4 +1,4 @@
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Text, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { colors } from "@/theme";
 import { ThrivoMark } from "./ThrivoMark";
@@ -11,35 +11,23 @@ export interface BrandSplashProps {
 /**
  * Branded loading screen shown while fonts and auth status resolve — covers the
  * window between the native splash hiding and the first real screen so there is
- * never a blank flash.
+ * never a blank flash. LinearGradient is a third-party wrapper, so layout/colors
+ * stay token-sourced props rather than className.
  */
 export function BrandSplash({ busy = false }: BrandSplashProps) {
   return (
-    <LinearGradient colors={["#F4F6F9", "#E8F7EE"]} style={styles.container}>
-      <View style={styles.lockup}>
+    <LinearGradient
+      // First stop is the page background token; second is a soft green tint.
+      colors={[colors.light, "#E8F7EE"]}
+      style={{ flex: 1, alignItems: "center", justifyContent: "center" }}
+    >
+      <View className="h-[120px] items-center">
         <ThrivoMark size={80} />
-        <Text style={styles.wordmark}>THRIVO</Text>
+        <Text className="mt-lg text-[20px] font-bold leading-[24px] tracking-[0.44px] text-dark">
+          THRIVO
+        </Text>
       </View>
-      {busy ? <ActivityIndicator color={colors.primary} style={styles.spinner} /> : null}
+      {busy ? <ActivityIndicator color={colors.primary} className="mt-[28px]" /> : null}
     </LinearGradient>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  lockup: { alignItems: "center", height: 120 },
-  wordmark: {
-    marginTop: 16,
-    color: colors.dark,
-    fontFamily: "Inter_700Bold",
-    fontSize: 20,
-    fontWeight: "700",
-    letterSpacing: 0.44,
-    lineHeight: 24,
-  },
-  spinner: { marginTop: 28 },
-});

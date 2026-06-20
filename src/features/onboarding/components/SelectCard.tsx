@@ -1,6 +1,5 @@
-import { Pressable, StyleSheet, View } from "react-native";
+import { Pressable, View } from "react-native";
 import { Text } from "@/components";
-import { colors, radii, spacing } from "@/theme";
 
 interface SelectCardProps {
   label: string;
@@ -19,9 +18,11 @@ export function SelectCard({ label, description, selected, onPress }: SelectCard
       accessibilityRole="button"
       accessibilityState={{ selected }}
       onPress={onPress}
-      style={[styles.card, selected && styles.cardSelected]}
+      className={`min-h-[72px] flex-row items-center justify-between gap-md rounded-lg border-2 bg-white p-lg ${
+        selected ? "border-primary" : "border-gray-200"
+      }`}
     >
-      <View style={styles.text}>
+      <View className="flex-1 gap-xs">
         <Text variant="heading3" color="dark">
           {label}
         </Text>
@@ -31,37 +32,15 @@ export function SelectCard({ label, description, selected, onPress }: SelectCard
           </Text>
         ) : null}
       </View>
-      <View style={[styles.radio, selected && styles.radioSelected]}>
-        {selected ? <Text style={styles.check}>✓</Text> : null}
+      <View
+        className={`h-[24px] w-[24px] items-center justify-center rounded-pill border-2 ${
+          selected ? "border-primary bg-primary" : "border-gray-300"
+        }`}
+      >
+        {selected ? (
+          <Text className="text-[14px] font-bold leading-[16px] text-white">✓</Text>
+        ) : null}
       </View>
     </Pressable>
   );
 }
-
-const styles = StyleSheet.create({
-  card: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: spacing.md,
-    backgroundColor: colors.white,
-    borderWidth: 2,
-    borderColor: colors.gray[200],
-    borderRadius: radii.lg,
-    padding: spacing.lg,
-    minHeight: 72,
-  },
-  cardSelected: { borderColor: colors.primary },
-  text: { flex: 1, gap: spacing.xs },
-  radio: {
-    width: 24,
-    height: 24,
-    borderRadius: radii.pill,
-    borderWidth: 2,
-    borderColor: colors.gray[300],
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  radioSelected: { borderColor: colors.primary, backgroundColor: colors.primary },
-  check: { color: colors.white, fontSize: 14, lineHeight: 16, fontWeight: "700" },
-});
