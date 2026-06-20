@@ -12,7 +12,9 @@
       "resizeMode": "cover",
       "backgroundColor": "#F4F6F9"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.beorchid.thrivo",
@@ -34,14 +36,24 @@
       "expo-font",
       [
         "expo-camera",
-        { "cameraPermission": "Allow Thrivo to use your camera to scan and log foods." }
+        {
+          "cameraPermission": "Allow Thrivo to use your camera to scan and log foods."
+        }
       ],
       "expo-apple-authentication",
-      ["expo-notifications", { "color": "#09823C" }],
+      [
+        "expo-notifications",
+        {
+          "color": "#09823C"
+        }
+      ],
       [
         "expo-secure-store",
-        { "faceIDPermission": "Allow Thrivo to use Face ID to unlock your saved login." }
-      ]
+        {
+          "faceIDPermission": "Allow Thrivo to use Face ID to unlock your saved login."
+        }
+      ],
+      "expo-web-browser"
     ],
     "scheme": "thrivo",
     "extra": {
