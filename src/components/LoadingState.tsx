@@ -1,5 +1,5 @@
-import { ActivityIndicator, StyleSheet, View } from "react-native";
-import { colors, spacing } from "@/theme";
+import { ActivityIndicator, View } from "react-native";
+import { colors } from "@/theme";
 import { Text } from "./Text";
 
 export interface LoadingStateProps {
@@ -12,18 +12,13 @@ export interface LoadingStateProps {
  */
 export function LoadingState({ message }: LoadingStateProps) {
   return (
-    <View style={styles.container} accessibilityRole="progressbar">
+    <View className="flex-1 items-center justify-center gap-md" accessibilityRole="progressbar">
       <ActivityIndicator size="large" color={colors.primary} />
       {message ? (
-        <Text variant="caption" color="muted" style={styles.message}>
+        <Text variant="caption" color="muted" className="mt-sm">
           {message}
         </Text>
       ) : null}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md },
-  message: { marginTop: spacing.sm },
-});

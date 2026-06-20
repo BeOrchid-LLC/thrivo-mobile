@@ -1,11 +1,11 @@
 import { router } from "expo-router";
-import { StyleSheet, View } from "react-native";
+import { View } from "react-native";
 import { Drop, ForkKnife } from "phosphor-react-native";
 import { Button, Card, CalorieRing, ErrorState, LoadingState, Screen, Text } from "@/components";
 import { useMe } from "@/features/profile";
 import { MacroBars } from "@/features/dashboard/components/MacroBars";
 import { deriveMacroTargets } from "@/features/onboarding/utils/tdee";
-import { colors, radii, spacing } from "@/theme";
+import { colors } from "@/theme";
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -52,21 +52,19 @@ export default function Dashboard() {
 
   return (
     <Screen scroll>
-      <View style={styles.container}>
-        <View style={styles.headerRow}>
-          <View>
-            <Text variant="heading2" color="dark">
-              Hi, {profile.name || "there"}
-            </Text>
-            <Text variant="body" color="muted">
-              {todayLabel()}
-            </Text>
-          </View>
+      <View className="gap-lg">
+        <View className="mb-xs">
+          <Text variant="heading2" color="dark">
+            Hi, {profile.name || "there"}
+          </Text>
+          <Text variant="body" color="muted">
+            {todayLabel()}
+          </Text>
         </View>
 
-        <Card style={styles.calorieCard}>
+        <Card className="flex-row items-center gap-lg">
           <CalorieRing consumed={zeroTotals.calories} target={target} />
-          <View style={styles.calorieNumbers}>
+          <View className="flex-1 gap-xs">
             <Text variant="heading1" color="dark">
               0
             </Text>
@@ -83,11 +81,11 @@ export default function Dashboard() {
           <MacroBars consumed={zeroTotals} target={macroTarget} />
         </Card>
 
-        <Card style={styles.waterCard}>
-          <View style={styles.waterIcon}>
+        <Card className="flex-row items-center gap-md">
+          <View className="h-[44px] w-[44px] items-center justify-center rounded-pill bg-gray-100">
             <Drop size={22} color={colors.primary} weight="fill" />
           </View>
-          <View style={styles.waterText}>
+          <View className="flex-1 gap-xs">
             <Text variant="heading3" color="dark">
               Water
             </Text>
@@ -97,14 +95,14 @@ export default function Dashboard() {
           </View>
         </Card>
 
-        <Card style={styles.emptyCard}>
-          <View style={styles.emptyIcon}>
+        <Card className="items-center gap-md">
+          <View className="h-[52px] w-[52px] items-center justify-center rounded-pill bg-primary">
             <ForkKnife size={24} color={colors.white} weight="bold" />
           </View>
-          <Text variant="heading3" color="dark" style={styles.centerText}>
+          <Text variant="heading3" color="dark" className="text-center">
             Your food log is empty
           </Text>
-          <Text variant="body" color="muted" style={styles.centerText}>
+          <Text variant="body" color="muted" className="text-center">
             Add your first meal to start tracking calories and macros for today.
           </Text>
           <Button label="Log first meal" onPress={() => router.push("/(app)/log")} />
@@ -113,30 +111,3 @@ export default function Dashboard() {
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { gap: spacing.lg },
-  headerRow: { marginBottom: spacing.xs },
-  calorieCard: { flexDirection: "row", alignItems: "center", gap: spacing.lg },
-  calorieNumbers: { flex: 1, gap: spacing.xs },
-  waterCard: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-  waterIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: radii.pill,
-    backgroundColor: colors.gray[100],
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  waterText: { flex: 1, gap: spacing.xs },
-  emptyCard: { alignItems: "center", gap: spacing.md },
-  emptyIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  centerText: { textAlign: "center" },
-});

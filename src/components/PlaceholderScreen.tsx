@@ -1,5 +1,4 @@
-import { StyleSheet, View } from "react-native";
-import { spacing } from "@/theme";
+import { View } from "react-native";
 import { Screen } from "./Screen";
 import { Text } from "./Text";
 
@@ -18,12 +17,12 @@ export interface PlaceholderScreenProps {
 export function PlaceholderScreen({ title, subtitle, premium }: PlaceholderScreenProps) {
   return (
     <Screen>
-      <View style={styles.center}>
-        <Text variant="heading2" color="dark" style={styles.title}>
+      <View className="flex-1 items-center justify-center">
+        <Text variant="heading2" color="dark" className="mb-sm">
           {title}
         </Text>
         {subtitle ? (
-          <Text variant="body" color="muted" style={styles.subtitle}>
+          <Text variant="body" color="muted" className="mb-md text-center">
             {subtitle}
           </Text>
         ) : null}
@@ -36,9 +35,3 @@ export function PlaceholderScreen({ title, subtitle, premium }: PlaceholderScree
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: "center", justifyContent: "center" },
-  title: { marginBottom: spacing.sm },
-  subtitle: { textAlign: "center", marginBottom: spacing.md },
-});

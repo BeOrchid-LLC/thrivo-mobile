@@ -1,6 +1,5 @@
-import { Platform, StyleSheet, View } from "react-native";
+import { Platform, View } from "react-native";
 import { Button } from "@/components";
-import { spacing } from "@/theme";
 
 export type SocialAuthProvider = "google" | "apple";
 
@@ -28,7 +27,7 @@ export function SocialAuthButtons({
   if (!showGoogle && !showApple) return null;
 
   return (
-    <View style={styles.group}>
+    <View className="gap-md">
       {showGoogle ? (
         <Button
           label="Continue with Google"
@@ -50,7 +49,3 @@ export function SocialAuthButtons({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  group: { gap: spacing.md },
-});

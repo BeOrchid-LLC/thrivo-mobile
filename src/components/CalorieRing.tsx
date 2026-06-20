@@ -1,4 +1,4 @@
-import { StyleSheet, View } from "react-native";
+import { View } from "react-native";
 import Svg, { Circle } from "react-native-svg";
 import { colors } from "@/theme";
 import { Text } from "./Text";
@@ -13,6 +13,7 @@ export interface CalorieRingProps {
 /**
  * Circular calorie-progress ring (Figma dashboard). Shows the percentage of the
  * daily target consumed; the arc fills clockwise from the top and caps at 100%.
+ * SVG stroke colors are runtime props, so they read the theme tokens directly.
  */
 export function CalorieRing({ consumed, target, size = 140, strokeWidth = 12 }: CalorieRingProps) {
   const radius = (size - strokeWidth) / 2;
@@ -43,7 +44,7 @@ export function CalorieRing({ consumed, target, size = 140, strokeWidth = 12 }: 
           transform={`rotate(-90 ${center} ${center})`}
         />
       </Svg>
-      <View style={[StyleSheet.absoluteFill, styles.center]}>
+      <View className="absolute inset-0 items-center justify-center">
         <Text variant="heading2" color="dark">
           {Math.round(ratio * 100)}%
         </Text>
@@ -54,7 +55,3 @@ export function CalorieRing({ consumed, target, size = 140, strokeWidth = 12 }: 
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  center: { alignItems: "center", justifyContent: "center" },
-});

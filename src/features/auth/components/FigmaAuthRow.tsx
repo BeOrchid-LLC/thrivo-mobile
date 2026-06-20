@@ -2,7 +2,6 @@ import {
   ActivityIndicator,
   Image,
   Pressable,
-  StyleSheet,
   Text,
   View,
   type ImageSourcePropType,
@@ -35,58 +34,29 @@ export function FigmaAuthRow({
       accessibilityRole="button"
       accessibilityState={{ disabled: Boolean(isDisabled), busy: loading }}
       disabled={isDisabled}
-      style={({ pressed }) => [
-        styles.row,
-        pressed && !isDisabled ? styles.pressed : null,
-        isDisabled ? styles.disabled : null,
-        style,
-      ]}
+      // Figma-exact dimensions/border for the auth row; arbitrary values keep
+      // them in the className system. borderCurve is iOS-only and has no class.
+      className={`h-[60px] w-full max-w-[342px] items-center justify-center rounded-[16px] border-[1.333px] border-[#D8D8D8] bg-white active:opacity-[0.86] ${
+        isDisabled ? "opacity-50" : ""
+      }`}
+      style={[{ borderCurve: "continuous" }, style]}
       {...rest}
     >
       {loading ? (
         <ActivityIndicator color={colors.primary} />
       ) : (
-        <View style={styles.content}>
+        <View className="flex-row items-center justify-center gap-sm">
           <Image
             source={icon}
             accessibilityIgnoresInvertColors
             resizeMode="contain"
             style={{ width: iconSize, height: iconSize }}
           />
-          <Text style={styles.label}>{label}</Text>
+          <Text className="text-center text-[16px] font-medium leading-[24px] text-dark">
+            {label}
+          </Text>
         </View>
       )}
     </Pressable>
   );
 }
-
-const styles = StyleSheet.create({
-  row: {
-    width: "100%",
-    maxWidth: 342,
-    height: 60,
-    borderRadius: 16,
-    borderCurve: "continuous",
-    borderWidth: 1.333,
-    borderColor: "#D8D8D8",
-    backgroundColor: colors.white,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  content: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  },
-  label: {
-    color: colors.dark,
-    fontFamily: "Inter_500Medium",
-    fontSize: 16,
-    fontWeight: "500",
-    lineHeight: 24,
-    textAlign: "center",
-  },
-  pressed: { opacity: 0.86 },
-  disabled: { opacity: 0.5 },
-});

@@ -1,6 +1,6 @@
 import { forwardRef, useState } from "react";
-import { StyleSheet, TextInput, View, type TextInputProps } from "react-native";
-import { colors, radii, spacing } from "@/theme";
+import { TextInput, View, type TextInputProps } from "react-native";
+import { colors } from "@/theme";
 import { Text } from "./Text";
 
 export interface InputProps extends TextInputProps {
@@ -15,11 +15,11 @@ type BlurHandler = NonNullable<TextInputProps["onBlur"]>;
 
 /**
  * Themed text input with optional label + inline error. The focused state shows
- * the green active ring (`colors.primary`); an `error` always wins over focus.
+ * the green active ring (`border-primary`); an `error` always wins over focus.
  * Tokens only.
  */
 export const Input = forwardRef<TextInput, InputProps>(function Input(
-  { label, error, style, onFocus, onBlur, ...rest },
+  { label, error, className, onFocus, onBlur, ...rest },
   ref
 ) {
   const [focused, setFocused] = useState(false);
@@ -33,10 +33,12 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
     onBlur?.(e);
   };
 
+  const borderClass = error ? "border-error" : focused ? "border-primary" : "border-gray-300";
+
   return (
-    <View style={styles.container}>
+    <View className="gap-xs">
       {label ? (
-        <Text variant="caption" color="muted" style={styles.label}>
+        <Text variant="caption" color="muted" className="ml-xs">
           {label}
         </Text>
       ) : null}
@@ -45,37 +47,14 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
         placeholderTextColor={colors.gray[400]}
         onFocus={handleFocus}
         onBlur={handleBlur}
-        style={[
-          styles.input,
-          focused && !error ? styles.inputFocused : null,
-          error ? styles.inputError : null,
-          style,
-        ]}
+        className={`min-h-[48px] rounded-md border bg-white px-lg text-[16px] text-dark ${borderClass} ${className ?? ""}`}
         {...rest}
       />
       {error ? (
-        <Text variant="caption" color="error" style={styles.errorText}>
+        <Text variant="caption" color="error" className="ml-xs">
           {error}
         </Text>
       ) : null}
     </View>
   );
-});
-
-const styles = StyleSheet.create({
-  container: { gap: spacing.xs },
-  label: { marginLeft: spacing.xs },
-  input: {
-    minHeight: 48,
-    borderWidth: 1,
-    borderColor: colors.gray[300],
-    borderRadius: radii.md,
-    paddingHorizontal: spacing.lg,
-    fontSize: 16,
-    color: colors.dark,
-    backgroundColor: colors.white,
-  },
-  inputFocused: { borderColor: colors.primary },
-  inputError: { borderColor: colors.error },
-  errorText: { marginLeft: spacing.xs },
 });
