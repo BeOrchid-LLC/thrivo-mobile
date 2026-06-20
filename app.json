@@ -7,6 +7,12 @@
     "icon": "./src/assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/d24d4616-0673-459c-9d34-ced491ef777e"
+    },
     "splash": {
       "image": "./src/assets/splash.png",
       "resizeMode": "cover",
