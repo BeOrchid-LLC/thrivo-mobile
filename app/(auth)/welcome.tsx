@@ -1,92 +1,119 @@
 import { router } from "expo-router";
-import { Pressable, StyleSheet, View } from "react-native";
-import { Button, Screen, Text } from "@/components";
+import { Platform, StyleSheet, Text, View } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { ThrivoMark } from "@/components";
 import {
-  SocialAuthButtons,
+  FigmaAuthRow,
   type SocialAuthProvider,
   useAppleSignIn,
   useGoogleSignIn,
 } from "@/features/auth";
-import { colors, spacing } from "@/theme";
+import { colors } from "@/theme";
+import appleIcon from "../../src/assets/auth-apple.png";
+import googleIcon from "../../src/assets/auth-google.png";
+import magicLinkIcon from "../../src/assets/auth-magic-link.png";
 
 export default function Welcome() {
   const google = useGoogleSignIn();
   const apple = useAppleSignIn();
-  const loadingProvider: SocialAuthProvider | null = google.isPending
+  const loadingProvider: SocialAuthProvider | "magic-link" | null = google.isPending
     ? "google"
     : apple.isPending
       ? "apple"
       : null;
+  const disabled = Boolean(loadingProvider);
   const error = google.error ?? apple.error;
 
-  const onProvider = (provider: SocialAuthProvider) => {
-    if (provider === "google") {
-      google.mutate();
-      return;
-    }
-    apple.mutate();
-  };
-
   return (
-    <Screen scroll>
-      <View style={styles.container}>
-        <View style={styles.hero}>
-          <View style={styles.mark}>
-            <Text style={styles.markGlyph}>T</Text>
-          </View>
-          <Text variant="heading2" color="dark" style={styles.title}>
-            Welcome to Thrivo
-          </Text>
-          <Text variant="body" color="muted" style={styles.subtitle}>
-            Track food, hit your targets, and build a routine that fits your day.
-          </Text>
-        </View>
+    <LinearGradient colors={["#F4F6F9", "#E8F7EE"]} style={styles.screen}>
+      <View style={styles.hero}>
+        <ThrivoMark size={64} />
+        <Text style={styles.wordmark}>THRIVO</Text>
+        <Text style={styles.tagline}>Weight loss that actually works</Text>
+      </View>
 
-        <SocialAuthButtons
-          onProvider={onProvider}
-          disabled={Boolean(loadingProvider)}
-          hiddenProviders={google.isConfigured ? [] : ["google"]}
-          loadingProvider={loadingProvider}
-        />
+      <View style={styles.spacer} />
 
-        <Button
+      <View style={styles.authGroup}>
+        {google.isConfigured ? (
+          <FigmaAuthRow
+            icon={googleIcon}
+            label="Sign in with Google"
+            loading={loadingProvider === "google"}
+            disabled={disabled}
+            onPress={() => google.mutate()}
+          />
+        ) : null}
+
+        {Platform.OS === "ios" ? (
+          <FigmaAuthRow
+            icon={appleIcon}
+            iconSize={24}
+            label="Sign in with Apple"
+            loading={loadingProvider === "apple"}
+            disabled={disabled}
+            onPress={() => apple.mutate()}
+          />
+        ) : null}
+
+        <FigmaAuthRow
+          icon={magicLinkIcon}
           label="Continue with magic link"
-          variant="secondary"
-          disabled={Boolean(loadingProvider)}
+          disabled={disabled}
           onPress={() => router.push("/(auth)/magic-link")}
         />
 
         {error ? (
-          <Text variant="caption" color="error" selectable style={styles.error}>
+          <Text selectable style={styles.error}>
             {error.message}
           </Text>
         ) : null}
-
-        <Pressable onPress={() => router.push("/(auth)/sign-in")} style={styles.footer}>
-          <Text variant="caption" color="muted">
-            Already have an account? <Text color="primary">Sign in</Text>
-          </Text>
-        </Pressable>
       </View>
-    </Screen>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { gap: spacing.lg, paddingTop: spacing.xl },
-  hero: { alignItems: "center", gap: spacing.xs, marginBottom: spacing.lg },
-  mark: {
-    width: 64,
-    height: 64,
-    borderRadius: 16,
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: spacing.md,
+  screen: {
+    flex: 1,
+    paddingHorizontal: 24,
+    paddingTop: 67,
+    paddingBottom: 50,
   },
-  markGlyph: { color: colors.white, fontSize: 36, fontWeight: "700", lineHeight: 42 },
-  title: { textAlign: "center" },
-  subtitle: { textAlign: "center" },
-  error: { textAlign: "center" },
-  footer: { alignItems: "center", marginTop: spacing.sm },
+  hero: {
+    height: 206,
+    alignItems: "center",
+    paddingTop: 48,
+  },
+  wordmark: {
+    marginTop: 12,
+    color: colors.dark,
+    fontFamily: "Inter_700Bold",
+    fontSize: 28,
+    fontWeight: "700",
+    letterSpacing: -0.5,
+    lineHeight: 42,
+  },
+  tagline: {
+    marginTop: 8,
+    color: "#737373",
+    fontFamily: "Inter_400Regular",
+    fontSize: 16,
+    fontWeight: "400",
+    lineHeight: 24,
+    textAlign: "center",
+  },
+  spacer: { flex: 1 },
+  authGroup: {
+    width: "100%",
+    alignItems: "center",
+    gap: 12,
+  },
+  error: {
+    color: colors.error,
+    fontFamily: "Inter_400Regular",
+    fontSize: 13,
+    lineHeight: 18,
+    textAlign: "center",
+  },
 });

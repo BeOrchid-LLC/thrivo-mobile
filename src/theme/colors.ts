@@ -5,9 +5,9 @@
  * borders/dividers/disabled states that the design guide leaves unspecified.
  */
 export const colors = {
-  primary: "#27AE60", // Figma: Thrivo Green
-  primaryHover: "#08C759", // Figma: Hover Green
-  primaryActive: "#0B8D42", // Figma: 'Clicked' Green
+  primary: "#09823C", // Thrivo logo green
+  primaryHover: "#0A9A47",
+  primaryActive: "#076B32",
   dark: "#1A1A2E", // Figma: Gray 1 (primary text)
   light: "#F4F6F9", // page background / input fields
   accent: "#F39C12", // Figma: Orange
@@ -24,7 +24,7 @@ export const colors = {
     800: "#1F2937",
     900: "#111827",
   },
-  success: "#27AE60", // shares Thrivo Green
+  success: "#09823C", // shares Thrivo Green
   warning: "#F39C12", // shares Orange accent
   error: "#C0392B", // Figma: Thrivo Red
 };
