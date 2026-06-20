@@ -38,7 +38,7 @@ export function SelectCard({ label, description, selected, onPress }: SelectCard
         }`}
       >
         {selected ? (
-          <Text className="text-[14px] font-bold leading-[16px] text-white">✓</Text>
+          <Text className="font-bold text-[14px] leading-[16px] text-white">✓</Text>
         ) : null}
       </View>
     </Pressable>
