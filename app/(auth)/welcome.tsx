@@ -32,10 +32,10 @@ export default function Welcome() {
     >
       <View className="h-[206px] items-center pt-[48px]">
         <ThrivoMark size={64} />
-        <Text className="mt-md text-[28px] font-bold leading-[42px] tracking-[-0.5px] text-dark">
+        <Text className="mt-md font-bold text-[28px] leading-[42px] tracking-[-0.5px] text-dark">
           THRIVO
         </Text>
-        <Text className="mt-sm text-center text-[16px] font-regular leading-[24px] text-[#737373]">
+        <Text className="mt-sm text-center font-regular text-[16px] leading-[24px] text-[#737373]">
           Weight loss that actually works
         </Text>
       </View>
@@ -74,7 +74,7 @@ export default function Welcome() {
         {error ? (
           <Text
             selectable
-            className="text-center text-[13px] font-regular leading-[18px] text-error"
+            className="text-center font-regular text-[13px] leading-[18px] text-error"
           >
             {error.message}
           </Text>

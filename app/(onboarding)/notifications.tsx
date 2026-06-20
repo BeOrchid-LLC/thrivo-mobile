@@ -78,10 +78,10 @@ export default function NotificationsStep() {
     >
       <Card className="items-center gap-sm">
         <View className="h-[44px] w-[44px] items-center justify-center rounded-pill bg-primary">
-          <Text className="text-[24px] font-bold leading-[28px] text-white">✓</Text>
+          <Text className="font-bold text-[24px] leading-[28px] text-white">✓</Text>
         </View>
         <Text variant="heading3" color="dark">
-          You're ready to start logging
+          You&apos;re ready to start logging
         </Text>
         <Text variant="body" color="muted">
           Thrivo will open to your empty dashboard so your first action is simple.

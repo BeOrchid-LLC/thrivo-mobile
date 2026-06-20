@@ -52,7 +52,7 @@ export function FigmaAuthRow({
             resizeMode="contain"
             style={{ width: iconSize, height: iconSize }}
           />
-          <Text className="text-center text-[16px] font-medium leading-[24px] text-dark">
+          <Text className="text-center font-medium text-[16px] leading-[24px] text-dark">
             {label}
           </Text>
         </View>

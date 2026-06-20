@@ -7,7 +7,7 @@ export interface SegmentedOption<T extends string> {
 }
 
 export interface SegmentedProps<T extends string> {
-  options: ReadonlyArray<SegmentedOption<T>>;
+  options: readonly SegmentedOption<T>[];
   /** `undefined` renders with no segment selected (e.g. an unanswered choice). */
   value: T | undefined;
   onChange: (value: T) => void;
