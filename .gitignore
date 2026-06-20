@@ -21,7 +21,9 @@ web-build/
 .DS_Store
 *.log
 .idea/
-.vscode/
+.vscode/*
+# Share the workspace format/lint-on-save settings so the team tooling is consistent.
+!.vscode/settings.json
 *.swp
 *.swo
 *~
