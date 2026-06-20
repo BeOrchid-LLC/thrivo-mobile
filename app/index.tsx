@@ -1,4 +1,4 @@
-import { Screen, BrandSplash } from "@/components";
+import { BrandSplash } from "@/components";
 
 /**
  * Entry route. The root guard (app/_layout) redirects to the correct group as
@@ -6,9 +6,5 @@ import { Screen, BrandSplash } from "@/components";
  * never a blank flash.
  */
 export default function Index() {
-  return (
-    <Screen padded={false}>
-      <BrandSplash />
-    </Screen>
-  );
+  return <BrandSplash />;
 }

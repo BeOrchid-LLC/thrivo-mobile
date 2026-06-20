@@ -8,6 +8,7 @@ export {
   useVerifyMagicLink,
 } from "./hooks/useAuth";
 export { useDemoAuth, type DemoAuthProvider } from "./hooks/useDemoAuth";
+export { FigmaAuthRow } from "./components/FigmaAuthRow";
 export { SocialAuthButtons, type SocialAuthProvider } from "./components/SocialAuthButtons";
 export {
   logout,

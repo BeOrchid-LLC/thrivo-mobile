@@ -4,11 +4,11 @@ import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Pressable, StyleSheet, View } from "react-native";
 import { z } from "zod";
-import { Button, Card, Input, Screen, Text } from "@/components";
+import { Button, Card, Input, Screen, Text, ThrivoMark } from "@/components";
 import { emailSchema, magicLinkRequestPayload } from "@/contracts";
 import { useRequestMagicLink, useVerifyMagicLink } from "@/features/auth";
 import { useOnboardingDraftActions } from "@/stores";
-import { colors, spacing } from "@/theme";
+import { spacing } from "@/theme";
 
 const signupMagicLinkForm = magicLinkRequestPayload.extend({
   firstName: z.string().trim().min(1, "Enter your first name"),
@@ -113,9 +113,7 @@ export default function MagicLinkScreen() {
     <Screen scroll>
       <View style={styles.container}>
         <View style={styles.hero}>
-          <View style={styles.mark}>
-            <Text style={styles.markGlyph}>T</Text>
-          </View>
+          <ThrivoMark size={56} />
           <Text variant="heading2" color="dark" style={styles.centerText}>
             Continue with magic link
           </Text>
@@ -206,16 +204,6 @@ export default function MagicLinkScreen() {
 const styles = StyleSheet.create({
   container: { gap: spacing.lg, paddingTop: spacing.lg },
   hero: { alignItems: "center", gap: spacing.xs, marginBottom: spacing.md },
-  mark: {
-    width: 56,
-    height: 56,
-    borderRadius: 14,
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: spacing.sm,
-  },
-  markGlyph: { color: colors.white, fontSize: 32, fontWeight: "700", lineHeight: 38 },
   sentCard: { alignItems: "center", gap: spacing.md },
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md },
   centerText: { textAlign: "center" },
