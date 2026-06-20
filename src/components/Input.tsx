@@ -1,12 +1,5 @@
 import { forwardRef, useState } from "react";
-import {
-  StyleSheet,
-  TextInput,
-  View,
-  type NativeSyntheticEvent,
-  type TextInputFocusEventData,
-  type TextInputProps,
-} from "react-native";
+import { StyleSheet, TextInput, View, type TextInputProps } from "react-native";
 import { colors, radii, spacing } from "@/theme";
 import { Text } from "./Text";
 
@@ -14,6 +7,11 @@ export interface InputProps extends TextInputProps {
   label?: string;
   error?: string;
 }
+
+// Derive handler types from the prop itself so we track React Native's event
+// type renames across versions (RN 0.81 switched onFocus/onBlur to FocusEvent/BlurEvent).
+type FocusHandler = NonNullable<TextInputProps["onFocus"]>;
+type BlurHandler = NonNullable<TextInputProps["onBlur"]>;
 
 /**
  * Themed text input with optional label + inline error. The focused state shows
@@ -26,11 +24,11 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
 ) {
   const [focused, setFocused] = useState(false);
 
-  const handleFocus = (e: NativeSyntheticEvent<TextInputFocusEventData>) => {
+  const handleFocus: FocusHandler = (e) => {
     setFocused(true);
     onFocus?.(e);
   };
-  const handleBlur = (e: NativeSyntheticEvent<TextInputFocusEventData>) => {
+  const handleBlur: BlurHandler = (e) => {
     setFocused(false);
     onBlur?.(e);
   };
