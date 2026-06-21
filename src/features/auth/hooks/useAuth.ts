@@ -1,10 +1,10 @@
 import * as AppleAuthentication from "expo-apple-authentication";
-import * as Google from "expo-auth-session/providers/google";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { QueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/api";
 import { ApiError, isApiError } from "@/api/errors";
 import { env } from "@/config/env";
+import { authClient } from "@/lib/auth-client";
 import type { AuthSession, MagicLinkRequestPayload, SignInPayload, User } from "@/contracts";
 import { setToken, clearToken, analytics } from "@/lib";
 import { getMe } from "@/features/profile";
@@ -16,6 +16,17 @@ import {
   verifyMagicLink,
   logout,
 } from "../api/auth.api";
+
+/**
+ * BetterAuth stores the session as a signed cookie whose value is exactly the
+ * bearer token the API accepts (the bearer plugin verifies the same signature).
+ * Extract it so a redirect-flow (Google) session joins the app's bearer-token
+ * system via `applyToken`. Handles the production `__Secure-` cookie prefix.
+ */
+function sessionTokenFromCookie(cookie: string): string | null {
+  const match = cookie.match(/(?:^|;\s*)(?:__Secure-)?better-auth\.session_token=([^;]+)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
 
 /**
  * Persist a freshly-issued session: token → secure-store (source of truth),
@@ -135,54 +146,47 @@ export function useAppleSignIn() {
 export function useGoogleSignIn() {
   const { setSession } = useSessionActions();
   const queryClient = useQueryClient();
-  const [request, , promptAsync] = Google.useIdTokenAuthRequest({
-    webClientId: env.googleWebClientId,
-    iosClientId: env.googleIosClientId,
-    androidClientId: env.googleAndroidClientId,
-    selectAccount: true,
-  });
+  // The web client id is set per environment once Google is wired; use its
+  // presence as the "Google is available" flag for the UI gate.
+  const isConfigured = Boolean(env.googleWebClientId);
 
-  return useMutation({
+  const mutation = useMutation({
     mutationFn: async () => {
-      if (!env.googleWebClientId && !env.googleIosClientId && !env.googleAndroidClientId) {
+      if (!isConfigured) {
         throw new ApiError({
           code: "UNKNOWN",
-          message: "Google sign-in is not configured for this build.",
+          message: "Google sign-in is not configured.",
           status: 0,
         });
       }
 
-      if (!request) {
+      // BetterAuth server-side OAuth (web client): the Expo plugin opens the
+      // browser, completes the flow at the backend callback, returns to
+      // `thrivo://`, and stores the session cookie.
+      const { error } = await authClient.signIn.social({ provider: "google", callbackURL: "/" });
+      if (error) {
         throw new ApiError({
           code: "UNKNOWN",
-          message: "Google sign-in is still initializing.",
+          message: error.message ?? "Google sign-in failed.",
           status: 0,
         });
       }
 
-      const response = await promptAsync();
-      if (response.type !== "success") {
+      const token = sessionTokenFromCookie(authClient.getCookie());
+      if (!token) {
+        // No stored session = the user cancelled or the flow didn't complete.
         throw new ApiError({
           code: "UNKNOWN",
-          message:
-            response.type === "cancel" ? "Google sign-in was cancelled." : "Google sign-in failed.",
+          message: "Google sign-in did not complete.",
           status: 0,
         });
       }
 
-      const idToken = response.params.id_token;
-      if (!idToken) {
-        throw new ApiError({
-          code: "UNKNOWN",
-          message: "Google did not return an identity token.",
-          status: 0,
-        });
-      }
-
-      const token = await signInWithSocialIdToken({ provider: "google", idToken });
       return applyToken(token, setSession, queryClient);
     },
   });
+
+  return { ...mutation, isConfigured };
 }
 
 /** Sign out: revoke server session, then clear local token + caches regardless. */

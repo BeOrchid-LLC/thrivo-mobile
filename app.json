@@ -6,23 +6,32 @@
     "orientation": "portrait",
     "icon": "./src/assets/icon.png",
     "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/d24d4616-0673-459c-9d34-ced491ef777e"
+    },
     "splash": {
       "image": "./src/assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "resizeMode": "cover",
+      "backgroundColor": "#F4F6F9"
     },
     "assetBundlePatterns": [
       "**/*"
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.beorchid.thrivo"
+      "bundleIdentifier": "com.beorchid.thrivo",
+      "usesAppleSignIn": true
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./src/assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
+      "edgeToEdgeEnabled": true,
       "package": "com.beorchid.thrivo"
     },
     "web": {
@@ -30,7 +39,27 @@
     },
     "plugins": [
       "expo-router",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Thrivo to use your camera to scan and log foods."
+        }
+      ],
+      "expo-apple-authentication",
+      [
+        "expo-notifications",
+        {
+          "color": "#09823C"
+        }
+      ],
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": "Allow Thrivo to use Face ID to unlock your saved login."
+        }
+      ],
+      "expo-web-browser"
     ],
     "scheme": "thrivo",
     "extra": {
@@ -40,6 +69,9 @@
       "eas": {
         "projectId": "d24d4616-0673-459c-9d34-ced491ef777e"
       }
+    },
+    "experiments": {
+      "typedRoutes": true
     },
     "owner": "beorchid-llc"
   }

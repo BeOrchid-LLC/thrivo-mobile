@@ -1,9 +1,8 @@
 import { useState } from "react";
 import { router } from "expo-router";
-import { StyleSheet, View } from "react-native";
+import { View } from "react-native";
 import { Button, Card, Input, Text } from "@/components";
 import { registerForPushNotifications } from "@/lib";
-import { colors, spacing } from "@/theme";
 import { type OnboardingDraft, useOnboardingDraft, useOnboardingDraftActions } from "@/stores";
 import { OnboardingStep } from "@/features/onboarding/components/OnboardingStep";
 import { useSubmitOnboarding } from "@/features/onboarding/hooks/useCompleteOnboarding";
@@ -77,12 +76,12 @@ export default function NotificationsStep() {
         </>
       }
     >
-      <Card style={styles.card}>
-        <View style={styles.icon}>
-          <Text style={styles.iconText}>✓</Text>
+      <Card className="items-center gap-sm">
+        <View className="h-[44px] w-[44px] items-center justify-center rounded-pill bg-primary">
+          <Text className="font-bold text-[24px] leading-[28px] text-white">✓</Text>
         </View>
         <Text variant="heading3" color="dark">
-          You're ready to start logging
+          You&apos;re ready to start logging
         </Text>
         <Text variant="body" color="muted">
           Thrivo will open to your empty dashboard so your first action is simple.
@@ -100,16 +99,3 @@ export default function NotificationsStep() {
     </OnboardingStep>
   );
 }
-
-const styles = StyleSheet.create({
-  card: { alignItems: "center", gap: spacing.sm },
-  icon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  iconText: { color: colors.white, fontSize: 24, lineHeight: 28, fontWeight: "700" },
-});

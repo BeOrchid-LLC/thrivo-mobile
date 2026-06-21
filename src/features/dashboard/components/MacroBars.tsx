@@ -1,6 +1,6 @@
-import { StyleSheet, View } from "react-native";
+import { View } from "react-native";
 import { Text } from "@/components";
-import { colors, radii, spacing } from "@/theme";
+import { colors } from "@/theme";
 import type { MacroTargets } from "@/features/onboarding/utils/tdee";
 
 export interface MacroTotals {
@@ -17,7 +17,7 @@ interface MacroBarsProps {
 /** Protein / carbs / fat progress bars (Figma dashboard colors). */
 export function MacroBars({ consumed, target }: MacroBarsProps) {
   return (
-    <View style={styles.container}>
+    <View className="gap-md">
       <MacroBar
         label="Protein"
         consumed={consumed.proteinG}
@@ -48,8 +48,8 @@ function MacroBar({
 }) {
   const ratio = target > 0 ? Math.min(consumed / target, 1) : 0;
   return (
-    <View style={styles.macro}>
-      <View style={styles.header}>
+    <View className="gap-xs">
+      <View className="flex-row justify-between">
         <Text variant="body" color="dark">
           {label}
         </Text>
@@ -57,22 +57,13 @@ function MacroBar({
           {Math.round(consumed)}/{target}g
         </Text>
       </View>
-      <View style={styles.track}>
-        <View style={[styles.fill, { width: `${ratio * 100}%`, backgroundColor: color }]} />
+      <View className="h-[8px] overflow-hidden rounded-pill bg-gray-200">
+        {/* Width + color are runtime values, so they stay inline. */}
+        <View
+          className="h-full rounded-pill"
+          style={{ width: `${ratio * 100}%`, backgroundColor: color }}
+        />
       </View>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { gap: spacing.md },
-  macro: { gap: spacing.xs },
-  header: { flexDirection: "row", justifyContent: "space-between" },
-  track: {
-    height: 8,
-    borderRadius: radii.pill,
-    backgroundColor: colors.gray[200],
-    overflow: "hidden",
-  },
-  fill: { height: "100%", borderRadius: radii.pill },
-});

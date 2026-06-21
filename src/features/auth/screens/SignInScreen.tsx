@@ -2,10 +2,9 @@ import { useEffect, useState } from "react";
 import { router } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Platform, Pressable, View } from "react-native";
 import { Button, Card, Input, Screen, Text } from "@/components";
 import { magicLinkRequestPayload, type MagicLinkRequestPayload } from "@/contracts";
-import { spacing } from "@/theme";
 import { SocialAuthButtons, type SocialAuthProvider } from "../components/SocialAuthButtons";
 import { useAppleSignIn, useGoogleSignIn, useRequestMagicLink } from "../hooks/useAuth";
 
@@ -21,6 +20,7 @@ export function SignInScreen() {
       ? "apple"
       : null;
   const socialError = google.error ?? apple.error;
+  const showSocialAuth = google.isConfigured || Platform.OS === "ios";
 
   const {
     control,
@@ -62,20 +62,20 @@ export function SignInScreen() {
 
   return (
     <Screen scroll>
-      <View style={styles.container}>
-        <Text variant="heading2" color="dark" style={styles.title}>
+      <View className="gap-lg pt-xl">
+        <Text variant="heading2" color="dark" className="mb-xs">
           Sign in to Thrivo
         </Text>
-        <Text variant="body" color="muted" style={styles.subtitle}>
+        <Text variant="body" color="muted" className="mb-sm">
           Welcome back. We&apos;ll email you a secure link that expires in 15 minutes.
         </Text>
 
         {sentTo ? (
-          <Card style={styles.sentCard}>
+          <Card className="items-center gap-md">
             <Text variant="heading3" color="dark">
               Check your email
             </Text>
-            <Text variant="body" color="muted" style={styles.centerText}>
+            <Text variant="body" color="muted" className="text-center">
               We sent a sign-in link to {sentTo}.
             </Text>
             <Button
@@ -117,23 +117,28 @@ export function SignInScreen() {
           </>
         )}
 
-        <Text variant="caption" color="muted" style={styles.divider}>
-          or continue with
-        </Text>
+        {showSocialAuth ? (
+          <>
+            <Text variant="caption" color="muted" className="my-xs text-center">
+              or continue with
+            </Text>
 
-        <SocialAuthButtons
-          onProvider={onProvider}
-          disabled={Boolean(loadingProvider)}
-          loadingProvider={loadingProvider}
-        />
+            <SocialAuthButtons
+              onProvider={onProvider}
+              disabled={Boolean(loadingProvider)}
+              hiddenProviders={google.isConfigured ? [] : ["google"]}
+              loadingProvider={loadingProvider}
+            />
 
-        {socialError ? (
-          <Text variant="caption" color="error" selectable style={styles.centerText}>
-            {socialError.message}
-          </Text>
+            {socialError ? (
+              <Text variant="caption" color="error" selectable className="text-center">
+                {socialError.message}
+              </Text>
+            ) : null}
+          </>
         ) : null}
 
-        <Pressable onPress={() => router.push("/(auth)/welcome")} style={styles.footer}>
+        <Pressable onPress={() => router.push("/(auth)/welcome")} className="mt-sm items-center">
           <Text variant="caption" color="muted">
             Don&apos;t have an account? <Text color="primary">Sign up</Text>
           </Text>
@@ -142,13 +147,3 @@ export function SignInScreen() {
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { gap: spacing.lg, paddingTop: spacing.xl },
-  title: { marginBottom: spacing.xs },
-  subtitle: { marginBottom: spacing.sm },
-  sentCard: { alignItems: "center", gap: spacing.md },
-  centerText: { textAlign: "center" },
-  divider: { textAlign: "center", marginVertical: spacing.xs },
-  footer: { alignItems: "center", marginTop: spacing.sm },
-});
