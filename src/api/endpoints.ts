@@ -43,13 +43,6 @@ export const ENDPOINTS = {
     payload: c.signInPayload,
     response: c.authSessionSchema,
   },
-  OAUTH_GOOGLE: {
-    path: "/auth/oauth/google",
-    method: "POST",
-    auth: false,
-    payload: c.oauthPayload,
-    response: c.authSessionSchema,
-  },
   OAUTH_APPLE: {
     path: "/auth/oauth/apple",
     method: "POST",
