@@ -1,23 +1,20 @@
 import type { ReactNode } from "react";
-import { StyleSheet, View, type ViewStyle } from "react-native";
-import { colors, radii, spacing } from "@/theme";
+import { StyleSheet, View, type ViewProps } from "react-native";
 
-export interface CardProps {
+export interface CardProps extends ViewProps {
   children: ReactNode;
-  style?: ViewStyle;
 }
 
-/** Themed surface container with consistent radius, padding and subtle elevation. */
-export function Card({ children, style }: CardProps) {
-  return <View style={[styles.card, style]}>{children}</View>;
+/** Themed surface container with consistent radius, padding and a hairline border. */
+export function Card({ children, className, style, ...rest }: CardProps) {
+  return (
+    <View
+      className={`rounded-lg border-gray-200 bg-white p-lg ${className ?? ""}`}
+      // Hairline is sub-pixel and not expressible as a Tailwind border width.
+      style={[{ borderWidth: StyleSheet.hairlineWidth }, style]}
+      {...rest}
+    >
+      {children}
+    </View>
+  );
 }
-
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.white,
-    borderRadius: radii.lg,
-    padding: spacing.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.gray[200],
-  },
-});

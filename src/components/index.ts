@@ -16,6 +16,8 @@ export { PlaceholderScreen } from "./PlaceholderScreen";
 export type { PlaceholderScreenProps } from "./PlaceholderScreen";
 export { BrandSplash } from "./BrandSplash";
 export type { BrandSplashProps } from "./BrandSplash";
+export { ThrivoMark } from "./ThrivoMark";
+export type { ThrivoMarkProps } from "./ThrivoMark";
 export { Segmented } from "./Segmented";
 export type { SegmentedProps, SegmentedOption } from "./Segmented";
 export { CalorieRing } from "./CalorieRing";

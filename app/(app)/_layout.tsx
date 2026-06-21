@@ -4,11 +4,19 @@ import { ChartLine, ForkKnife, Gear, House, Smiley } from "phosphor-react-native
 import { colors } from "@/theme";
 
 /** Phosphor tab icon, filled when the tab is active (Figma tab bar). */
-const tabIcon =
-  (PhosphorIcon: Icon) =>
-  ({ color, focused, size }: { color: string; focused: boolean; size: number }) => (
-    <PhosphorIcon color={color} size={size} weight={focused ? "fill" : "regular"} />
-  );
+const tabIcon = (PhosphorIcon: Icon) => {
+  const TabBarIcon = ({
+    color,
+    focused,
+    size,
+  }: {
+    color: string;
+    focused: boolean;
+    size: number;
+  }) => <PhosphorIcon color={color} size={size} weight={focused ? "fill" : "regular"} />;
+  TabBarIcon.displayName = "TabBarIcon";
+  return TabBarIcon;
+};
 
 /**
  * Authenticated group (tabs). Free + premium live here; premium is a content

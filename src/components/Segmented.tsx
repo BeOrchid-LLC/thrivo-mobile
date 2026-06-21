@@ -1,5 +1,4 @@
-import { Pressable, StyleSheet, View, type ViewStyle } from "react-native";
-import { colors, radii, spacing } from "@/theme";
+import { Pressable, View, type ViewStyle } from "react-native";
 import { Text } from "./Text";
 
 export interface SegmentedOption<T extends string> {
@@ -8,7 +7,7 @@ export interface SegmentedOption<T extends string> {
 }
 
 export interface SegmentedProps<T extends string> {
-  options: ReadonlyArray<SegmentedOption<T>>;
+  options: readonly SegmentedOption<T>[];
   /** `undefined` renders with no segment selected (e.g. an unanswered choice). */
   value: T | undefined;
   onChange: (value: T) => void;
@@ -26,7 +25,7 @@ export function Segmented<T extends string>({
   style,
 }: SegmentedProps<T>) {
   return (
-    <View style={[styles.track, style]}>
+    <View className="flex-row gap-xs rounded-md bg-gray-100 p-xs" style={style}>
       {options.map((opt) => {
         const active = opt.value === value;
         return (
@@ -35,7 +34,7 @@ export function Segmented<T extends string>({
             accessibilityRole="button"
             accessibilityState={{ selected: active }}
             onPress={() => onChange(opt.value)}
-            style={[styles.segment, active && styles.segmentActive]}
+            className={`min-h-[40px] flex-1 items-center justify-center rounded-sm px-sm ${active ? "bg-primary" : ""}`}
           >
             <Text variant="caption" color={active ? "inverse" : "dark"}>
               {opt.label}
@@ -46,22 +45,3 @@ export function Segmented<T extends string>({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  track: {
-    flexDirection: "row",
-    backgroundColor: colors.gray[100],
-    borderRadius: radii.md,
-    padding: spacing.xs,
-    gap: spacing.xs,
-  },
-  segment: {
-    flex: 1,
-    minHeight: 40,
-    borderRadius: radii.sm,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: spacing.sm,
-  },
-  segmentActive: { backgroundColor: colors.primary },
-});

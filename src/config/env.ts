@@ -3,8 +3,11 @@ import { z } from "zod";
 /**
  * Runtime-validated public config. `EXPO_PUBLIC_*` vars are inlined into the JS
  * bundle at build time — never put secrets here (MOBILE_ARCHITECTURE §11).
- * Validation fails fast at import so a misconfigured build surfaces immediately.
+ * The API URL defaults to production so store/preview builds do not crash when
+ * the local `.env` file is absent in EAS.
  */
+const DEFAULT_API_URL = "https://api.thrivo.fit";
+
 const envSchema = z.object({
   EXPO_PUBLIC_API_URL: z.string().url(),
   EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: z.string().min(1).optional(),
@@ -13,7 +16,7 @@ const envSchema = z.object({
 });
 
 const parsed = envSchema.safeParse({
-  EXPO_PUBLIC_API_URL: process.env.EXPO_PUBLIC_API_URL,
+  EXPO_PUBLIC_API_URL: process.env.EXPO_PUBLIC_API_URL?.trim() || DEFAULT_API_URL,
   EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
   EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
   EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,

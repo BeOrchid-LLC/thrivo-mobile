@@ -1,9 +1,8 @@
 import { useMemo, useState } from "react";
 import { router } from "expo-router";
-import { StyleSheet, View } from "react-native";
+import { View } from "react-native";
 import { Button, Card, Input, Text } from "@/components";
 import type { ActivityLevel } from "@/contracts";
-import { colors, spacing } from "@/theme";
 import { type OnboardingDraft, useOnboardingDraft, useOnboardingDraftActions } from "@/stores";
 import { OnboardingStep } from "@/features/onboarding/components/OnboardingStep";
 import { SelectCard } from "@/features/onboarding/components/SelectCard";
@@ -88,7 +87,7 @@ export default function TargetStep() {
         </>
       }
     >
-      <Card style={styles.hero}>
+      <Card className="items-center gap-xs">
         <Text variant="heading1" color="primary">
           {displayedTarget.toLocaleString()}
         </Text>
@@ -97,7 +96,7 @@ export default function TargetStep() {
         </Text>
       </Card>
 
-      <View style={styles.activityList}>
+      <View className="gap-sm">
         {ACTIVITY_OPTIONS.map((option) => (
           <SelectCard
             key={option.value}
@@ -119,7 +118,7 @@ export default function TargetStep() {
       />
 
       <Card>
-        <Text variant="heading3" color="dark" style={styles.cardTitle}>
+        <Text variant="heading3" color="dark" className="mb-sm">
           Estimate details
         </Text>
         <Row label="BMR" value={`${preview.bmr.toLocaleString()} kcal`} />
@@ -128,7 +127,7 @@ export default function TargetStep() {
           value={`${preview.maintenanceKcal.toLocaleString()} kcal`}
         />
         <Row label="Goal adjustment" value={`${signed(preview.goalAdjustmentKcal)} kcal`} />
-        <View style={styles.divider} />
+        <View className="my-xs h-[1px] bg-gray-200" />
         <Row
           label="Recommended target"
           value={`${preview.dailyTargetKcal.toLocaleString()} kcal`}
@@ -140,7 +139,7 @@ export default function TargetStep() {
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <View style={styles.row}>
+    <View className="flex-row justify-between py-xs">
       <Text variant="caption" color="muted">
         {label}
       </Text>
@@ -150,11 +149,3 @@ function Row({ label, value }: { label: string; value: string }) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  hero: { alignItems: "center", gap: spacing.xs },
-  activityList: { gap: spacing.sm },
-  cardTitle: { marginBottom: spacing.sm },
-  row: { flexDirection: "row", justifyContent: "space-between", paddingVertical: spacing.xs },
-  divider: { height: 1, backgroundColor: colors.gray[200], marginVertical: spacing.xs },
-});

@@ -2,13 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Pressable, View } from "react-native";
 import { z } from "zod";
-import { Button, Card, Input, Screen, Text } from "@/components";
+import { Button, Card, Input, Screen, Text, ThrivoMark } from "@/components";
 import { emailSchema, magicLinkRequestPayload } from "@/contracts";
 import { useRequestMagicLink, useVerifyMagicLink } from "@/features/auth";
 import { useOnboardingDraftActions } from "@/stores";
-import { colors, spacing } from "@/theme";
 
 const signupMagicLinkForm = magicLinkRequestPayload.extend({
   firstName: z.string().trim().min(1, "Enter your first name"),
@@ -80,13 +79,13 @@ export default function MagicLinkScreen() {
   if (params.token) {
     return (
       <Screen>
-        <View style={styles.center}>
+        <View className="flex-1 items-center justify-center gap-md">
           {state === "expired" ? (
             <>
-              <Text variant="heading2" color="dark" style={styles.centerText}>
+              <Text variant="heading2" color="dark" className="text-center">
                 This link expired
               </Text>
-              <Text variant="body" color="muted" style={styles.centerText}>
+              <Text variant="body" color="muted" className="text-center">
                 Magic links are single-use and expire after 15 minutes.
               </Text>
               <Button
@@ -96,10 +95,10 @@ export default function MagicLinkScreen() {
             </>
           ) : (
             <>
-              <Text variant="heading2" color="dark" style={styles.centerText}>
+              <Text variant="heading2" color="dark" className="text-center">
                 Verifying your link
               </Text>
-              <Text variant="body" color="muted" style={styles.centerText}>
+              <Text variant="body" color="muted" className="text-center">
                 Hang tight while we finish signing you in.
               </Text>
             </>
@@ -111,26 +110,24 @@ export default function MagicLinkScreen() {
 
   return (
     <Screen scroll>
-      <View style={styles.container}>
-        <View style={styles.hero}>
-          <View style={styles.mark}>
-            <Text style={styles.markGlyph}>T</Text>
-          </View>
-          <Text variant="heading2" color="dark" style={styles.centerText}>
+      <View className="gap-lg pt-lg">
+        <View className="mb-md items-center gap-xs">
+          <ThrivoMark size={56} />
+          <Text variant="heading2" color="dark" className="text-center">
             Continue with magic link
           </Text>
-          <Text variant="body" color="muted" style={styles.centerText}>
+          <Text variant="body" color="muted" className="text-center">
             Enter your first name and email. We&apos;ll send a secure link that expires in 15
             minutes.
           </Text>
         </View>
 
         {state === "sent" ? (
-          <Card style={styles.sentCard}>
+          <Card className="items-center gap-md">
             <Text variant="heading3" color="dark">
               Check your email
             </Text>
-            <Text variant="body" color="muted" style={styles.centerText}>
+            <Text variant="body" color="muted" className="text-center">
               We sent a sign-in link to {sentTo}. Open it on this device to continue.
             </Text>
             <Button
@@ -193,7 +190,7 @@ export default function MagicLinkScreen() {
           </>
         )}
 
-        <Pressable onPress={() => router.push("/(auth)/sign-in")} style={styles.footer}>
+        <Pressable onPress={() => router.push("/(auth)/sign-in")} className="mt-sm items-center">
           <Text variant="caption" color="muted">
             Already have an account? <Text color="primary">Sign in</Text>
           </Text>
@@ -202,22 +199,3 @@ export default function MagicLinkScreen() {
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { gap: spacing.lg, paddingTop: spacing.lg },
-  hero: { alignItems: "center", gap: spacing.xs, marginBottom: spacing.md },
-  mark: {
-    width: 56,
-    height: 56,
-    borderRadius: 14,
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: spacing.sm,
-  },
-  markGlyph: { color: colors.white, fontSize: 32, fontWeight: "700", lineHeight: 38 },
-  sentCard: { alignItems: "center", gap: spacing.md },
-  center: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md },
-  centerText: { textAlign: "center" },
-  footer: { alignItems: "center", marginTop: spacing.sm },
-});

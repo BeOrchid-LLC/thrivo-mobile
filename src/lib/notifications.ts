@@ -13,7 +13,10 @@ import { monitoring } from "./monitoring";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
+    // SDK 54 replaced the single `shouldShowAlert` with the granular
+    // banner/list pair (iOS 14+ presentation options).
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: false,
     shouldSetBadge: false,
   }),

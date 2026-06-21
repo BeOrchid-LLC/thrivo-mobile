@@ -1,7 +1,15 @@
+import "../global.css";
 import { useEffect } from "react";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { useFonts, Inter_400Regular, Inter_600SemiBold } from "@expo-google-fonts/inter";
+import {
+  useFonts,
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from "@expo-google-fonts/inter";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { queryClient, persistOptions } from "@/api";
@@ -50,14 +58,14 @@ function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
     void SplashScreen.hideAsync();
   }, [ready, status, isOnboarded, segments, router]);
 
+  if (!fontsLoaded) {
+    return null;
+  }
+
   // Hold the branded splash until fonts + auth resolve so Inter never flashes
   // the fallback face and no screen renders before the guard decides the route.
   if (!ready) {
-    return (
-      <Screen padded={false}>
-        <BrandSplash />
-      </Screen>
-    );
+    return <BrandSplash />;
   }
 
   if (status === "restore_error") {
@@ -77,13 +85,20 @@ function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
 }
 
 export default function RootLayout() {
-  const [fontsLoaded] = useFonts({ Inter_400Regular, Inter_600SemiBold });
+  const [fontsLoaded] = useFonts({
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+  });
 
   return (
-    <SafeAreaProvider>
-      <PersistQueryClientProvider client={queryClient} persistOptions={persistOptions}>
-        <RootNavigator fontsLoaded={fontsLoaded} />
-      </PersistQueryClientProvider>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <PersistQueryClientProvider client={queryClient} persistOptions={persistOptions}>
+          <RootNavigator fontsLoaded={fontsLoaded} />
+        </PersistQueryClientProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
