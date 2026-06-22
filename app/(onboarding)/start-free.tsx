@@ -1,29 +1,31 @@
 import { useState } from "react";
 import { router } from "expo-router";
 import { View } from "react-native";
-import { Button, Card, Text } from "@/components";
+import { LinearGradient } from "expo-linear-gradient";
+import { Button, CheckIcon, Text } from "@/components";
+import { colors } from "@/theme";
 import { addDays, localDay } from "@/utils";
 import { OnboardingStep } from "@/features/onboarding/components/OnboardingStep";
+import { NoteBox } from "@/features/onboarding/components/NoteBox";
 import { useSubmitOnboarding } from "@/features/onboarding/hooks/useCompleteOnboarding";
 
-const TRIAL_FEATURES = [
-  "Personalized calorie target",
-  "Protein, carbs, and fat goals",
-  "Food logging and barcode scan",
-  "Daily nudges to keep momentum",
-];
-
+const PRICE = "$14.99";
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-function formatDay(ymd: string): string {
-  const [year, month, day] = ymd.split("-").map(Number);
-  return `${MONTHS[month - 1]} ${day}, ${year}`;
-}
+const TRIAL_FEATURES = [
+  "Unlimited food logging & barcode scanner",
+  "Meal recommendations tailored to your goal",
+  "Weekly progress reports & trend charts",
+  "Apple Health & Google Fit sync",
+];
 
 export default function StartFreeStep() {
   const { submit, isPending } = useSubmitOnboarding();
   const [error, setError] = useState<string | null>(null);
-  const trialEnd = formatDay(addDays(localDay(), 7));
+
+  const [y, m, d] = addDays(localDay(), 7).split("-").map(Number);
+  const trialEndLong = `${d} ${MONTHS[m - 1]} ${y}`;
+  const trialEndShort = `${d} ${MONTHS[m - 1]}`;
 
   const startTrial = async () => {
     setError(null);
@@ -43,46 +45,81 @@ export default function StartFreeStep() {
   return (
     <OnboardingStep
       step={6}
-      title="Start your 7-day free trial"
-      subtitle="No charge today. Your account switches to the free plan after the trial unless you upgrade."
+      title="Start your free trial"
+      subtitle={`Full access for 7 days, then ${PRICE}/month. Cancel anytime.`}
       footer={
         <>
-          <Button label="Start 7-day free trial" loading={isPending} onPress={startTrial} />
+          <Button label="Start free trial — $0 today" loading={isPending} onPress={startTrial} />
+          <Text variant="caption" color="muted" className="text-center font-regular">
+            {PRICE}/month after {trialEndLong}. Cancel in Settings.
+          </Text>
           <Button label="Skip for now" variant="ghost" disabled={isPending} onPress={skip} />
+          {error ? (
+            <Text variant="caption" color="error" className="text-center" selectable>
+              {error}
+            </Text>
+          ) : null}
         </>
       }
     >
-      <Card className="gap-xs">
-        <Text variant="heading1" color="dark">
-          Free
-          <Text variant="body" color="muted">
-            {" "}
-            for 7 days
+      <View className="overflow-hidden rounded-[20px] border-[1.333px] border-[#0b8d42]">
+        <LinearGradient
+          colors={[colors.dark, "#2D5B4A", colors.primaryBright]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={{ padding: 24 }}
+        >
+          {/* Decorative circles echoing the Figma card flourish. */}
+          <View className="absolute -right-10 -top-10 h-[110px] w-[110px] rounded-pill bg-white/10" />
+          <View className="absolute -bottom-6 right-12 h-[64px] w-[64px] rounded-pill bg-white/10" />
+
+          <View className="flex-row items-end">
+            <Text className="font-bold text-[36px] leading-[40px] text-light">{PRICE}</Text>
+            <Text className="mb-[3px] ml-xs text-[16px] leading-[24px] text-light/70">/ month</Text>
+          </View>
+          <Text className="mt-xs font-bold text-[16px] leading-[24px] text-accent">
+            7-day free trial
           </Text>
-        </Text>
-        <Text variant="caption" color="muted">
-          Trial ends {trialEnd}. Billing setup comes later when you choose a paid plan.
-        </Text>
-      </Card>
+
+          <View className="mt-md gap-sm">
+            <PriceRow label="Trial ends" value={trialEndLong} />
+            <PriceRow label="First charge" value={`${PRICE} on ${trialEndShort}`} />
+            <PriceRow label="Cancel before then" value="Pay nothing" accent />
+          </View>
+        </LinearGradient>
+      </View>
+
+      <NoteBox title="How to cancel in 2 taps">Settings → Subscription → Cancel</NoteBox>
 
       <View className="gap-md">
         {TRIAL_FEATURES.map((feature) => (
           <View key={feature} className="flex-row items-center gap-sm">
-            <Text color="primary" className="text-[18px] leading-[24px]">
-              ✓
-            </Text>
-            <Text variant="body" color="dark">
+            <View className="h-[22px] w-[22px] items-center justify-center rounded-pill bg-primaryBright/[0.08]">
+              <CheckIcon size={12} color={colors.primary} />
+            </View>
+            <Text variant="body" color="dark" className="flex-1">
               {feature}
             </Text>
           </View>
         ))}
       </View>
 
-      {error ? (
-        <Text variant="caption" color="error" selectable>
-          {error}
-        </Text>
-      ) : null}
+      <Text variant="caption" color="muted" className="font-regular">
+        A card is required — you won&apos;t be charged until {trialEndLong}.
+      </Text>
     </OnboardingStep>
+  );
+}
+
+function PriceRow({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <View className="flex-row justify-between">
+      <Text className="text-[14px] leading-[20px] text-light/70">{label}</Text>
+      <Text
+        className={`font-semibold text-[14px] leading-[20px] ${accent ? "text-accent" : "text-light"}`}
+      >
+        {value}
+      </Text>
+    </View>
   );
 }
