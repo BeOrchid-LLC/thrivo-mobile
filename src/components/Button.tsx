@@ -2,20 +2,23 @@ import { ActivityIndicator, Pressable, View, type PressableProps } from "react-n
 import { colors } from "@/theme";
 import { Text } from "./Text";
 
-type Variant = "primary" | "secondary" | "ghost";
+type Variant = "primary" | "secondary" | "ghost" | "outline";
 
 // Primary swaps the green for the design-system hover/active shades; secondary and
-// ghost have no green fill so they dim on press. `active:` = pressed, `hover:` = web.
+// ghost have no green fill so they dim on press; outline is a primary-bordered
+// transparent button. `active:` = pressed, `hover:` = web.
 const variantClass: Record<Variant, string> = {
   primary: "bg-primary hover:bg-primaryHover active:bg-primaryActive",
   secondary: "bg-gray-100 active:opacity-[0.85]",
   ghost: "bg-transparent active:opacity-[0.85]",
+  outline: "border border-primary bg-transparent active:opacity-[0.85]",
 };
 
 const labelColorFor: Record<Variant, "inverse" | "dark" | "primary"> = {
   primary: "inverse",
   secondary: "dark",
   ghost: "primary",
+  outline: "primary",
 };
 
 export interface ButtonProps extends Omit<PressableProps, "children"> {

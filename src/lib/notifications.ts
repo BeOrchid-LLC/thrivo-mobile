@@ -27,7 +27,7 @@ function resolveProjectId(): string | undefined {
 }
 
 /** Request permission, fetch the Expo token and register it with the backend. */
-export async function registerForPushNotifications(notifyAt?: string): Promise<string | null> {
+export async function registerForPushNotifications(notifyTimes?: string[]): Promise<string | null> {
   try {
     const existing = await Notifications.getPermissionsAsync();
     let granted = existing.granted;
@@ -46,7 +46,7 @@ export async function registerForPushNotifications(notifyAt?: string): Promise<s
       payload: {
         expoPushToken,
         platform: Platform.OS === "ios" ? "ios" : "android",
-        notifyAt,
+        notifyTimes,
       },
     });
 
