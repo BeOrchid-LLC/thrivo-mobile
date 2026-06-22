@@ -20,6 +20,7 @@ export {
 export {
   setTokenGetter,
   setUnauthenticatedHandler,
+  setTokenRefresher,
   getAuthToken,
   handleUnauthenticated,
 } from "./auth-token";

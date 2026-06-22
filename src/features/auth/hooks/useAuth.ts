@@ -1,66 +1,37 @@
-import * as AppleAuthentication from "expo-apple-authentication";
+import * as WebBrowser from "expo-web-browser";
+import * as Linking from "expo-linking";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { QueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/api";
 import { ApiError, isApiError } from "@/api/errors";
 import { env } from "@/config/env";
-import { authClient } from "@/lib/auth-client";
-import type { AuthSession, MagicLinkRequestPayload, SignInPayload, User } from "@/contracts";
-import { setToken, clearToken, analytics } from "@/lib";
+import type { MagicLinkRequestPayload, User } from "@/contracts";
+import { setTokens, clearTokens, getRefreshToken, analytics } from "@/lib";
 import { getMe } from "@/features/profile";
 import { useSessionActions } from "@/stores";
-import {
-  requestMagicLink,
-  signInWithPassword,
-  signInWithSocialIdToken,
-  verifyMagicLink,
-  logout,
-} from "../api/auth.api";
+import { requestMagicLink, verifyMagicLink, logoutSession, googleStartUrl } from "../api/auth.api";
+
+// The OAuth callback redirects here with the issued tokens; openAuthSessionAsync
+// watches for this exact return URL (matches the backend APP_AUTH_REDIRECT_URL).
+const OAUTH_RETURN_URL = "thrivo://auth";
 
 /**
- * BetterAuth stores the session as a signed cookie whose value is exactly the
- * bearer token the API accepts (the bearer plugin verifies the same signature).
- * Extract it so a redirect-flow (Google) session joins the app's bearer-token
- * system via `applyToken`. Handles the production `__Secure-` cookie prefix.
+ * Persist a freshly-issued token pair: tokens → secure-store (source of truth),
+ * then confirm with `/users/me` and seed the session store. Every token-returning
+ * auth path funnels through here so persistence + routing facts stay uniform.
  */
-function sessionTokenFromCookie(cookie: string): string | null {
-  const match = cookie.match(/(?:^|;\s*)(?:__Secure-)?better-auth\.session_token=([^;]+)/);
-  return match ? decodeURIComponent(match[1]) : null;
-}
-
-/**
- * Persist a freshly-issued session: token → secure-store (source of truth),
- * session facts → store. The root guard then reacts and routes to (onboarding)
- * or (app). Kept in one place so every token-returning auth path is uniform.
- */
-async function applySession(
-  session: AuthSession,
+async function applyTokens(
+  accessToken: string,
+  refreshToken: string,
   setSession: ReturnType<typeof useSessionActions>["setSession"],
   queryClient: QueryClient
 ): Promise<User> {
-  await setToken(session.token);
-  queryClient.setQueryData(queryKeys.me(), session.user);
-  setSession({
-    token: session.token,
-    userId: session.user.id,
-    accountStatus: session.user.accountStatus,
-    isOnboarded: session.user.isOnboarded,
-  });
-  analytics.identify(session.user.id);
-  return session.user;
-}
-
-async function applyToken(
-  token: string,
-  setSession: ReturnType<typeof useSessionActions>["setSession"],
-  queryClient: QueryClient
-): Promise<User> {
-  await setToken(token);
+  await setTokens(accessToken, refreshToken);
   try {
     const user = await getMe();
     queryClient.setQueryData(queryKeys.me(), user);
     setSession({
-      token,
+      token: accessToken,
       userId: user.id,
       accountStatus: user.accountStatus,
       isOnboarded: user.isOnboarded,
@@ -69,20 +40,10 @@ async function applyToken(
     return user;
   } catch (error) {
     if (isApiError(error) && error.isAuthError) {
-      await clearToken();
+      await clearTokens();
     }
     throw error;
   }
-}
-
-/** Email + password sign-in. Errors surface as `mutation.error` (an ApiError). */
-export function useSignIn() {
-  const { setSession } = useSessionActions();
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (input: SignInPayload) => signInWithPassword(input),
-    onSuccess: (session) => applySession(session, setSession, queryClient),
-  });
 }
 
 export function useRequestMagicLink() {
@@ -96,49 +57,8 @@ export function useVerifyMagicLink() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (token: string) => {
-      const sessionToken = await verifyMagicLink(token);
-      return applyToken(sessionToken, setSession, queryClient);
-    },
-  });
-}
-
-export function useAppleSignIn() {
-  const { setSession } = useSessionActions();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async () => {
-      const available = await AppleAuthentication.isAvailableAsync();
-      if (!available) {
-        throw new ApiError({
-          code: "UNKNOWN",
-          message: "Sign in with Apple is not available on this device.",
-          status: 0,
-        });
-      }
-
-      const credential = await AppleAuthentication.signInAsync({
-        requestedScopes: [
-          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-          AppleAuthentication.AppleAuthenticationScope.EMAIL,
-        ],
-      });
-
-      if (!credential.identityToken) {
-        throw new ApiError({
-          code: "UNKNOWN",
-          message: "Apple did not return an identity token.",
-          status: 0,
-        });
-      }
-
-      const token = await signInWithSocialIdToken({
-        provider: "apple",
-        idToken: credential.identityToken,
-        firstName: credential.fullName?.givenName ?? undefined,
-        email: credential.email ?? undefined,
-      });
-      return applyToken(token, setSession, queryClient);
+      const pair = await verifyMagicLink(token);
+      return applyTokens(pair.accessToken, pair.refreshToken, setSession, queryClient);
     },
   });
 }
@@ -146,8 +66,8 @@ export function useAppleSignIn() {
 export function useGoogleSignIn() {
   const { setSession } = useSessionActions();
   const queryClient = useQueryClient();
-  // The web client id is set per environment once Google is wired; use its
-  // presence as the "Google is available" flag for the UI gate.
+  // The web client id is the per-environment "Google is wired" flag for the UI;
+  // the OAuth flow itself is fully server-driven (the app only opens the browser).
   const isConfigured = Boolean(env.googleWebClientId);
 
   const mutation = useMutation({
@@ -160,21 +80,31 @@ export function useGoogleSignIn() {
         });
       }
 
-      // BetterAuth server-side OAuth (web client): the Expo plugin opens the
-      // browser, completes the flow at the backend callback, returns to
-      // `thrivo://`, and stores the session cookie.
-      const { error } = await authClient.signIn.social({ provider: "google", callbackURL: "/" });
-      if (error) {
+      // Open the system browser at our /auth/google/start; the backend completes
+      // the flow and redirects to thrivo://auth?token&refresh, which this resolves.
+      const result = await WebBrowser.openAuthSessionAsync(googleStartUrl(), OAUTH_RETURN_URL);
+      if (result.type !== "success" || !result.url) {
+        // cancel/dismiss = the user backed out; not an error worth surfacing loudly.
         throw new ApiError({
           code: "UNKNOWN",
-          message: error.message ?? "Google sign-in failed.",
+          message: "Google sign-in was cancelled.",
           status: 0,
         });
       }
 
-      const token = sessionTokenFromCookie(authClient.getCookie());
-      if (!token) {
-        // No stored session = the user cancelled or the flow didn't complete.
+      const { queryParams } = Linking.parse(result.url);
+      const error = typeof queryParams?.error === "string" ? queryParams.error : null;
+      if (error) {
+        throw new ApiError({
+          code: "UNKNOWN",
+          message: "Google sign-in failed. Please try again.",
+          status: 0,
+        });
+      }
+
+      const token = typeof queryParams?.token === "string" ? queryParams.token : null;
+      const refresh = typeof queryParams?.refresh === "string" ? queryParams.refresh : null;
+      if (!token || !refresh) {
         throw new ApiError({
           code: "UNKNOWN",
           message: "Google sign-in did not complete.",
@@ -182,21 +112,41 @@ export function useGoogleSignIn() {
         });
       }
 
-      return applyToken(token, setSession, queryClient);
+      return applyTokens(token, refresh, setSession, queryClient);
     },
   });
 
   return { ...mutation, isConfigured };
 }
 
-/** Sign out: revoke server session, then clear local token + caches regardless. */
+/**
+ * Apple sign-in is deferred (ADR — Android dev build first). Kept as a clear
+ * "coming soon" so the iOS button surfaces a message instead of breaking; the
+ * backend Apple flow lands in a later phase.
+ */
+export function useAppleSignIn() {
+  return useMutation({
+    mutationFn: async (): Promise<User> => {
+      throw new ApiError({
+        code: "UNKNOWN",
+        message: "Sign in with Apple is coming soon.",
+        status: 0,
+      });
+    },
+  });
+}
+
+/** Sign out: revoke the server session, then clear local token + caches regardless. */
 export function useLogout() {
   const { clearSession } = useSessionActions();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => logout(),
+    mutationFn: async () => {
+      const refreshToken = await getRefreshToken();
+      if (refreshToken) await logoutSession(refreshToken);
+    },
     onSettled: async () => {
-      await clearToken();
+      await clearTokens();
       clearSession();
       analytics.reset();
       queryClient.clear();
