@@ -5,6 +5,7 @@ import type { UnitSystem } from "@/contracts";
 import { kgToLb, lbToKg, roundTo } from "@/utils";
 import { type OnboardingDraft, useOnboardingDraft, useOnboardingDraftActions } from "@/stores";
 import { OnboardingStep } from "@/features/onboarding/components/OnboardingStep";
+import { InsightPill } from "@/features/onboarding/components/InsightPill";
 import { useSubmitOnboarding } from "@/features/onboarding/hooks/useCompleteOnboarding";
 
 type Unit = "kg" | "lb";
@@ -29,6 +30,18 @@ export default function WeightStep() {
   const currentNum = Number.parseFloat(current);
   const targetNum = Number.parseFloat(target);
   const valid = currentNum > 0 && (!needsTarget || targetNum > 0);
+
+  const unitLabel = unit === "kg" ? "kg" : "lbs";
+
+  // Computed gap + ETA at a sustainable rate (Figma insight pill, node 20:212).
+  const rate = unit === "kg" ? 1 : 2; // kg or lb per week
+  const gap = needsTarget && currentNum > 0 && targetNum > 0 ? Math.abs(currentNum - targetNum) : 0;
+  const insight =
+    gap > 0
+      ? `${roundTo(gap)} ${unit} gap · ~${Math.ceil(gap / rate)} weeks at ${
+          targetNum < currentNum ? "–" : "+"
+        }${rate} ${unit}/week`
+      : null;
 
   // Re-express the entered numbers when the unit changes so they stay meaningful.
   const switchUnit = (next: Unit) => {
@@ -71,8 +84,8 @@ export default function WeightStep() {
   return (
     <OnboardingStep
       step={3}
-      title="Tell us about your weight"
-      subtitle="We use this to estimate your daily energy needs."
+      title="Let's talk weight"
+      subtitle="We'll calculate how far you are from your goal."
       footer={
         <>
           <Button label="Continue" disabled={!valid} onPress={next} />
@@ -82,14 +95,16 @@ export default function WeightStep() {
     >
       <Segmented<Unit>
         options={[
-          { label: "Kilograms", value: "kg" },
-          { label: "Pounds", value: "lb" },
+          { label: "lbs", value: "lb" },
+          { label: "kg", value: "kg" },
         ]}
         value={unit}
         onChange={switchUnit}
       />
       <Input
-        label={`Current weight (${unit})`}
+        label="Current weight"
+        uppercaseLabel
+        trailingText={unitLabel}
         placeholder={unit === "kg" ? "70" : "154"}
         keyboardType="decimal-pad"
         value={current}
@@ -97,13 +112,16 @@ export default function WeightStep() {
       />
       {needsTarget ? (
         <Input
-          label={`Target weight (${unit})`}
+          label="Target weight"
+          uppercaseLabel
+          trailingText={unitLabel}
           placeholder={unit === "kg" ? "65" : "143"}
           keyboardType="decimal-pad"
           value={target}
           onChangeText={setTarget}
         />
       ) : null}
+      {insight ? <InsightPill>{insight}</InsightPill> : null}
     </OnboardingStep>
   );
 }
