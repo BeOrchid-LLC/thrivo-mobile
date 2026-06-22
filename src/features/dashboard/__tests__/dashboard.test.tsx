@@ -27,7 +27,7 @@ const profile: User = {
   targetFatG: 60,
   activityLevel: "moderate",
   manualDailyTargetKcal: null,
-  notifyAt: null,
+  notifyTimes: null,
   timezone: "Africa/Lagos",
   tier: "free",
   accountStatus: "free_trial",
