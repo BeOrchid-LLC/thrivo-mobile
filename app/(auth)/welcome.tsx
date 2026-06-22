@@ -26,8 +26,8 @@ export default function Welcome() {
 
   return (
     <LinearGradient
-      // First stop is the page background token; second is a soft green tint.
-      colors={[colors.light, "#E8F7EE"]}
+      // First stop is the page background token; second is the soft green tint token.
+      colors={[colors.light, colors.primarySoft]}
       style={{ flex: 1, paddingHorizontal: 24, paddingTop: 67, paddingBottom: 50 }}
     >
       <View className="h-[206px] items-center pt-[48px]">
