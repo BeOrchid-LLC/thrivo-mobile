@@ -18,7 +18,31 @@ export { BrandSplash } from "./BrandSplash";
 export type { BrandSplashProps } from "./BrandSplash";
 export { ThrivoMark } from "./ThrivoMark";
 export type { ThrivoMarkProps } from "./ThrivoMark";
+export { BackButton } from "./BackButton";
+export type { BackButtonProps } from "./BackButton";
+export {
+  ChevronLeftIcon,
+  MailIcon,
+  UserIcon,
+  CheckCircleIcon,
+  ClockIcon,
+  CheckIcon,
+  TrendDownIcon,
+  SwapIcon,
+  DumbbellIcon,
+  SeatedIcon,
+  WalkIcon,
+  RunIcon,
+  IntenseIcon,
+  AthleteIcon,
+  PencilIcon,
+  BellIcon,
+  ChevronDownIcon,
+} from "./icons";
+export type { IconProps } from "./icons";
 export { Segmented } from "./Segmented";
 export type { SegmentedProps, SegmentedOption } from "./Segmented";
+export { RadioGroup } from "./RadioGroup";
+export type { RadioGroupProps, RadioOption } from "./RadioGroup";
 export { CalorieRing } from "./CalorieRing";
 export type { CalorieRingProps } from "./CalorieRing";
