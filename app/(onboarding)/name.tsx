@@ -44,7 +44,7 @@ export default function NameStep() {
     <OnboardingStep
       step={1}
       title="What should we call you?"
-      subtitle="Your first name keeps Thrivo feeling personal across reminders and your dashboard."
+      subtitle="We'll use this name throughout the app."
       footer={
         <>
           <Button label="Continue" disabled={!trimmed} onPress={next} />
@@ -54,7 +54,8 @@ export default function NameStep() {
     >
       <Input
         label="First name"
-        placeholder="Ada"
+        uppercaseLabel
+        placeholder="Alex"
         autoCapitalize="words"
         autoComplete="given-name"
         value={firstName}
