@@ -8,9 +8,13 @@ export const colors = {
   primary: "#09823C", // Thrivo logo green
   primaryHover: "#0A9A47",
   primaryActive: "#076B32",
+  primarySoft: "#E8F7EE", // light green tint — success badges / soft fills (V2 auth screens)
+  primaryBright: "#27AE60", // brighter green — progress fill, success check (V2 screens)
+  progressTrack: "#E0E6EE", // unfilled progress segment (V2 onboarding)
   dark: "#1A1A2E", // Figma: Gray 1 (primary text)
   light: "#F4F6F9", // page background / input fields
   accent: "#F39C12", // Figma: Orange
+  accentSoft: "#FEF5E7", // light amber tint — warning/expired badges (V2 auth screens)
   white: "#FFFFFF", // Figma: White
   gray: {
     50: "#F9FAFB",

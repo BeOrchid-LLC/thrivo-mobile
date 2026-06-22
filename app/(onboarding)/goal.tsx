@@ -1,16 +1,37 @@
 import { useState } from "react";
 import { router } from "expo-router";
-import { Button } from "@/components";
+import { Button, DumbbellIcon, SwapIcon, TrendDownIcon, type IconProps } from "@/components";
+import type { ComponentType } from "react";
 import type { Goal } from "@/contracts";
 import { useOnboardingDraft, useOnboardingDraftActions } from "@/stores";
 import { OnboardingStep } from "@/features/onboarding/components/OnboardingStep";
 import { SelectCard } from "@/features/onboarding/components/SelectCard";
 import { useSubmitOnboarding } from "@/features/onboarding/hooks/useCompleteOnboarding";
 
-const GOALS: { value: Goal; label: string; description: string }[] = [
-  { value: "lose", label: "Lose weight", description: "Eat at a calorie deficit" },
-  { value: "maintain", label: "Maintain weight", description: "Stay at your current weight" },
-  { value: "gain", label: "Build muscle", description: "Eat at a calorie surplus" },
+const GOALS: {
+  value: Goal;
+  label: string;
+  description: string;
+  icon: ComponentType<IconProps>;
+}[] = [
+  {
+    value: "lose",
+    label: "Lose weight",
+    description: "Reach a lower, healthier weight",
+    icon: TrendDownIcon,
+  },
+  {
+    value: "maintain",
+    label: "Maintain weight",
+    description: "Stay at your current weight",
+    icon: SwapIcon,
+  },
+  {
+    value: "gain",
+    label: "Build muscle",
+    description: "Gain lean mass with a calorie surplus",
+    icon: DumbbellIcon,
+  },
 ];
 
 /** S3 — Figma "What are your fitness goals?". */
@@ -40,8 +61,8 @@ export default function GoalStep() {
   return (
     <OnboardingStep
       step={2}
-      title="What's your main goal?"
-      subtitle="We'll tailor your daily calorie target to this."
+      title="What's your goal?"
+      subtitle="This sets your calorie target and experience."
       footer={
         <>
           <Button label="Continue" disabled={!goal} onPress={next} />
@@ -54,6 +75,7 @@ export default function GoalStep() {
           key={g.value}
           label={g.label}
           description={g.description}
+          icon={g.icon}
           selected={goal === g.value}
           onPress={() => setGoal(g.value)}
         />
