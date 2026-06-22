@@ -20,7 +20,7 @@ export interface OnboardingDraft {
   unitSystem?: UnitSystem;
   activityLevel?: ActivityLevel;
   manualDailyTargetKcal?: number;
-  notifyAt?: string;
+  notifyTimes?: string[];
   timezone?: string;
   onboardingStep?: number;
 }

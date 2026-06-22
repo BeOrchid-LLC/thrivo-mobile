@@ -59,7 +59,8 @@
           "faceIDPermission": "Allow Thrivo to use Face ID to unlock your saved login."
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      "@react-native-community/datetimepicker"
     ],
     "scheme": "thrivo",
     "extra": {
