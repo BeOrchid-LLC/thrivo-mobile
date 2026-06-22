@@ -1,4 +1,4 @@
-import { forwardRef, useState } from "react";
+import { forwardRef, useState, type ReactNode } from "react";
 import { TextInput, View, type TextInputProps } from "react-native";
 import { colors } from "@/theme";
 import { Text } from "./Text";
@@ -6,6 +6,12 @@ import { Text } from "./Text";
 export interface InputProps extends TextInputProps {
   label?: string;
   error?: string;
+  /** Optional icon rendered inside the field, before the text. */
+  leadingIcon?: ReactNode;
+  /** Optional trailing text inside the field (e.g. a unit suffix like "lbs"). */
+  trailingText?: string;
+  /** Render the label in the V2 onboarding style: uppercase + wide tracking. */
+  uppercaseLabel?: boolean;
 }
 
 // Derive handler types from the prop itself so we track React Native's event
@@ -19,7 +25,7 @@ type BlurHandler = NonNullable<TextInputProps["onBlur"]>;
  * Tokens only.
  */
 export const Input = forwardRef<TextInput, InputProps>(function Input(
-  { label, error, className, onFocus, onBlur, ...rest },
+  { label, error, leadingIcon, trailingText, uppercaseLabel, className, onFocus, onBlur, ...rest },
   ref
 ) {
   const [focused, setFocused] = useState(false);
@@ -38,18 +44,32 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
   return (
     <View className="gap-xs">
       {label ? (
-        <Text variant="caption" color="muted" className="ml-xs">
+        <Text
+          variant="caption"
+          color="muted"
+          className={`ml-xs ${uppercaseLabel ? "uppercase tracking-[0.78px]" : ""}`}
+        >
           {label}
         </Text>
       ) : null}
-      <TextInput
-        ref={ref}
-        placeholderTextColor={colors.gray[400]}
-        onFocus={handleFocus}
-        onBlur={handleBlur}
-        className={`min-h-[48px] rounded-md border bg-white px-lg text-[16px] text-dark ${borderClass} ${className ?? ""}`}
-        {...rest}
-      />
+      <View
+        className={`min-h-[48px] flex-row items-center gap-sm rounded-md border bg-white px-lg ${borderClass}`}
+      >
+        {leadingIcon}
+        <TextInput
+          ref={ref}
+          placeholderTextColor={colors.gray[400]}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          className={`flex-1 py-0 text-[16px] text-dark ${className ?? ""}`}
+          {...rest}
+        />
+        {trailingText ? (
+          <Text className="font-regular text-[15px] leading-[22px] text-gray-500">
+            {trailingText}
+          </Text>
+        ) : null}
+      </View>
       {error ? (
         <Text variant="caption" color="error" className="ml-xs">
           {error}
