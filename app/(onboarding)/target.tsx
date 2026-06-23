@@ -15,7 +15,12 @@ import {
   type IconProps,
 } from "@/components";
 import type { ActivityLevel } from "@/contracts";
-import { type OnboardingDraft, useOnboardingDraft, useOnboardingDraftActions } from "@/stores";
+import {
+  type OnboardingDraft,
+  useOnboardingDraft,
+  useOnboardingDraftActions,
+  useSessionActions,
+} from "@/stores";
 import { OnboardingStep } from "@/features/onboarding/components/OnboardingStep";
 import { SelectCard } from "@/features/onboarding/components/SelectCard";
 import { useSubmitOnboarding } from "@/features/onboarding/hooks/useCompleteOnboarding";
@@ -72,6 +77,7 @@ const signed = (n: number) => (n >= 0 ? `+${n}` : `${n}`);
 export default function TargetStep() {
   const draft = useOnboardingDraft();
   const { setFields } = useOnboardingDraftActions();
+  const { setIsOnboarded } = useSessionActions();
   const { submit, isPending } = useSubmitOnboarding();
   const [activityLevel, setActivityLevel] = useState<ActivityLevel>(
     draft.activityLevel ?? "sedentary"
@@ -111,11 +117,12 @@ export default function TargetStep() {
     router.push("/(onboarding)/start-free");
   };
 
-  const skip = async () => {
+  const skip = () => {
     const fields = buildFields();
     setFields(fields);
-    await submit("skip", { silent: true, onboardingStep: 5, fields });
+    setIsOnboarded(true);
     router.replace("/(app)/dashboard");
+    void submit("skip", { silent: true, onboardingStep: 5, fields });
   };
 
   return (

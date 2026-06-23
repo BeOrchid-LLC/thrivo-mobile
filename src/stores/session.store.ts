@@ -26,6 +26,8 @@ interface SessionState {
     }) => void;
     /** Update lifecycle/onboarding flags after profile changes. */
     setProfileStatus: (input: { accountStatus: AccountStatus; isOnboarded: boolean }) => void;
+    /** Optimistically mark the user as onboarded (e.g. after a skip). */
+    setIsOnboarded: (value: boolean) => void;
     setStatus: (status: AuthStatus) => void;
     /** Clear on logout / 401. */
     clearSession: () => void;
@@ -46,6 +48,7 @@ export const useSessionStore = create<SessionState>((set) => ({
     setSession: ({ token, userId, accountStatus, isOnboarded }) =>
       set({ status: "authenticated", token, userId, accountStatus, isOnboarded }),
     setProfileStatus: ({ accountStatus, isOnboarded }) => set({ accountStatus, isOnboarded }),
+    setIsOnboarded: (isOnboarded) => set({ isOnboarded }),
     setStatus: (status) => set({ status }),
     clearSession: () =>
       set({
