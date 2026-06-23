@@ -56,6 +56,7 @@ export default function NotificationsStep() {
   const [count, setCount] = useState(Math.min(Math.max(draft.notifyTimes?.length ?? 2, 1), 3));
   const [editing, setEditing] = useState<number | null>(null);
   const [isRegistering, setIsRegistering] = useState(false);
+  const [registerError, setRegisterError] = useState<string | null>(null);
 
   const busy = isPending || isRegistering;
   const selectedTimes = times.slice(0, count);
@@ -78,13 +79,16 @@ export default function NotificationsStep() {
     const next = fieldsToSave();
     setFields(next);
     setIsRegistering(true);
+    setRegisterError(null);
     try {
       await registerForPushNotifications(next.notifyTimes);
-      await submit("complete", { silent: true, onboardingStep: 7, fields: next });
+    } catch {
+      setRegisterError("Couldn't enable notifications. You can turn them on later in Settings.");
     } finally {
       setIsRegistering(false);
-      router.replace("/(app)/dashboard");
     }
+    await submit("skip", { silent: true, onboardingStep: 7, fields: next });
+    router.replace("/(app)/dashboard");
   };
 
   const skip = async () => {
@@ -103,6 +107,11 @@ export default function NotificationsStep() {
         <>
           <Button label="Enable notifications" loading={busy} onPress={finish} />
           <Button label="Skip for now" variant="ghost" disabled={busy} onPress={skip} />
+          {registerError ? (
+            <Text variant="caption" color="error" className="text-center font-regular">
+              {registerError}
+            </Text>
+          ) : null}
         </>
       }
     >
