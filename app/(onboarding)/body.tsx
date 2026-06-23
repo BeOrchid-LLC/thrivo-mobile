@@ -4,7 +4,12 @@ import { View } from "react-native";
 import { Button, Input, RadioGroup, Segmented, Text } from "@/components";
 import type { Sex } from "@/contracts";
 import { roundTo } from "@/utils";
-import { type OnboardingDraft, useOnboardingDraft, useOnboardingDraftActions } from "@/stores";
+import {
+  type OnboardingDraft,
+  useOnboardingDraft,
+  useOnboardingDraftActions,
+  useSessionActions,
+} from "@/stores";
 import { OnboardingStep } from "@/features/onboarding/components/OnboardingStep";
 import { NoteBox } from "@/features/onboarding/components/NoteBox";
 import { useSubmitOnboarding } from "@/features/onboarding/hooks/useCompleteOnboarding";
@@ -24,6 +29,7 @@ const ftInToCm = (ft: number, inch: number): number => roundTo((ft * 12 + inch) 
 export default function BodyStep() {
   const draft = useOnboardingDraft();
   const { setFields } = useOnboardingDraftActions();
+  const { setIsOnboarded } = useSessionActions();
   const { submit, isPending } = useSubmitOnboarding();
 
   const initialFtIn = draft.heightCm ? cmToFtIn(draft.heightCm) : null;
@@ -74,11 +80,12 @@ export default function BodyStep() {
     router.push("/(onboarding)/target");
   };
 
-  const skip = async () => {
+  const skip = () => {
     const fields = buildFields();
     setFields(fields);
-    await submit("skip", { silent: true, onboardingStep: 4, fields });
+    setIsOnboarded(true);
     router.replace("/(app)/dashboard");
+    void submit("skip", { silent: true, onboardingStep: 4, fields });
   };
 
   return (

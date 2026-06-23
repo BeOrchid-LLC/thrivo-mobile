@@ -4,11 +4,12 @@ import { Button, Input } from "@/components";
 import { useMe } from "@/features/profile";
 import { OnboardingStep } from "@/features/onboarding/components/OnboardingStep";
 import { useSubmitOnboarding } from "@/features/onboarding/hooks/useCompleteOnboarding";
-import { useOnboardingDraft, useOnboardingDraftActions } from "@/stores";
+import { useOnboardingDraft, useOnboardingDraftActions, useSessionActions } from "@/stores";
 
 export default function NameStep() {
   const draft = useOnboardingDraft();
   const { setFields } = useOnboardingDraftActions();
+  const { setIsOnboarded } = useSessionActions();
   const { data: me } = useMe();
   const { submit, isPending } = useSubmitOnboarding();
   const [firstName, setFirstName] = useState(draft.firstName ?? me?.name ?? "");
@@ -28,16 +29,15 @@ export default function NameStep() {
     router.push("/(onboarding)/goal");
   };
 
-  const skip = async () => {
-    if (trimmed) {
-      setFields({ firstName: trimmed, onboardingStep: 1 });
-    }
-    await submit("skip", {
+  const skip = () => {
+    if (trimmed) setFields({ firstName: trimmed, onboardingStep: 1 });
+    setIsOnboarded(true);
+    router.replace("/(app)/dashboard");
+    void submit("skip", {
       silent: true,
       onboardingStep: 1,
       fields: trimmed ? { firstName: trimmed } : undefined,
     });
-    router.replace("/(app)/dashboard");
   };
 
   return (

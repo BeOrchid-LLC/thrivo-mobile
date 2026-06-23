@@ -5,7 +5,12 @@ import DateTimePicker, { type DateTimePickerEvent } from "@react-native-communit
 import { BellIcon, Button, ChevronDownIcon, Segmented, Text } from "@/components";
 import { colors } from "@/theme";
 import { registerForPushNotifications } from "@/lib";
-import { type OnboardingDraft, useOnboardingDraft, useOnboardingDraftActions } from "@/stores";
+import {
+  type OnboardingDraft,
+  useOnboardingDraft,
+  useOnboardingDraftActions,
+  useSessionActions,
+} from "@/stores";
 import { OnboardingStep } from "@/features/onboarding/components/OnboardingStep";
 import { useSubmitOnboarding } from "@/features/onboarding/hooks/useCompleteOnboarding";
 
@@ -46,7 +51,8 @@ function dateToHhmm(d: Date): string {
 export default function NotificationsStep() {
   const draft = useOnboardingDraft();
   const { setFields } = useOnboardingDraftActions();
-  const { submit, isPending } = useSubmitOnboarding();
+  const { setIsOnboarded } = useSessionActions();
+  const { submit } = useSubmitOnboarding();
 
   const initialTimes = [...DEFAULT_TIMES];
   (draft.notifyTimes ?? []).forEach((t, i) => {
@@ -55,10 +61,6 @@ export default function NotificationsStep() {
   const [times, setTimes] = useState(initialTimes);
   const [count, setCount] = useState(Math.min(Math.max(draft.notifyTimes?.length ?? 2, 1), 3));
   const [editing, setEditing] = useState<number | null>(null);
-  const [isRegistering, setIsRegistering] = useState(false);
-  const [registerError, setRegisterError] = useState<string | null>(null);
-
-  const busy = isPending || isRegistering;
   const selectedTimes = times.slice(0, count);
 
   const fieldsToSave = (): Partial<OnboardingDraft> => ({
@@ -78,24 +80,22 @@ export default function NotificationsStep() {
   const finish = async () => {
     const next = fieldsToSave();
     setFields(next);
-    setIsRegistering(true);
-    setRegisterError(null);
+    setIsOnboarded(true);
+    router.replace("/(app)/dashboard");
     try {
       await registerForPushNotifications(next.notifyTimes);
     } catch {
-      setRegisterError("Couldn't enable notifications. You can turn them on later in Settings.");
-    } finally {
-      setIsRegistering(false);
+      /* silent — user can enable in Settings later */
     }
-    await submit("skip", { silent: true, onboardingStep: 7, fields: next });
-    router.replace("/(app)/dashboard");
+    void submit("complete", { silent: true, onboardingStep: 8, fields: next });
   };
 
-  const skip = async () => {
+  const skip = () => {
     const next = fieldsToSave();
     setFields(next);
-    await submit("skip", { silent: true, onboardingStep: 7, fields: next });
+    setIsOnboarded(true);
     router.replace("/(app)/dashboard");
+    void submit("skip", { silent: true, onboardingStep: 7, fields: next });
   };
 
   return (
@@ -105,13 +105,8 @@ export default function NotificationsStep() {
       subtitle="Pick 1–3 reminder times a day. We'll check in — not spam you."
       footer={
         <>
-          <Button label="Enable notifications" loading={busy} onPress={finish} />
-          <Button label="Skip for now" variant="ghost" disabled={busy} onPress={skip} />
-          {registerError ? (
-            <Text variant="caption" color="error" className="text-center font-regular">
-              {registerError}
-            </Text>
-          ) : null}
+          <Button label="Enable notifications" onPress={finish} />
+          <Button label="Skip for now" variant="ghost" onPress={skip} />
         </>
       }
     >
