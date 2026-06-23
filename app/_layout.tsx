@@ -1,5 +1,5 @@
 import "../global.css";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -14,7 +14,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { queryClient, persistOptions } from "@/api";
 import { BrandSplash, ErrorState, Screen } from "@/components";
-import { wireApiSeams } from "@/lib";
+import { wireApiSeams, addNotificationResponseListener } from "@/lib";
 import { useSessionInit } from "@/hooks";
 import { useAuthStatus, useIsOnboarded, useSessionActions } from "@/stores";
 
@@ -35,24 +35,43 @@ function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
   const segments = useSegments();
   const router = useRouter();
   const { setStatus } = useSessionActions();
+  const redirecting = useRef(false);
 
   useSessionInit();
+
+  // Route notification taps to the check-in screen.
+  useEffect(() => {
+    return addNotificationResponseListener((data) => {
+      const target = typeof data.screen === "string" ? data.screen : "/(app)/checkin";
+      router.push(target as Parameters<typeof router.push>[0]);
+    });
+  }, [router]);
 
   const ready = fontsLoaded && status !== "loading";
 
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || redirecting.current) return;
 
     const group = segments[0];
     const inAuth = group === "(auth)";
     const inOnboarding = group === "(onboarding)";
 
+    let target: string | null = null;
     if (status === "unauthenticated" && !inAuth) {
-      router.replace("/(auth)/welcome");
+      target = "/(auth)/welcome";
     } else if (status === "authenticated" && !isOnboarded && !inOnboarding) {
-      router.replace("/(onboarding)/name");
+      target = "/(onboarding)/name";
     } else if (status === "authenticated" && isOnboarded && (inAuth || inOnboarding)) {
-      router.replace("/(app)/dashboard");
+      target = "/(app)/dashboard";
+    }
+
+    if (target) {
+      redirecting.current = true;
+      router.replace(target as Parameters<typeof router.replace>[0]);
+      // Reset after a tick so the ref doesn't block the next state change.
+      setTimeout(() => {
+        redirecting.current = false;
+      }, 0);
     }
 
     void SplashScreen.hideAsync();
