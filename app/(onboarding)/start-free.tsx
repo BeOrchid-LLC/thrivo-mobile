@@ -8,8 +8,8 @@ import { addDays, localDay } from "@/utils";
 import { OnboardingStep } from "@/features/onboarding/components/OnboardingStep";
 import { NoteBox } from "@/features/onboarding/components/NoteBox";
 import { useSubmitOnboarding } from "@/features/onboarding/hooks/useCompleteOnboarding";
+import { MONTHLY_PRICE_DISPLAY, TRIAL_DAYS } from "@/config/pricing";
 
-const PRICE = "$14.99";
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 const TRIAL_FEATURES = [
@@ -23,7 +23,7 @@ export default function StartFreeStep() {
   const { submit, isPending } = useSubmitOnboarding();
   const [error, setError] = useState<string | null>(null);
 
-  const [y, m, d] = addDays(localDay(), 7).split("-").map(Number);
+  const [y, m, d] = addDays(localDay(), TRIAL_DAYS).split("-").map(Number);
   const trialEndLong = `${d} ${MONTHS[m - 1]} ${y}`;
   const trialEndShort = `${d} ${MONTHS[m - 1]}`;
 
@@ -46,12 +46,12 @@ export default function StartFreeStep() {
     <OnboardingStep
       step={6}
       title="Start your free trial"
-      subtitle={`Full access for 7 days, then ${PRICE}/month. Cancel anytime.`}
+      subtitle={`Full access for 7 days, then ${MONTHLY_PRICE_DISPLAY}/month. Cancel anytime.`}
       footer={
         <>
           <Button label="Start free trial — $0 today" loading={isPending} onPress={startTrial} />
           <Text variant="caption" color="muted" className="text-center font-regular">
-            {PRICE}/month after {trialEndLong}. Cancel in Settings.
+            {MONTHLY_PRICE_DISPLAY}/month after {trialEndLong}. Cancel in Settings.
           </Text>
           <Button label="Skip for now" variant="ghost" disabled={isPending} onPress={skip} />
           {error ? (
@@ -74,7 +74,9 @@ export default function StartFreeStep() {
           <View className="absolute -bottom-6 right-12 h-[64px] w-[64px] rounded-pill bg-white/10" />
 
           <View className="flex-row items-end">
-            <Text className="font-bold text-[36px] leading-[40px] text-light">{PRICE}</Text>
+            <Text className="font-bold text-[36px] leading-[40px] text-light">
+              {MONTHLY_PRICE_DISPLAY}
+            </Text>
             <Text className="mb-[3px] ml-xs text-[16px] leading-[24px] text-light/70">/ month</Text>
           </View>
           <Text className="mt-xs font-bold text-[16px] leading-[24px] text-accent">
@@ -83,7 +85,7 @@ export default function StartFreeStep() {
 
           <View className="mt-md gap-sm">
             <PriceRow label="Trial ends" value={trialEndLong} />
-            <PriceRow label="First charge" value={`${PRICE} on ${trialEndShort}`} />
+            <PriceRow label="First charge" value={`${MONTHLY_PRICE_DISPLAY} on ${trialEndShort}`} />
             <PriceRow label="Cancel before then" value="Pay nothing" accent />
           </View>
         </LinearGradient>

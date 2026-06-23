@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { env } from "@/config/env";
 import { getRefreshToken, setTokens } from "./secure-store";
 
@@ -34,10 +35,14 @@ async function doRefresh(): Promise<string | null> {
     });
     if (!res.ok) return null;
 
-    const json = (await res.json()) as { data?: { accessToken?: string; refreshToken?: string } };
-    const accessToken = json.data?.accessToken;
-    const nextRefresh = json.data?.refreshToken;
-    if (!accessToken || !nextRefresh) return null;
+    const json: unknown = await res.json();
+    const parsed = z
+      .object({
+        data: z.object({ accessToken: z.string().min(1), refreshToken: z.string().min(1) }),
+      })
+      .safeParse(json);
+    if (!parsed.success) return null;
+    const { accessToken, refreshToken: nextRefresh } = parsed.data.data;
 
     await setTokens(accessToken, nextRefresh);
     return accessToken;
