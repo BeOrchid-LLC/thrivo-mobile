@@ -75,7 +75,6 @@ export function apiErrorFromResponse(status: number, body: unknown): ApiError {
   const parsed = errorEnvelope.safeParse(body);
   if (parsed.success) {
     const { code, message, details } = parsed.data.error;
-    // Trust a recognized backend code; otherwise fall back to the status map.
     const known = KNOWN_BACKEND_CODES.has(code) ? (code as ApiErrorCode) : statusToCode(status);
     return new ApiError({
       code: known,

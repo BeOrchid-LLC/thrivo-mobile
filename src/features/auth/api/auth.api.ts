@@ -19,7 +19,7 @@ export const tokenPairSchema = z.object({
 });
 export type TokenPair = z.infer<typeof tokenPairSchema>;
 
-const ackSchema = z.object({ status: z.string() });
+const ackSchema = z.null();
 
 function safeJsonParse(text: string): unknown {
   try {
