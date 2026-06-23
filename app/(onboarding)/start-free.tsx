@@ -8,6 +8,7 @@ import { addDays, localDay } from "@/utils";
 import { OnboardingStep } from "@/features/onboarding/components/OnboardingStep";
 import { NoteBox } from "@/features/onboarding/components/NoteBox";
 import { useSubmitOnboarding } from "@/features/onboarding/hooks/useCompleteOnboarding";
+import { useSessionActions } from "@/stores";
 import { MONTHLY_PRICE_DISPLAY, TRIAL_DAYS } from "@/config/pricing";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -21,6 +22,7 @@ const TRIAL_FEATURES = [
 
 export default function StartFreeStep() {
   const { submit, isPending } = useSubmitOnboarding();
+  const { setIsOnboarded } = useSessionActions();
   const [error, setError] = useState<string | null>(null);
 
   const [y, m, d] = addDays(localDay(), TRIAL_DAYS).split("-").map(Number);
@@ -37,9 +39,10 @@ export default function StartFreeStep() {
     }
   };
 
-  const skip = async () => {
-    await submit("skip", { silent: true, onboardingStep: 6 });
+  const skip = () => {
+    setIsOnboarded(true);
     router.replace("/(app)/dashboard");
+    void submit("skip", { silent: true, onboardingStep: 6 });
   };
 
   return (
