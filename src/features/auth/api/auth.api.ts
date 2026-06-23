@@ -48,8 +48,8 @@ async function authPost<T>(path: string, body: unknown, schema: z.ZodType<T>): P
     throw apiErrorFromResponse(response.status, json);
   }
 
-  const data = (json as { data?: unknown })?.data;
-  const parsed = schema.safeParse(data);
+  const envelope = z.object({ data: z.unknown() }).safeParse(json);
+  const parsed = schema.safeParse(envelope.success ? envelope.data.data : undefined);
   if (!parsed.success) {
     throw parseError("Auth response did not match its contract", parsed.error.issues);
   }
