@@ -120,20 +120,21 @@ export function useGoogleSignIn() {
 }
 
 /**
- * Apple sign-in is deferred (ADR — Android dev build first). Kept as a clear
- * "coming soon" so the iOS button surfaces a message instead of breaking; the
- * backend Apple flow lands in a later phase.
+ * Apple sign-in is deferred (ADR — Android dev build first). `isConfigured`
+ * mirrors the Google pattern so the welcome screen can hide the button
+ * entirely rather than showing it as broken.
  */
 export function useAppleSignIn() {
-  return useMutation({
+  const mutation = useMutation({
     mutationFn: async (): Promise<User> => {
       throw new ApiError({
         code: "UNKNOWN",
-        message: "Sign in with Apple is coming soon.",
+        message: "Sign in with Apple is not yet available.",
         status: 0,
       });
     },
   });
+  return { ...mutation, isConfigured: false };
 }
 
 /** Sign out: revoke the server session, then clear local token + caches regardless. */

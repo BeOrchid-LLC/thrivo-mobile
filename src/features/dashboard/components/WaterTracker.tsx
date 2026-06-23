@@ -9,10 +9,11 @@ interface WaterTrackerProps {
   glasses: number;
   onAdd: () => void;
   adding?: boolean;
+  error?: string | null;
 }
 
 /** Daily water card: a row of glass icons + an add button (Figma dashboard). */
-export function WaterTracker({ glasses, onAdd, adding = false }: WaterTrackerProps) {
+export function WaterTracker({ glasses, onAdd, adding = false, error }: WaterTrackerProps) {
   const filled = Math.min(glasses, GLASS_TARGET);
   return (
     <View className="gap-sm rounded-[16px] bg-primarySoft px-lg py-md">
@@ -46,6 +47,11 @@ export function WaterTracker({ glasses, onAdd, adding = false }: WaterTrackerPro
           ))}
         </View>
       </View>
+      {error ? (
+        <Text variant="caption" color="error" className="font-regular">
+          {error}
+        </Text>
+      ) : null}
     </View>
   );
 }
