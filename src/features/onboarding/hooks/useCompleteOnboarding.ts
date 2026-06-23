@@ -1,13 +1,7 @@
 import { useCallback } from "react";
-import type { User, ActivationIntent, AccountStatus, UpdateProfilePayload } from "@/contracts";
+import type { User, ActivationIntent, UpdateProfilePayload } from "@/contracts";
 import { useUpdateProfile } from "@/features/profile";
-import {
-  useAccountStatus,
-  type OnboardingDraft,
-  useOnboardingDraft,
-  useOnboardingDraftActions,
-  useSessionActions,
-} from "@/stores";
+import { type OnboardingDraft, useOnboardingDraft, useOnboardingDraftActions } from "@/stores";
 
 interface SubmitOptions {
   silent?: boolean;
@@ -36,8 +30,6 @@ const stripUndefined = (payload: UpdateProfilePayload): UpdateProfilePayload => 
 export function useSubmitOnboarding() {
   const draft = useOnboardingDraft();
   const { reset } = useOnboardingDraftActions();
-  const accountStatus = useAccountStatus();
-  const { setProfileStatus } = useSessionActions();
   const updateProfile = useUpdateProfile();
 
   const submit = useCallback(
@@ -58,15 +50,15 @@ export function useSubmitOnboarding() {
         return user;
       } catch (error) {
         if (options.silent) {
-          const fallbackStatus: AccountStatus =
-            accountStatus === null || accountStatus === "dormant" ? "free_trial" : accountStatus;
-          setProfileStatus({ accountStatus: fallbackStatus, isOnboarded: true });
+          // Network failure on a skip/complete step: do not mark the user as
+          // onboarded locally. The server remains the source of truth; the
+          // next session hydration will re-check and reroute if needed.
           return null;
         }
         throw error;
       }
     },
-    [accountStatus, draft, reset, setProfileStatus, updateProfile]
+    [draft, reset, updateProfile]
   );
 
   return {

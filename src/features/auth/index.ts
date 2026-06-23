@@ -4,18 +4,15 @@ export {
   useGoogleSignIn,
   useLogout,
   useRequestMagicLink,
-  useSignIn,
   useVerifyMagicLink,
 } from "./hooks/useAuth";
-export { useDemoAuth, type DemoAuthProvider } from "./hooks/useDemoAuth";
 export { FigmaAuthRow } from "./components/FigmaAuthRow";
 export { SocialAuthButtons, type SocialAuthProvider } from "./components/SocialAuthButtons";
 export {
-  logout,
   requestMagicLink,
-  requestOtp,
-  signInWithPassword,
-  signInWithSocialIdToken,
   verifyMagicLink,
-  verifyOtp,
+  logoutSession,
+  googleStartUrl,
+  tokenPairSchema,
+  type TokenPair,
 } from "./api/auth.api";

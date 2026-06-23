@@ -1,9 +1,9 @@
 import { z } from "zod";
 
 /**
- * Shared primitives + response envelopes mirroring the backend contract
- * (BACKEND_ARCHITECTURE §3): success `{ data, meta }`, error
- * `{ error: { code, message, details? } }`.
+ * Shared primitives + response envelopes mirroring the v0.5.0 backend contract:
+ * success `{ success: true, data, responseCode, message }`,
+ * error  `{ success: false, error: { code, message, details? }, responseCode, message }`.
  */
 
 export const idSchema = z.string().min(1);
@@ -22,19 +22,27 @@ export const metaSchema = z
   .passthrough();
 export type Meta = z.infer<typeof metaSchema>;
 
-/** Wraps a data schema in the standard success envelope. */
+/** Wraps a data schema in the standard v0.5.0 success envelope. */
 export const successEnvelope = <T extends z.ZodTypeAny>(data: T) =>
-  z.object({ data, meta: metaSchema.optional() });
+  z.object({
+    success: z.literal(true),
+    data,
+    responseCode: z.number(),
+    message: z.string(),
+  });
 
 export const errorEnvelope = z.object({
+  success: z.literal(false),
   error: z.object({
     code: z.string(),
     message: z.string(),
     details: z.unknown().optional(),
   }),
+  responseCode: z.number(),
+  message: z.string(),
 });
 export type ErrorEnvelope = z.infer<typeof errorEnvelope>;
 
-/** Generic `{ success: boolean }` ack used by logout / delete-style routes. */
-export const ackSchema = z.object({ success: z.boolean() });
-export type Ack = z.infer<typeof ackSchema>;
+/** Ack endpoints return `data: null` — meaning is carried by `success: true` + `message`. */
+export const ackSchema = z.null();
+export type Ack = null;

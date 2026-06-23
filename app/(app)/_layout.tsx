@@ -32,11 +32,42 @@ export default function AppLayout() {
         tabBarInactiveTintColor: colors.gray[500],
       }}
     >
-      <Tabs.Screen name="dashboard" options={{ title: "Home", tabBarIcon: tabIcon(House) }} />
-      <Tabs.Screen name="log" options={{ title: "Log", tabBarIcon: tabIcon(ForkKnife) }} />
-      <Tabs.Screen name="metrics" options={{ title: "Metrics", tabBarIcon: tabIcon(ChartLine) }} />
-      <Tabs.Screen name="checkin" options={{ title: "Check-in", tabBarIcon: tabIcon(Smiley) }} />
-      <Tabs.Screen name="settings" options={{ title: "Settings", tabBarIcon: tabIcon(Gear) }} />
+      <Tabs.Screen
+        name="dashboard"
+        options={{ title: "Home", tabBarIcon: tabIcon(House), tabBarAccessibilityLabel: "Home" }}
+      />
+      <Tabs.Screen
+        name="log"
+        options={{
+          title: "Log",
+          tabBarIcon: tabIcon(ForkKnife),
+          tabBarAccessibilityLabel: "Log food",
+        }}
+      />
+      <Tabs.Screen
+        name="metrics"
+        options={{
+          title: "Metrics",
+          tabBarIcon: tabIcon(ChartLine),
+          tabBarAccessibilityLabel: "Metrics",
+        }}
+      />
+      <Tabs.Screen
+        name="checkin"
+        options={{
+          title: "Check-in",
+          tabBarIcon: tabIcon(Smiley),
+          tabBarAccessibilityLabel: "Daily check-in",
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: "Settings",
+          tabBarIcon: tabIcon(Gear),
+          tabBarAccessibilityLabel: "Settings",
+        }}
+      />
       <Tabs.Screen name="foods" options={{ href: null }} />
     </Tabs>
   );

@@ -1,70 +1,25 @@
-import { callApi } from "@/api";
-import { env } from "@/config/env";
-import {
-  authSessionSchema,
-  type MagicLinkRequestPayload,
-  type OtpRequestPayload,
-  type OtpVerifyPayload,
-  type SignInPayload,
-} from "@/contracts";
-import { apiErrorFromResponse, networkError, parseError, ApiError } from "@/api/errors";
-import * as Linking from "expo-linking";
 import { z } from "zod";
+import { env } from "@/config/env";
+import { apiErrorFromResponse, networkError, parseError } from "@/api/errors";
+import type { MagicLinkRequestPayload } from "@/contracts";
 
 /**
- * Auth intent functions — thin wrappers over the typed client (one per backend
- * action). Hooks consume these; screens never call the client directly
- * (MOBILE_ARCHITECTURE §6).
+ * Auth intent functions for the hand-rolled backend auth (magic link + Google).
+ * These hit the public `/auth/*` endpoints directly — they're unauthenticated
+ * and return the `{ data }` envelope, so they bypass `callApi` (which injects a
+ * bearer + is typed for the endpoint registry). Hooks consume these; screens
+ * never call them directly (MOBILE_ARCHITECTURE §6).
  */
-export const signInWithPassword = (payload: SignInPayload) =>
-  callApi("PASSWORD_SIGNIN", { payload });
 
-export const requestOtp = (payload: OtpRequestPayload) => callApi("OTP_REQUEST", { payload });
-
-export const verifyOtp = (payload: OtpVerifyPayload) => callApi("OTP_VERIFY", { payload });
-
-export const logout = () => callApi("LOGOUT");
-
-const betterAuthAck = z.object({ status: z.boolean() });
-const magicLinkVerifyResponse = z.object({ token: z.string().min(1) });
-const socialTokenResponse = z.object({
-  redirect: z.boolean().optional(),
-  token: z.string().min(1).optional(),
-  url: z.string().optional(),
+/** Access + refresh pair returned by verify/refresh. */
+export const tokenPairSchema = z.object({
+  accessToken: z.string().min(1),
+  refreshToken: z.string().min(1),
+  refreshExpiresAt: z.string(),
 });
+export type TokenPair = z.infer<typeof tokenPairSchema>;
 
-async function betterAuthRequest<T>(
-  path: string,
-  options: RequestInit,
-  schema: z.ZodType<T>
-): Promise<T> {
-  let response: Response;
-  try {
-    response = await fetch(`${env.apiUrl}${env.apiPrefix}/auth${path}`, {
-      ...options,
-      headers: {
-        Accept: "application/json",
-        ...(options.body ? { "Content-Type": "application/json" } : null),
-        ...options.headers,
-      },
-    });
-  } catch (cause) {
-    throw networkError(cause instanceof Error ? cause.message : "Network request failed");
-  }
-
-  const text = await response.text();
-  const body = text ? safeJsonParse(text) : undefined;
-
-  if (!response.ok) {
-    throw apiErrorFromResponse(response.status, body);
-  }
-
-  const parsed = schema.safeParse(body);
-  if (!parsed.success) {
-    throw parseError("Auth response did not match its contract", parsed.error.issues);
-  }
-  return parsed.data;
-}
+const ackSchema = z.null();
 
 function safeJsonParse(text: string): unknown {
   try {
@@ -74,64 +29,53 @@ function safeJsonParse(text: string): unknown {
   }
 }
 
-export const requestMagicLink = (payload: MagicLinkRequestPayload) =>
-  betterAuthRequest(
-    "/sign-in/magic-link",
-    {
+async function authPost<T>(path: string, body: unknown, schema: z.ZodType<T>): Promise<T> {
+  let response: Response;
+  try {
+    response = await fetch(`${env.apiUrl}${env.apiPrefix}/auth${path}`, {
       method: "POST",
-      body: JSON.stringify({
-        email: payload.email,
-        name: payload.firstName,
-        metadata: { appUrl: Linking.createURL("/magic-link") },
-      }),
-    },
-    betterAuthAck
-  );
-
-export const verifyMagicLink = async (token: string): Promise<string> => {
-  const result = await betterAuthRequest(
-    `/magic-link/verify?token=${encodeURIComponent(token)}`,
-    { method: "GET" },
-    magicLinkVerifyResponse
-  );
-  return result.token;
-};
-
-export const signInWithSocialIdToken = async (input: {
-  provider: "google" | "apple";
-  idToken: string;
-  firstName?: string;
-  email?: string;
-}): Promise<string> => {
-  const result = await betterAuthRequest(
-    "/sign-in/social",
-    {
-      method: "POST",
-      body: JSON.stringify({
-        provider: input.provider,
-        requestSignUp: true,
-        idToken: {
-          token: input.idToken,
-          user: {
-            email: input.email,
-            name: input.firstName ? { firstName: input.firstName } : undefined,
-          },
-        },
-      }),
-    },
-    socialTokenResponse
-  );
-
-  if (!result.token) {
-    throw new ApiError({
-      code: "UNKNOWN",
-      message: result.url
-        ? "Social sign-in requires a browser redirect."
-        : "No session token returned.",
-      status: 0,
+      headers: { Accept: "application/json", "Content-Type": "application/json" },
+      body: JSON.stringify(body),
     });
+  } catch (cause) {
+    throw networkError(cause instanceof Error ? cause.message : "Network request failed");
   }
-  return result.token;
+
+  const text = await response.text();
+  const json = text ? safeJsonParse(text) : undefined;
+
+  if (!response.ok) {
+    throw apiErrorFromResponse(response.status, json);
+  }
+
+  const envelope = z.object({ data: z.unknown() }).safeParse(json);
+  const parsed = schema.safeParse(envelope.success ? envelope.data.data : undefined);
+  if (!parsed.success) {
+    throw parseError("Auth response did not match its contract", parsed.error.issues);
+  }
+  return parsed.data;
+}
+
+/** Request a magic-link email. Backend always 202s (no account enumeration). */
+export const requestMagicLink = (payload: MagicLinkRequestPayload) =>
+  authPost("/magic-link/request", { email: payload.email }, ackSchema);
+
+/** Redeem a magic-link token (from the deep link) for a session token pair. */
+export const verifyMagicLink = (token: string) =>
+  authPost("/magic-link/verify", { token }, tokenPairSchema);
+
+/** Revoke the refresh session server-side. Tolerates an unknown token (204). */
+export const logoutSession = async (refreshToken: string): Promise<void> => {
+  try {
+    await fetch(`${env.apiUrl}${env.apiPrefix}/auth/logout`, {
+      method: "POST",
+      headers: { Accept: "application/json", "Content-Type": "application/json" },
+      body: JSON.stringify({ refreshToken }),
+    });
+  } catch {
+    // Logout is best-effort; the client clears local state regardless.
+  }
 };
 
-export { authSessionSchema };
+/** The URL the system browser opens to begin Google OAuth (server-driven). */
+export const googleStartUrl = (): string => `${env.apiUrl}${env.apiPrefix}/auth/google/start`;
