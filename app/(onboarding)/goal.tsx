@@ -3,7 +3,7 @@ import { router } from "expo-router";
 import { Button, DumbbellIcon, SwapIcon, TrendDownIcon, type IconProps } from "@/components";
 import type { ComponentType } from "react";
 import type { Goal } from "@/contracts";
-import { useOnboardingDraft, useOnboardingDraftActions } from "@/stores";
+import { useOnboardingDraft, useOnboardingDraftActions, useSessionActions } from "@/stores";
 import { OnboardingStep } from "@/features/onboarding/components/OnboardingStep";
 import { SelectCard } from "@/features/onboarding/components/SelectCard";
 import { useSubmitOnboarding } from "@/features/onboarding/hooks/useCompleteOnboarding";
@@ -38,6 +38,7 @@ const GOALS: {
 export default function GoalStep() {
   const draft = useOnboardingDraft();
   const { setFields } = useOnboardingDraftActions();
+  const { setIsOnboarded } = useSessionActions();
   const { submit, isPending } = useSubmitOnboarding();
   const [goal, setGoal] = useState<Goal | undefined>(draft.goal);
 
@@ -46,16 +47,11 @@ export default function GoalStep() {
     router.push("/(onboarding)/weight");
   };
 
-  const skip = async () => {
-    if (goal) {
-      setFields({ goal, onboardingStep: 2 });
-    }
-    await submit("skip", {
-      silent: true,
-      onboardingStep: 2,
-      fields: goal ? { goal } : undefined,
-    });
+  const skip = () => {
+    if (goal) setFields({ goal, onboardingStep: 2 });
+    setIsOnboarded(true);
     router.replace("/(app)/dashboard");
+    void submit("skip", { silent: true, onboardingStep: 2, fields: goal ? { goal } : undefined });
   };
 
   return (

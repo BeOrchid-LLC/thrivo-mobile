@@ -55,11 +55,13 @@ function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
     const group = segments[0];
     const inAuth = group === "(auth)";
     const inOnboarding = group === "(onboarding)";
+    // OAuth deep-link handler: routes itself after applying tokens; exclude from guard.
+    const inAuthCallback = group === "auth";
 
     let target: string | null = null;
-    if (status === "unauthenticated" && !inAuth) {
+    if (status === "unauthenticated" && !inAuth && !inAuthCallback) {
       target = "/(auth)/welcome";
-    } else if (status === "authenticated" && !isOnboarded && !inOnboarding) {
+    } else if (status === "authenticated" && !isOnboarded && !inOnboarding && !inAuthCallback) {
       target = "/(onboarding)/name";
     } else if (status === "authenticated" && isOnboarded && (inAuth || inOnboarding)) {
       target = "/(app)/dashboard";

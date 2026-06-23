@@ -3,7 +3,12 @@ import { router } from "expo-router";
 import { Button, Input, Segmented } from "@/components";
 import type { UnitSystem } from "@/contracts";
 import { kgToLb, lbToKg, roundTo } from "@/utils";
-import { type OnboardingDraft, useOnboardingDraft, useOnboardingDraftActions } from "@/stores";
+import {
+  type OnboardingDraft,
+  useOnboardingDraft,
+  useOnboardingDraftActions,
+  useSessionActions,
+} from "@/stores";
 import { OnboardingStep } from "@/features/onboarding/components/OnboardingStep";
 import { InsightPill } from "@/features/onboarding/components/InsightPill";
 import { useSubmitOnboarding } from "@/features/onboarding/hooks/useCompleteOnboarding";
@@ -19,6 +24,7 @@ const toDisplay = (kg: number | undefined, unit: Unit): string => {
 export default function WeightStep() {
   const draft = useOnboardingDraft();
   const { setFields } = useOnboardingDraftActions();
+  const { setIsOnboarded } = useSessionActions();
   const { submit, isPending } = useSubmitOnboarding();
   const needsTarget = draft.goal !== "maintain";
 
@@ -74,11 +80,12 @@ export default function WeightStep() {
     router.push("/(onboarding)/body");
   };
 
-  const skip = async () => {
+  const skip = () => {
     const fields = buildFields();
     setFields(fields);
-    await submit("skip", { silent: true, onboardingStep: 3, fields });
+    setIsOnboarded(true);
     router.replace("/(app)/dashboard");
+    void submit("skip", { silent: true, onboardingStep: 3, fields });
   };
 
   return (
