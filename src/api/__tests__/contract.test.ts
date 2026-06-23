@@ -21,6 +21,9 @@ describe("Phase 2 — endpoints contract", () => {
   it("round-trips a valid success envelope through a response schema", () => {
     const envelope = successEnvelope(authSessionSchema);
     const sample = {
+      success: true,
+      responseCode: 200,
+      message: "OK",
       data: {
         token: "tok_123",
         user: {
@@ -58,6 +61,9 @@ describe("Phase 2 — endpoints contract", () => {
   it("parses GET /users/me through the published contract package", () => {
     const envelope = successEnvelope(ENDPOINTS.GET_ME.response);
     const parsed = envelope.safeParse({
+      success: true,
+      responseCode: 200,
+      message: "OK",
       data: {
         id: "68711c81-d52c-4798-9fb0-ccda25f27a24",
         email: "user@thrivo.app",
@@ -90,6 +96,9 @@ describe("Phase 2 — endpoints contract", () => {
 
   it("maps a backend error envelope to a typed ApiError", () => {
     const err = apiErrorFromResponse(429, {
+      success: false,
+      responseCode: 429,
+      message: "Slow down",
       error: { code: "RATE_LIMITED", message: "Slow down" },
     });
     expect(err.code).toBe("RATE_LIMITED");
