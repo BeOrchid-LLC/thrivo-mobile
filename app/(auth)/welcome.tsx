@@ -53,7 +53,7 @@ export default function Welcome() {
           />
         ) : null}
 
-        {Platform.OS === "ios" ? (
+        {Platform.OS === "ios" && apple.isConfigured ? (
           <FigmaAuthRow
             icon={appleIcon}
             iconSize={24}

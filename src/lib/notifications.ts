@@ -2,7 +2,6 @@ import { Platform } from "react-native";
 import Constants from "expo-constants";
 import * as Notifications from "expo-notifications";
 import { callApi } from "@/api";
-import { monitoring } from "./monitoring";
 
 /**
  * Push notifications adapter (Expo Notifications — MOBILE_ARCHITECTURE §8).
@@ -26,35 +25,35 @@ function resolveProjectId(): string | undefined {
   return Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId ?? undefined;
 }
 
-/** Request permission, fetch the Expo token and register it with the backend. */
+/**
+ * Request permission, fetch the Expo push token and register it with the
+ * backend. Returns null when the user denies permission (graceful degradation).
+ * Throws for any other failure (token fetch error, backend error) so callers
+ * can surface feedback to the user.
+ */
 export async function registerForPushNotifications(notifyTimes?: string[]): Promise<string | null> {
-  try {
-    const existing = await Notifications.getPermissionsAsync();
-    let granted = existing.granted;
-    if (!granted && existing.canAskAgain) {
-      const requested = await Notifications.requestPermissionsAsync();
-      granted = requested.granted;
-    }
-    if (!granted) return null; // graceful denial — caller falls back to in-app
-
-    const projectId = resolveProjectId();
-    const { data: expoPushToken } = await Notifications.getExpoPushTokenAsync(
-      projectId ? { projectId } : undefined
-    );
-
-    await callApi("PUSH_REGISTER", {
-      payload: {
-        expoPushToken,
-        platform: Platform.OS === "ios" ? "ios" : "android",
-        notifyTimes,
-      },
-    });
-
-    return expoPushToken;
-  } catch (error) {
-    monitoring.captureException(error, { scope: "registerForPushNotifications" });
-    return null;
+  const existing = await Notifications.getPermissionsAsync();
+  let granted = existing.granted;
+  if (!granted && existing.canAskAgain) {
+    const requested = await Notifications.requestPermissionsAsync();
+    granted = requested.granted;
   }
+  if (!granted) return null; // permission denied — caller degrades gracefully
+
+  const projectId = resolveProjectId();
+  const { data: expoPushToken } = await Notifications.getExpoPushTokenAsync(
+    projectId ? { projectId } : undefined
+  );
+
+  await callApi("PUSH_REGISTER", {
+    payload: {
+      expoPushToken,
+      platform: Platform.OS === "ios" ? "ios" : "android",
+      notifyTimes,
+    },
+  });
+
+  return expoPushToken;
 }
 
 /**

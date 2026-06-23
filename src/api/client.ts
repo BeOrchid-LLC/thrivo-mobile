@@ -7,7 +7,7 @@ import {
   type EndpointResponse,
 } from "./endpoints";
 import { apiErrorFromResponse, networkError, parseError } from "./errors";
-import { getAuthToken, handleUnauthenticated } from "./auth-token";
+import { getAuthToken, handleUnauthenticated, refreshAuthToken } from "./auth-token";
 
 type QueryValue = string | number | boolean | null | undefined;
 
@@ -62,39 +62,38 @@ export async function callApi<K extends EndpointKey>(
   const path = buildPath(config.path, options.params, options.query);
   const url = `${env.apiUrl}${env.apiPrefix}${path}`;
 
-  const headers: Record<string, string> = { Accept: "application/json" };
+  const body = options.payload !== undefined ? JSON.stringify(options.payload) : undefined;
 
-  if (options.payload !== undefined) {
-    headers["Content-Type"] = "application/json";
-  }
-
-  if (config.auth) {
-    const token = await getAuthToken();
-    if (token) headers.Authorization = `Bearer ${token}`;
-  }
+  const send = (token: string | null): Promise<Response> => {
+    const headers: Record<string, string> = { Accept: "application/json" };
+    if (options.payload !== undefined) headers["Content-Type"] = "application/json";
+    if (config.auth && token) headers.Authorization = `Bearer ${token}`;
+    return fetch(url, { method: config.method, headers, body, signal: options.signal });
+  };
 
   let response: Response;
   try {
-    response = await fetch(url, {
-      method: config.method,
-      headers,
-      body: options.payload !== undefined ? JSON.stringify(options.payload) : undefined,
-      signal: options.signal,
-    });
+    response = await send(config.auth ? await getAuthToken() : null);
+    // On a 401 for an authed call, rotate the refresh token once and retry —
+    // so a routinely-expired 15-minute access token never logs the user out.
+    if (response.status === 401 && config.auth) {
+      const refreshed = await refreshAuthToken();
+      if (refreshed) response = await send(refreshed);
+    }
   } catch (cause) {
     throw networkError(cause instanceof Error ? cause.message : "Network request failed");
   }
 
   // Some success responses (e.g. 204) carry no body.
   const text = await response.text();
-  const body: unknown = text ? safeJsonParse(text) : undefined;
+  const bodyData: unknown = text ? safeJsonParse(text) : undefined;
 
   if (!response.ok) {
     if (response.status === 401) handleUnauthenticated();
-    throw apiErrorFromResponse(response.status, body);
+    throw apiErrorFromResponse(response.status, bodyData);
   }
 
-  const parsed = successEnvelope(config.response).safeParse(body);
+  const parsed = successEnvelope(config.response).safeParse(bodyData);
   if (!parsed.success) {
     throw parseError(`Response for "${endpoint}" did not match its contract`, parsed.error.issues);
   }
