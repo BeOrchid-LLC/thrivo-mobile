@@ -118,6 +118,7 @@ export default function Dashboard() {
         <WaterTracker
           glasses={glasses}
           adding={addWater.isPending}
+          error={addWater.error?.message ?? null}
           onAdd={() => addWater.mutate()}
         />
 
