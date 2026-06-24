@@ -31,12 +31,15 @@ export default function AuthCallbackScreen() {
         userId: user.id,
         accountStatus: user.accountStatus,
         isOnboarded: user.isOnboarded,
+        isOnboardingSkipped: user.isOnboardingSkipped,
       });
       analytics.identify(user.id);
       return user;
     },
     onSuccess: (user) => {
-      router.replace(user.isOnboarded ? "/(app)/dashboard" : "/(onboarding)/name");
+      router.replace(
+        user.isOnboarded || user.isOnboardingSkipped ? "/(app)/dashboard" : "/(onboarding)/name"
+      );
     },
     onError: () => {
       router.replace("/(auth)/sign-in");

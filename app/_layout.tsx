@@ -16,7 +16,7 @@ import { queryClient, persistOptions } from "@/api";
 import { BrandSplash, ErrorState, Screen } from "@/components";
 import { wireApiSeams, addNotificationResponseListener } from "@/lib";
 import { useSessionInit, useSessionRefresh } from "@/hooks";
-import { useAuthStatus, useIsOnboarded, useSessionActions } from "@/stores";
+import { useAuthStatus, useIsOnboarded, useIsOnboardingSkipped, useSessionActions } from "@/stores";
 
 // Wire the API client's token/unauthenticated seams once, at module load.
 wireApiSeams();
@@ -32,6 +32,7 @@ void SplashScreen.preventAutoHideAsync();
 function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
   const status = useAuthStatus();
   const isOnboarded = useIsOnboarded();
+  const isOnboardingSkipped = useIsOnboardingSkipped();
   const segments = useSegments();
   const router = useRouter();
   const { setStatus } = useSessionActions();
@@ -62,9 +63,19 @@ function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
     let target: string | null = null;
     if (status === "unauthenticated" && !inAuth && !inAuthCallback) {
       target = "/(auth)/welcome";
-    } else if (status === "authenticated" && !isOnboarded && !inOnboarding && !inAuthCallback) {
+    } else if (
+      status === "authenticated" &&
+      !isOnboarded &&
+      !isOnboardingSkipped &&
+      !inOnboarding &&
+      !inAuthCallback
+    ) {
       target = "/(onboarding)/name";
-    } else if (status === "authenticated" && isOnboarded && (inAuth || inOnboarding)) {
+    } else if (
+      status === "authenticated" &&
+      (isOnboarded || isOnboardingSkipped) &&
+      (inAuth || inOnboarding)
+    ) {
       target = "/(app)/dashboard";
     }
 
@@ -78,7 +89,7 @@ function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
     }
 
     void SplashScreen.hideAsync();
-  }, [ready, status, isOnboarded, segments, router]);
+  }, [ready, status, isOnboarded, isOnboardingSkipped, segments, router]);
 
   if (!fontsLoaded) {
     return null;

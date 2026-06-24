@@ -9,7 +9,7 @@ import { useOnboardingDraft, useOnboardingDraftActions, useSessionActions } from
 export default function NameStep() {
   const draft = useOnboardingDraft();
   const { setFields } = useOnboardingDraftActions();
-  const { setIsOnboarded } = useSessionActions();
+  const { setIsOnboardingSkipped } = useSessionActions();
   const { data: me } = useMe();
   const { submit, isPending } = useSubmitOnboarding();
   const [firstName, setFirstName] = useState(draft.firstName ?? me?.name ?? "");
@@ -31,7 +31,7 @@ export default function NameStep() {
 
   const skip = () => {
     if (trimmed) setFields({ firstName: trimmed, onboardingStep: 1 });
-    setIsOnboarded(true);
+    setIsOnboardingSkipped(true);
     router.replace("/(app)/dashboard");
     void submit("skip", {
       silent: true,

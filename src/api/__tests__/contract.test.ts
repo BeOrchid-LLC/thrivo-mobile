@@ -50,6 +50,7 @@ describe("Phase 2 — endpoints contract", () => {
           trialEndsAt: "2026-06-26T00:00:00.000Z",
           onboardingStep: 7,
           isOnboarded: true,
+          isOnboardingSkipped: false,
           createdAt: "2026-06-14T00:00:00.000Z",
         },
       },
@@ -88,6 +89,7 @@ describe("Phase 2 — endpoints contract", () => {
         trialEndsAt: "2026-06-25T00:00:00.000Z",
         onboardingStep: 3,
         isOnboarded: true,
+        isOnboardingSkipped: false,
         createdAt: "2026-06-18T00:00:00.000Z",
       },
     });
