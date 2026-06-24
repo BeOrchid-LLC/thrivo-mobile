@@ -4,6 +4,8 @@ import { userSchema } from "./user";
 /**
  * Auth contracts (ADR-0017): email+password · Google · Apple · email-OTP.
  * Every successful auth route returns a session token + the user.
+ *
+ * GET /auth/session schemas live in `@beorchid-llc/thrivo-contracts/auth` (0.5.1+).
  */
 
 export const authSessionSchema = z.object({
