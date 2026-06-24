@@ -29,7 +29,7 @@ const ftInToCm = (ft: number, inch: number): number => roundTo((ft * 12 + inch) 
 export default function BodyStep() {
   const draft = useOnboardingDraft();
   const { setFields } = useOnboardingDraftActions();
-  const { setIsOnboarded } = useSessionActions();
+  const { setIsOnboardingSkipped } = useSessionActions();
   const { submit, isPending } = useSubmitOnboarding();
 
   const initialFtIn = draft.heightCm ? cmToFtIn(draft.heightCm) : null;
@@ -83,7 +83,7 @@ export default function BodyStep() {
   const skip = () => {
     const fields = buildFields();
     setFields(fields);
-    setIsOnboarded(true);
+    setIsOnboardingSkipped(true);
     router.replace("/(app)/dashboard");
     void submit("skip", { silent: true, onboardingStep: 4, fields });
   };

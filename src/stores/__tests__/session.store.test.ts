@@ -19,6 +19,7 @@ describe("Phase 3 — session store", () => {
       userId: "u_1",
       accountStatus: "free_trial",
       isOnboarded: true,
+      isOnboardingSkipped: false,
     });
     const state = useSessionStore.getState();
     expect(state.status).toBe("authenticated");
@@ -26,6 +27,7 @@ describe("Phase 3 — session store", () => {
     expect(state.userId).toBe("u_1");
     expect(state.accountStatus).toBe("free_trial");
     expect(state.isOnboarded).toBe(true);
+    expect(state.isOnboardingSkipped).toBe(false);
   });
 
   it("clearSession wipes the token and resets account status", () => {
@@ -35,6 +37,7 @@ describe("Phase 3 — session store", () => {
       userId: "u_1",
       accountStatus: "free_trial",
       isOnboarded: true,
+      isOnboardingSkipped: false,
     });
     actions.clearSession();
     const state = useSessionStore.getState();
@@ -42,6 +45,7 @@ describe("Phase 3 — session store", () => {
     expect(state.token).toBeNull();
     expect(state.accountStatus).toBeNull();
     expect(state.isOnboarded).toBe(false);
+    expect(state.isOnboardingSkipped).toBe(false);
   });
 
   it("action references are stable across updates", () => {

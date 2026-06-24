@@ -24,7 +24,7 @@ const toDisplay = (kg: number | undefined, unit: Unit): string => {
 export default function WeightStep() {
   const draft = useOnboardingDraft();
   const { setFields } = useOnboardingDraftActions();
-  const { setIsOnboarded } = useSessionActions();
+  const { setIsOnboardingSkipped } = useSessionActions();
   const { submit, isPending } = useSubmitOnboarding();
   const needsTarget = draft.goal !== "maintain";
 
@@ -83,7 +83,7 @@ export default function WeightStep() {
   const skip = () => {
     const fields = buildFields();
     setFields(fields);
-    setIsOnboarded(true);
+    setIsOnboardingSkipped(true);
     router.replace("/(app)/dashboard");
     void submit("skip", { silent: true, onboardingStep: 3, fields });
   };
