@@ -58,6 +58,7 @@ export const userSchema = z.object({
   trialEndsAt: isoDateSchema.nullable(),
   onboardingStep: z.number().int(),
   isOnboarded: z.boolean(),
+  isOnboardingSkipped: z.boolean(),
   createdAt: isoDateSchema,
 });
 export type User = z.infer<typeof userSchema>;

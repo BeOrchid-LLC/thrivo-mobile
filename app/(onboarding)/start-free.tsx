@@ -22,7 +22,7 @@ const TRIAL_FEATURES = [
 
 export default function StartFreeStep() {
   const { submit, isPending } = useSubmitOnboarding();
-  const { setIsOnboarded } = useSessionActions();
+  const { setIsOnboardingSkipped } = useSessionActions();
   const [error, setError] = useState<string | null>(null);
 
   const [y, m, d] = addDays(localDay(), TRIAL_DAYS).split("-").map(Number);
@@ -40,7 +40,7 @@ export default function StartFreeStep() {
   };
 
   const skip = () => {
-    setIsOnboarded(true);
+    setIsOnboardingSkipped(true);
     router.replace("/(app)/dashboard");
     void submit("skip", { silent: true, onboardingStep: 6 });
   };

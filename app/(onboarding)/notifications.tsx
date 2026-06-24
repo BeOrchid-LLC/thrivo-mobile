@@ -51,7 +51,7 @@ function dateToHhmm(d: Date): string {
 export default function NotificationsStep() {
   const draft = useOnboardingDraft();
   const { setFields } = useOnboardingDraftActions();
-  const { setIsOnboarded } = useSessionActions();
+  const { setIsOnboarded, setIsOnboardingSkipped } = useSessionActions();
   const { submit } = useSubmitOnboarding();
 
   const initialTimes = [...DEFAULT_TIMES];
@@ -93,7 +93,7 @@ export default function NotificationsStep() {
   const skip = () => {
     const next = fieldsToSave();
     setFields(next);
-    setIsOnboarded(true);
+    setIsOnboardingSkipped(true);
     router.replace("/(app)/dashboard");
     void submit("skip", { silent: true, onboardingStep: 7, fields: next });
   };

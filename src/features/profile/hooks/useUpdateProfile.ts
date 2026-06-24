@@ -12,7 +12,11 @@ export function useUpdateProfile() {
     mutationFn: (payload: UpdateProfilePayload) => updateProfile(payload),
     onSuccess: (user) => {
       queryClient.setQueryData(queryKeys.me(), user);
-      setProfileStatus({ accountStatus: user.accountStatus, isOnboarded: user.isOnboarded });
+      setProfileStatus({
+        accountStatus: user.accountStatus,
+        isOnboarded: user.isOnboarded,
+        isOnboardingSkipped: user.isOnboardingSkipped,
+      });
     },
   });
 }
