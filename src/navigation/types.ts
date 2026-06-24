@@ -6,8 +6,8 @@
 
 export type AuthStackParamList = {
   welcome: undefined;
-  "sign-in": undefined;
-  "magic-link": { token?: string } | undefined;
+  "sign-in": { authError?: string } | undefined;
+  "magic-link": undefined;
 };
 
 export type OnboardingStackParamList = {

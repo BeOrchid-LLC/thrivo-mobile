@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { router, useLocalSearchParams } from "expo-router";
+import { useEffect, useState } from "react";
+import { router } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Pressable, View } from "react-native";
@@ -8,7 +8,6 @@ import {
   BackButton,
   Button,
   CheckCircleIcon,
-  ClockIcon,
   Input,
   MailIcon,
   Screen,
@@ -16,10 +15,8 @@ import {
   UserIcon,
 } from "@/components";
 import { colors } from "@/theme";
-import { isApiError } from "@/api";
-import { monitoring } from "@/lib";
 import { emailSchema, magicLinkRequestPayload } from "@/contracts";
-import { useRequestMagicLink, useVerifyMagicLink } from "@/features/auth";
+import { useRequestMagicLink } from "@/features/auth";
 import { useOnboardingDraftActions } from "@/stores";
 
 const signupMagicLinkForm = magicLinkRequestPayload.extend({
@@ -28,21 +25,14 @@ const signupMagicLinkForm = magicLinkRequestPayload.extend({
 });
 
 type SignupMagicLinkForm = z.infer<typeof signupMagicLinkForm>;
-type MagicLinkState = "input" | "sent" | "verifying" | "expired" | "verify_error";
-
-// Connectivity-class failures are retryable; everything else means the link itself
-// is no good (expired / already used / invalid).
-const TRANSIENT_CODES = new Set(["NETWORK", "TIMEOUT", "SERVER_ERROR"]);
+type MagicLinkState = "input" | "sent";
 
 export default function MagicLinkScreen() {
-  const params = useLocalSearchParams<{ token?: string }>();
-  const verify = useVerifyMagicLink();
   const request = useRequestMagicLink();
   const { setFields } = useOnboardingDraftActions();
-  const [state, setState] = useState<MagicLinkState>(params.token ? "verifying" : "input");
+  const [state, setState] = useState<MagicLinkState>("input");
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(0);
-  const verified = useRef(false);
 
   const {
     control,
@@ -53,43 +43,6 @@ export default function MagicLinkScreen() {
     resolver: zodResolver(signupMagicLinkForm),
     defaultValues: { firstName: "", email: "" },
   });
-
-  const handleVerify = useCallback(
-    (token: string) => {
-      setState("verifying");
-      verify.mutate(token, {
-        onSuccess: (user) => {
-          router.replace(
-            user.accountStatus === "dormant" ? "/(onboarding)/name" : "/(app)/dashboard"
-          );
-        },
-        onError: (error) => {
-          // Capture the real failure so the next build tells us whether the deep
-          // link reaches the app and why verification fails.
-          monitoring.captureException(error, {
-            scope: "magic-link-verify",
-            code: isApiError(error) ? error.code : "UNKNOWN",
-          });
-          const transient = isApiError(error) && TRANSIENT_CODES.has(error.code);
-          setState(transient ? "verify_error" : "expired");
-        },
-      });
-    },
-    [verify]
-  );
-
-  useEffect(() => {
-    const token = params.token?.trim();
-    if (!token || verified.current) return;
-    verified.current = true;
-    if (__DEV__) console.info("[magic-link] deep link received; verifying token");
-    handleVerify(token);
-  }, [params.token, handleVerify]);
-
-  const retryVerify = () => {
-    const token = params.token?.trim();
-    if (token) handleVerify(token);
-  };
 
   useEffect(() => {
     if (state !== "sent" || countdown <= 0) return undefined;
@@ -116,84 +69,6 @@ export default function MagicLinkScreen() {
     setState("sent");
     startCountdown();
   };
-
-  if (params.token) {
-    if (state === "expired") {
-      return (
-        <Screen backgroundColor={colors.white}>
-          <View className="flex-1">
-            <BackButton onPress={() => router.replace("/(auth)/magic-link")} />
-            <View className="flex-1 items-center justify-center">
-              <View className="mb-xl h-[80px] w-[80px] items-center justify-center rounded-pill bg-accentSoft">
-                <ClockIcon size={40} />
-              </View>
-              <Text
-                variant="heading2"
-                color="dark"
-                className="mb-md text-center text-[28px] leading-[34px] tracking-[-0.4px]"
-              >
-                This link has expired
-              </Text>
-              <Text variant="body" color="muted" className="mb-2xl text-center">
-                Magic links are single-use and expire after 15 minutes. Let&apos;s get you a fresh
-                one.
-              </Text>
-              {sentTo ? (
-                <View className="mb-lg w-full">
-                  <Input editable={false} value={sentTo} leadingIcon={<MailIcon />} />
-                </View>
-              ) : null}
-              <Button
-                label="Send a new link"
-                onPress={() => router.replace("/(auth)/magic-link")}
-                className="mb-lg"
-              />
-              <Button
-                label="Use a different email"
-                variant="ghost"
-                onPress={() => router.replace("/(auth)/magic-link")}
-              />
-            </View>
-          </View>
-        </Screen>
-      );
-    }
-
-    if (state === "verify_error") {
-      return (
-        <Screen backgroundColor={colors.white}>
-          <View className="flex-1 items-center justify-center gap-md">
-            <Text variant="heading2" color="dark" className="text-center">
-              We couldn&apos;t verify your link
-            </Text>
-            <Text variant="body" color="muted" className="text-center">
-              This looks like a connection problem, not an expired link. Check your network and try
-              again.
-            </Text>
-            <Button label="Try again" loading={verify.isPending} onPress={retryVerify} />
-            <Button
-              label="Use a different email"
-              variant="ghost"
-              onPress={() => router.replace("/(auth)/magic-link")}
-            />
-          </View>
-        </Screen>
-      );
-    }
-
-    return (
-      <Screen backgroundColor={colors.white}>
-        <View className="flex-1 items-center justify-center gap-md">
-          <Text variant="heading2" color="dark" className="text-center">
-            Verifying your link
-          </Text>
-          <Text variant="body" color="muted" className="text-center">
-            Hang tight while we finish signing you in.
-          </Text>
-        </View>
-      </Screen>
-    );
-  }
 
   if (state === "sent") {
     return (

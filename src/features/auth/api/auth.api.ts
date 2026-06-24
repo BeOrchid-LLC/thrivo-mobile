@@ -60,10 +60,6 @@ async function authPost<T>(path: string, body: unknown, schema: z.ZodType<T>): P
 export const requestMagicLink = (payload: MagicLinkRequestPayload) =>
   authPost("/magic-link/request", { email: payload.email }, ackSchema);
 
-/** Redeem a magic-link token (from the deep link) for a session token pair. */
-export const verifyMagicLink = (token: string) =>
-  authPost("/magic-link/verify", { token }, tokenPairSchema);
-
 /** Revoke the refresh session server-side. Tolerates an unknown token (204). */
 export const logoutSession = async (refreshToken: string): Promise<void> => {
   try {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Platform, Pressable, View } from "react-native";
@@ -8,7 +8,21 @@ import { magicLinkRequestPayload, type MagicLinkRequestPayload } from "@/contrac
 import { SocialAuthButtons, type SocialAuthProvider } from "../components/SocialAuthButtons";
 import { useAppleSignIn, useGoogleSignIn, useRequestMagicLink } from "../hooks/useAuth";
 
+type SignInParams = { authError?: string };
+
+const AUTH_ERROR_MESSAGES: Record<string, string> = {
+  expired: "This sign-in link has expired. Request a new one below.",
+  auth_failed: "Sign-in didn't complete. Please try again.",
+  access_denied: "Google sign-in was cancelled.",
+};
+
+function authErrorMessage(code?: string): string | null {
+  if (!code) return null;
+  return AUTH_ERROR_MESSAGES[code] ?? AUTH_ERROR_MESSAGES.auth_failed;
+}
+
 export function SignInScreen() {
+  const { authError } = useLocalSearchParams<SignInParams>();
   const requestLink = useRequestMagicLink();
   const google = useGoogleSignIn();
   const apple = useAppleSignIn();
@@ -21,6 +35,7 @@ export function SignInScreen() {
       : null;
   const socialError = google.error ?? apple.error;
   const showSocialAuth = google.isConfigured || Platform.OS === "ios";
+  const callbackError = authErrorMessage(typeof authError === "string" ? authError : undefined);
 
   const {
     control,
@@ -69,6 +84,12 @@ export function SignInScreen() {
         <Text variant="body" color="muted" className="mb-sm">
           Welcome back. We&apos;ll email you a secure link that expires in 15 minutes.
         </Text>
+
+        {callbackError ? (
+          <Text variant="caption" color="error" selectable className="text-center">
+            {callbackError}
+          </Text>
+        ) : null}
 
         {sentTo ? (
           <Card className="items-center gap-md">
