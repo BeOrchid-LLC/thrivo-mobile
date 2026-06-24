@@ -4,13 +4,11 @@ export {
   useGoogleSignIn,
   useLogout,
   useRequestMagicLink,
-  useVerifyMagicLink,
 } from "./hooks/useAuth";
 export { FigmaAuthRow } from "./components/FigmaAuthRow";
 export { SocialAuthButtons, type SocialAuthProvider } from "./components/SocialAuthButtons";
 export {
   requestMagicLink,
-  verifyMagicLink,
   logoutSession,
   googleStartUrl,
   tokenPairSchema,
