@@ -9,7 +9,7 @@ import type { MagicLinkRequestPayload, User } from "@/contracts";
 import { setTokens, clearTokens, getRefreshToken, analytics } from "@/lib";
 import { getMe } from "@/features/profile";
 import { useSessionActions } from "@/stores";
-import { requestMagicLink, verifyMagicLink, logoutSession, googleStartUrl } from "../api/auth.api";
+import { requestMagicLink, logoutSession, googleStartUrl } from "../api/auth.api";
 
 // The OAuth callback redirects here with the issued tokens; openAuthSessionAsync
 // watches for this exact return URL (matches the backend APP_AUTH_REDIRECT_URL).
@@ -50,17 +50,6 @@ async function applyTokens(
 export function useRequestMagicLink() {
   return useMutation({
     mutationFn: (input: MagicLinkRequestPayload) => requestMagicLink(input),
-  });
-}
-
-export function useVerifyMagicLink() {
-  const { setSession } = useSessionActions();
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (token: string) => {
-      const pair = await verifyMagicLink(token);
-      return applyTokens(pair.accessToken, pair.refreshToken, setSession, queryClient);
-    },
   });
 }
 
