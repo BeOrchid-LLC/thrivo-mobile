@@ -1,12 +1,11 @@
 import { useEffect } from "react";
-import { queryClient, queryKeys, isApiError } from "@/api";
+import { callApi, isApiError } from "@/api";
 import { getToken, clearToken } from "@/lib";
-import { getMe } from "@/features/profile";
 import { useAuthStatus, useSessionActions } from "@/stores";
 
 /**
  * Hydrates the session store from secure-store at app start. A token is trusted
- * only after `/users/me` succeeds; a 401 clears local auth, while transient
+ * only after `GET /auth/session` succeeds; a 401 clears local auth, while transient
  * network failures keep the token for an explicit retry.
  */
 export function useSessionInit(): void {
@@ -28,14 +27,13 @@ export function useSessionInit(): void {
       }
 
       try {
-        const user = await getMe();
+        const { session } = await callApi("GET_SESSION");
         if (!active) return;
-        queryClient.setQueryData(queryKeys.me(), user);
         actions.setSession({
           token,
-          userId: user.id,
-          accountStatus: user.accountStatus,
-          isOnboarded: user.isOnboarded,
+          userId: session.userId,
+          accountStatus: session.accountStatus,
+          isOnboarded: session.isOnboarded,
         });
       } catch (error) {
         if (!active) return;

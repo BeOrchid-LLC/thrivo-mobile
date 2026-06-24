@@ -15,7 +15,7 @@ import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client
 import { queryClient, persistOptions } from "@/api";
 import { BrandSplash, ErrorState, Screen } from "@/components";
 import { wireApiSeams, addNotificationResponseListener } from "@/lib";
-import { useSessionInit } from "@/hooks";
+import { useSessionInit, useSessionRefresh } from "@/hooks";
 import { useAuthStatus, useIsOnboarded, useSessionActions } from "@/stores";
 
 // Wire the API client's token/unauthenticated seams once, at module load.
@@ -38,6 +38,7 @@ function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
   const redirecting = useRef(false);
 
   useSessionInit();
+  useSessionRefresh();
 
   // Route notification taps to the check-in screen.
   useEffect(() => {
