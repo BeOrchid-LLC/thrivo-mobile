@@ -70,6 +70,12 @@ export const ENDPOINTS = {
     auth: true,
     response: c.ackSchema,
   },
+  GET_SESSION: {
+    path: "/auth/session",
+    method: "GET",
+    auth: true,
+    response: c.userSessionResponseSchema,
+  },
 
   // --- Push ---
   PUSH_REGISTER: {

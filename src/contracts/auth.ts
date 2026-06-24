@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { userSchema } from "./user";
+import { userSchema, accountStatusSchema } from "./user";
 
 /**
  * Auth contracts (ADR-0017): email+password · Google · Apple · email-OTP.
@@ -13,6 +13,17 @@ export const authSessionSchema = z.object({
   user: userSchema,
 });
 export type AuthSession = z.infer<typeof authSessionSchema>;
+
+/** GET /auth/session — lightweight facts for mobile cold-start restore. */
+export const userSessionSchema = z.object({
+  userId: z.string().uuid(),
+  accountStatus: accountStatusSchema,
+  isOnboarded: z.boolean(),
+});
+export type UserSession = z.infer<typeof userSessionSchema>;
+
+export const userSessionResponseSchema = z.object({ session: userSessionSchema });
+export type UserSessionResponse = z.infer<typeof userSessionResponseSchema>;
 
 export const emailSchema = z.string().email();
 export const passwordSchema = z.string().min(8, "Password must be at least 8 characters");
