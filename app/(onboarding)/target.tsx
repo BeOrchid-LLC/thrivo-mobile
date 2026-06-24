@@ -77,7 +77,7 @@ const signed = (n: number) => (n >= 0 ? `+${n}` : `${n}`);
 export default function TargetStep() {
   const draft = useOnboardingDraft();
   const { setFields } = useOnboardingDraftActions();
-  const { setIsOnboarded } = useSessionActions();
+  const { setIsOnboardingSkipped } = useSessionActions();
   const { submit, isPending } = useSubmitOnboarding();
   const [activityLevel, setActivityLevel] = useState<ActivityLevel>(
     draft.activityLevel ?? "sedentary"
@@ -120,7 +120,7 @@ export default function TargetStep() {
   const skip = () => {
     const fields = buildFields();
     setFields(fields);
-    setIsOnboarded(true);
+    setIsOnboardingSkipped(true);
     router.replace("/(app)/dashboard");
     void submit("skip", { silent: true, onboardingStep: 5, fields });
   };

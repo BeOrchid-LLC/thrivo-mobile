@@ -4,6 +4,7 @@ export {
   useAuthStatus,
   useIsAuthenticated,
   useIsOnboarded,
+  useIsOnboardingSkipped,
   useSessionToken,
   useSessionActions,
   type AuthStatus,

@@ -35,6 +35,7 @@ async function applyTokens(
       userId: user.id,
       accountStatus: user.accountStatus,
       isOnboarded: user.isOnboarded,
+      isOnboardingSkipped: user.isOnboardingSkipped,
     });
     analytics.identify(user.id);
     return user;

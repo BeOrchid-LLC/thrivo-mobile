@@ -38,7 +38,7 @@ const GOALS: {
 export default function GoalStep() {
   const draft = useOnboardingDraft();
   const { setFields } = useOnboardingDraftActions();
-  const { setIsOnboarded } = useSessionActions();
+  const { setIsOnboardingSkipped } = useSessionActions();
   const { submit, isPending } = useSubmitOnboarding();
   const [goal, setGoal] = useState<Goal | undefined>(draft.goal);
 
@@ -49,7 +49,7 @@ export default function GoalStep() {
 
   const skip = () => {
     if (goal) setFields({ goal, onboardingStep: 2 });
-    setIsOnboarded(true);
+    setIsOnboardingSkipped(true);
     router.replace("/(app)/dashboard");
     void submit("skip", { silent: true, onboardingStep: 2, fields: goal ? { goal } : undefined });
   };

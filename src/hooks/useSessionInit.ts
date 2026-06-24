@@ -34,6 +34,7 @@ export function useSessionInit(): void {
           userId: session.userId,
           accountStatus: session.accountStatus,
           isOnboarded: session.isOnboarded,
+          isOnboardingSkipped: session.isOnboardingSkipped,
         });
       } catch (error) {
         if (!active) return;

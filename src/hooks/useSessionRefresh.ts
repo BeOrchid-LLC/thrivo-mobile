@@ -27,6 +27,7 @@ export function useSessionRefresh(): void {
           actions.setProfileStatus({
             accountStatus: user.accountStatus,
             isOnboarded: user.isOnboarded,
+            isOnboardingSkipped: user.isOnboardingSkipped,
           });
         } catch (error) {
           if (isApiError(error) && error.isAuthError) {
