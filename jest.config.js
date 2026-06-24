@@ -8,6 +8,8 @@ module.exports = {
     "^@/(.*)$": "<rootDir>/src/$1",
     "^@beorchid-llc/thrivo-contracts/users$":
       "<rootDir>/node_modules/@beorchid-llc/thrivo-contracts/dist/users.js",
+    "^@beorchid-llc/thrivo-contracts/auth$":
+      "<rootDir>/node_modules/@beorchid-llc/thrivo-contracts/dist/auth.js",
   },
   // Transform RN / Expo ESM packages that ship untranspiled.
   transformIgnorePatterns: [

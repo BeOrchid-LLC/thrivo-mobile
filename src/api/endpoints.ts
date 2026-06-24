@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { userSessionResponseSchema } from "@beorchid-llc/thrivo-contracts/auth";
 import * as c from "@/contracts";
 
 /**
@@ -74,7 +75,7 @@ export const ENDPOINTS = {
     path: "/auth/session",
     method: "GET",
     auth: true,
-    response: c.userSessionResponseSchema,
+    response: userSessionResponseSchema,
   },
 
   // --- Push ---

@@ -1,9 +1,11 @@
 import { z } from "zod";
-import { userSchema, accountStatusSchema } from "./user";
+import { userSchema } from "./user";
 
 /**
  * Auth contracts (ADR-0017): email+password · Google · Apple · email-OTP.
  * Every successful auth route returns a session token + the user.
+ *
+ * GET /auth/session schemas live in `@beorchid-llc/thrivo-contracts/auth` (0.5.1+).
  */
 
 export const authSessionSchema = z.object({
@@ -13,17 +15,6 @@ export const authSessionSchema = z.object({
   user: userSchema,
 });
 export type AuthSession = z.infer<typeof authSessionSchema>;
-
-/** GET /auth/session — lightweight facts for mobile cold-start restore. */
-export const userSessionSchema = z.object({
-  userId: z.string().uuid(),
-  accountStatus: accountStatusSchema,
-  isOnboarded: z.boolean(),
-});
-export type UserSession = z.infer<typeof userSessionSchema>;
-
-export const userSessionResponseSchema = z.object({ session: userSessionSchema });
-export type UserSessionResponse = z.infer<typeof userSessionResponseSchema>;
 
 export const emailSchema = z.string().email();
 export const passwordSchema = z.string().min(8, "Password must be at least 8 characters");

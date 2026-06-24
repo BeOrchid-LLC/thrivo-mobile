@@ -5,9 +5,8 @@ import { useSessionStore } from "@/stores/session.store";
 import { useSessionInit } from "../useSessionInit";
 
 jest.mock("@/stores", () => {
-  const store = jest.requireActual<typeof import("@/stores/session.store")>(
-    "@/stores/session.store"
-  );
+  const store =
+    jest.requireActual<typeof import("@/stores/session.store")>("@/stores/session.store");
   return {
     useAuthStatus: () => store.useSessionStore((s) => s.status),
     useSessionActions: () => store.useSessionStore((s) => s.actions),
