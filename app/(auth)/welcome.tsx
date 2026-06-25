@@ -11,12 +11,12 @@ import {
 import { colors } from "@/theme";
 import appleIcon from "../../src/assets/auth-apple.png";
 import googleIcon from "../../src/assets/auth-google.png";
-import magicLinkIcon from "../../src/assets/auth-magic-link.png";
+import emailIcon from "../../src/assets/auth-magic-link.png";
 
 export default function Welcome() {
   const google = useGoogleSignIn();
   const apple = useAppleSignIn();
-  const loadingProvider: SocialAuthProvider | "magic-link" | null = google.isPending
+  const loadingProvider: SocialAuthProvider | "email" | null = google.isPending
     ? "google"
     : apple.isPending
       ? "apple"
@@ -65,10 +65,10 @@ export default function Welcome() {
         ) : null}
 
         <FigmaAuthRow
-          icon={magicLinkIcon}
-          label="Continue with magic link"
+          icon={emailIcon}
+          label="Continue with email"
           disabled={disabled}
-          onPress={() => router.push("/(auth)/magic-link")}
+          onPress={() => router.push("/(auth)/email")}
         />
 
         {error ? (
