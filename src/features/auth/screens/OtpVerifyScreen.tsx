@@ -31,7 +31,7 @@ export function OtpVerifyScreen() {
   const [code, setCode] = useState("");
   const [countdown, setCountdown] = useState(60);
   const submittedCode = useRef<string | null>(null);
-  const inputs = useRef<Array<TextInput | null>>([]);
+  const inputs = useRef<(TextInput | null)[]>([]);
   const normalizedEmail = typeof email === "string" ? email : "";
   const boxes = useMemo(() => Array.from({ length: 6 }, (_, index) => code[index] ?? ""), [code]);
   const differentEmailTarget = source === "sign-in" ? "/(auth)/sign-in" : "/(auth)/email";
