@@ -16,3 +16,8 @@ export {
   useOnboardingDraftActions,
   type OnboardingDraft,
 } from "./onboarding-draft.store";
+export {
+  usePreferencesStore,
+  useBiometricAuthEnabled,
+  usePreferencesActions,
+} from "./preferences.store";
