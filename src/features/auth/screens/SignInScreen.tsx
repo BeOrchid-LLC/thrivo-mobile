@@ -1,17 +1,16 @@
-import { useEffect, useState } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Platform, Pressable, View } from "react-native";
-import { Button, Card, Input, Screen, Text } from "@/components";
-import { magicLinkRequestPayload, type MagicLinkRequestPayload } from "@/contracts";
+import { Button, Input, Screen, Text } from "@/components";
+import { otpRequestPayload, type OtpRequestPayload } from "@/contracts";
 import { SocialAuthButtons, type SocialAuthProvider } from "../components/SocialAuthButtons";
-import { useAppleSignIn, useGoogleSignIn, useRequestMagicLink } from "../hooks/useAuth";
+import { useAppleSignIn, useGoogleSignIn, useRequestOtp } from "../hooks/useAuth";
 
 type SignInParams = { authError?: string };
 
 const AUTH_ERROR_MESSAGES: Record<string, string> = {
-  expired: "This sign-in link has expired. Request a new one below.",
+  expired: "This sign-in code has expired. Request a new one below.",
   auth_failed: "Sign-in didn't complete. Please try again.",
   access_denied: "Google sign-in was cancelled.",
 };
@@ -23,11 +22,9 @@ function authErrorMessage(code?: string): string | null {
 
 export function SignInScreen() {
   const { authError } = useLocalSearchParams<SignInParams>();
-  const requestLink = useRequestMagicLink();
+  const requestCode = useRequestOtp();
   const google = useGoogleSignIn();
   const apple = useAppleSignIn();
-  const [sentTo, setSentTo] = useState<string | null>(null);
-  const [countdown, setCountdown] = useState(0);
   const loadingProvider: SocialAuthProvider | null = google.isPending
     ? "google"
     : apple.isPending
@@ -40,32 +37,16 @@ export function SignInScreen() {
   const {
     control,
     handleSubmit,
-    getValues,
     formState: { errors },
-  } = useForm<MagicLinkRequestPayload>({
-    resolver: zodResolver(magicLinkRequestPayload),
+  } = useForm<OtpRequestPayload>({
+    resolver: zodResolver(otpRequestPayload),
     defaultValues: { email: "" },
   });
 
-  useEffect(() => {
-    if (countdown <= 0) return undefined;
-    const timer = setTimeout(() => setCountdown((value) => Math.max(value - 1, 0)), 1000);
-    return () => clearTimeout(timer);
-  }, [countdown]);
-
   const send = handleSubmit(async ({ email }) => {
-    await requestLink.mutateAsync({ email });
-    setSentTo(email);
-    setCountdown(60);
+    await requestCode.mutateAsync({ email });
+    router.push({ pathname: "/(auth)/otp", params: { email, source: "sign-in" } });
   });
-
-  const resend = async () => {
-    if (countdown > 0) return;
-    const { email } = getValues();
-    await requestLink.mutateAsync({ email });
-    setSentTo(email);
-    setCountdown(60);
-  };
 
   const onProvider = (provider: SocialAuthProvider) => {
     if (provider === "google") {
@@ -82,7 +63,7 @@ export function SignInScreen() {
           Sign in to Thrivo
         </Text>
         <Text variant="body" color="muted" className="mb-sm">
-          Welcome back. We&apos;ll email you a secure link that expires in 15 minutes.
+          Welcome back. We&apos;ll email you a secure 6-digit code that expires in 5 minutes.
         </Text>
 
         {callbackError ? (
@@ -91,52 +72,31 @@ export function SignInScreen() {
           </Text>
         ) : null}
 
-        {sentTo ? (
-          <Card className="items-center gap-md">
-            <Text variant="heading3" color="dark">
-              Check your email
-            </Text>
-            <Text variant="body" color="muted" className="text-center">
-              We sent a sign-in link to {sentTo}.
-            </Text>
-            <Button
-              label={countdown > 0 ? `Resend in ${countdown}s` : "Resend link"}
-              variant="secondary"
-              disabled={countdown > 0}
-              loading={requestLink.isPending}
-              onPress={resend}
+        <Controller
+          control={control}
+          name="email"
+          render={({ field: { onChange, onBlur, value } }) => (
+            <Input
+              label="Email"
+              placeholder="you@example.com"
+              autoCapitalize="none"
+              keyboardType="email-address"
+              autoComplete="email"
+              value={value}
+              onChangeText={onChange}
+              onBlur={onBlur}
+              error={errors.email?.message}
             />
-            <Button label="Use a different email" variant="ghost" onPress={() => setSentTo(null)} />
-          </Card>
-        ) : (
-          <>
-            <Controller
-              control={control}
-              name="email"
-              render={({ field: { onChange, onBlur, value } }) => (
-                <Input
-                  label="Email"
-                  placeholder="you@example.com"
-                  autoCapitalize="none"
-                  keyboardType="email-address"
-                  autoComplete="email"
-                  value={value}
-                  onChangeText={onChange}
-                  onBlur={onBlur}
-                  error={errors.email?.message}
-                />
-              )}
-            />
+          )}
+        />
 
-            {requestLink.error ? (
-              <Text variant="caption" color="error" selectable>
-                {requestLink.error.message}
-              </Text>
-            ) : null}
+        {requestCode.error ? (
+          <Text variant="caption" color="error" selectable>
+            {requestCode.error.message}
+          </Text>
+        ) : null}
 
-            <Button label="Request magic link" loading={requestLink.isPending} onPress={send} />
-          </>
-        )}
+        <Button label="Send code" loading={requestCode.isPending} onPress={send} />
 
         {showSocialAuth ? (
           <>

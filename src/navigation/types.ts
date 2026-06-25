@@ -7,7 +7,8 @@
 export type AuthStackParamList = {
   welcome: undefined;
   "sign-in": { authError?: string } | undefined;
-  "magic-link": undefined;
+  email: undefined;
+  otp: { email: string; source?: "email" | "sign-in" };
 };
 
 export type OnboardingStackParamList = {
