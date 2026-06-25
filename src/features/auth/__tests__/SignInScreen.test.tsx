@@ -1,13 +1,19 @@
 import { fireEvent, render, waitFor } from "@testing-library/react-native";
+import { router } from "expo-router";
 import { SignInScreen } from "../screens/SignInScreen";
 
-const mockRequestMagicLink = jest.fn();
+const mockRequestOtp = jest.fn();
 const mockGoogleMutate = jest.fn();
 const mockAppleMutate = jest.fn();
 
+jest.mock("expo-router", () => ({
+  router: { push: jest.fn(), replace: jest.fn() },
+  useLocalSearchParams: () => ({}),
+}));
+
 jest.mock("../hooks/useAuth", () => ({
-  useRequestMagicLink: () => ({
-    mutateAsync: mockRequestMagicLink,
+  useRequestOtp: () => ({
+    mutateAsync: mockRequestOtp,
     isPending: false,
     error: null,
   }),
@@ -27,30 +33,30 @@ jest.mock("../hooks/useAuth", () => ({
 describe("SignInScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockRequestMagicLink.mockResolvedValue({ status: true });
+    mockRequestOtp.mockResolvedValue(null);
   });
 
-  it("requests a real magic link and shows the sent state", async () => {
+  it("requests an OTP and routes to the code screen", async () => {
     const screen = render(<SignInScreen />);
 
     fireEvent.changeText(screen.getByPlaceholderText("you@example.com"), "ada@example.com");
-    fireEvent.press(screen.getByText("Request magic link"));
+    fireEvent.press(screen.getByText("Send code"));
 
-    await waitFor(() =>
-      expect(mockRequestMagicLink).toHaveBeenCalledWith({ email: "ada@example.com" })
-    );
-    expect(screen.getByText("Check your email")).toBeTruthy();
-    expect(screen.getByText("Resend in 60s")).toBeTruthy();
+    await waitFor(() => expect(mockRequestOtp).toHaveBeenCalledWith({ email: "ada@example.com" }));
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: "/(auth)/otp",
+      params: { email: "ada@example.com", source: "sign-in" },
+    });
   });
 
-  it("blocks the magic-link request and shows a validation error for an invalid email", async () => {
+  it("blocks the OTP request and shows a validation error for an invalid email", async () => {
     const screen = render(<SignInScreen />);
 
     fireEvent.changeText(screen.getByPlaceholderText("you@example.com"), "not-an-email");
-    fireEvent.press(screen.getByText("Request magic link"));
+    fireEvent.press(screen.getByText("Send code"));
 
     await waitFor(() => expect(screen.getByText("Invalid email")).toBeTruthy());
-    expect(mockRequestMagicLink).not.toHaveBeenCalled();
+    expect(mockRequestOtp).not.toHaveBeenCalled();
   });
 
   it("routes social button presses through the real social hooks", () => {

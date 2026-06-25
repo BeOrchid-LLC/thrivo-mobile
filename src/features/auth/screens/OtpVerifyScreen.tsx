@@ -37,10 +37,9 @@ export function OtpVerifyScreen() {
   const differentEmailTarget = source === "sign-in" ? "/(auth)/sign-in" : "/(auth)/email";
 
   useEffect(() => {
-    if (countdown <= 0) return undefined;
-    const timer = setTimeout(() => setCountdown((value) => Math.max(value - 1, 0)), 1000);
-    return () => clearTimeout(timer);
-  }, [countdown]);
+    const timer = setInterval(() => setCountdown((value) => Math.max(value - 1, 0)), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (!normalizedEmail) router.replace("/(auth)/email");
