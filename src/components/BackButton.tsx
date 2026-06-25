@@ -10,7 +10,7 @@ export interface BackButtonProps {
 /**
  * Shared header back affordance for the V2 auth/onboarding screens. 44×44 keeps
  * the tap target ≥44pt (WCAG 2.2 AA). Defaults to `router.back()` and falls back
- * to the welcome screen when there's no history (e.g. a magic-link cold start).
+ * to the welcome screen when there's no history (e.g. an auth cold start).
  */
 export function BackButton({ onPress }: BackButtonProps) {
   const handlePress = () => {

@@ -5,7 +5,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/api";
 import { ApiError, isApiError } from "@/api/errors";
 import { env } from "@/config/env";
-import type { MagicLinkRequestPayload, OtpRequestPayload, OtpVerifyPayload, User } from "@/contracts";
+import type { OtpRequestPayload, OtpVerifyPayload, User } from "@/contracts";
 import { setTokens, clearTokens, getRefreshToken, analytics } from "@/lib";
 import { getMe } from "@/features/profile";
 import { useSessionActions } from "@/stores";
@@ -45,12 +45,6 @@ async function applyTokens(
     }
     throw error;
   }
-}
-
-export function useRequestMagicLink() {
-  return useRequestOtp() as ReturnType<typeof useRequestOtp> & {
-    mutateAsync: (input: MagicLinkRequestPayload) => Promise<null>;
-  };
 }
 
 export function useRequestOtp() {

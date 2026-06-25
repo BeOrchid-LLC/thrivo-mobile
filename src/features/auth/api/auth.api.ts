@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { env } from "@/config/env";
 import { apiErrorFromResponse, networkError, parseError } from "@/api/errors";
-import type { MagicLinkRequestPayload, OtpRequestPayload, OtpVerifyPayload } from "@/contracts";
+import type { OtpRequestPayload, OtpVerifyPayload } from "@/contracts";
 
 /**
  * Auth intent functions for the hand-rolled backend auth (email OTP + Google).
@@ -63,14 +63,6 @@ export const requestOtp = (payload: OtpRequestPayload) =>
 /** Verify an email OTP and receive the token pair. */
 export const verifyOtp = (payload: OtpVerifyPayload) =>
   authPost("/otp/verify", { email: payload.email, code: payload.code }, tokenPairSchema);
-
-/**
- * @deprecated Magic-link auth remains API-supported but hidden in mobile while
- * the flow is revisited. Kept temporarily so the old route compiles until the
- * UI is replaced by the OTP request screen.
- */
-export const requestMagicLink = (payload: MagicLinkRequestPayload) =>
-  requestOtp({ email: payload.email });
 
 /** Revoke the refresh session server-side. Tolerates an unknown token (204). */
 export const logoutSession = async (refreshToken: string): Promise<void> => {
