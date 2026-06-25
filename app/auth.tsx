@@ -15,7 +15,9 @@ type AuthCallbackParams = {
 
 function signInWithAuthError(router: ReturnType<typeof useRouter>, error?: string) {
   const authError =
-    error === "expired" || error === "auth_failed" || error === "access_denied" ? error : "auth_failed";
+    error === "expired" || error === "auth_failed" || error === "access_denied"
+      ? error
+      : "auth_failed";
 
   router.replace({
     pathname: "/(auth)/sign-in",
@@ -85,4 +87,4 @@ export default function AuthCallbackScreen() {
   }, [status]);
 
   return <BrandSplash />;
-};
+}
