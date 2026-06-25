@@ -43,17 +43,6 @@ export type OAuthPayload = z.infer<typeof oauthPayload>;
 export const otpRequestPayload = z.object({ email: emailSchema });
 export type OtpRequestPayload = z.infer<typeof otpRequestPayload>;
 
-/**
- * @deprecated Magic-link auth remains API-supported but hidden in mobile while
- * the flow is revisited. Visible mobile email auth should use OTP payloads.
- */
-export const magicLinkRequestPayload = z.object({
-  email: emailSchema,
-  name: z.string().trim().min(1).optional(),
-  firstName: z.string().trim().min(1).optional(),
-});
-export type MagicLinkRequestPayload = z.infer<typeof magicLinkRequestPayload>;
-
 export const otpVerifyPayload = z.object({
   email: emailSchema,
   code: z.string().regex(/^\d{6}$/, "Enter the 6-digit code"),
