@@ -13,11 +13,6 @@
     "updates": {
       "url": "https://u.expo.dev/d24d4616-0673-459c-9d34-ced491ef777e"
     },
-    "splash": {
-      "image": "./src/assets/adaptive-icon.png",
-      "resizeMode": "cover",
-      "backgroundColor": "#FFFFFF"
-    },
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
@@ -37,6 +32,15 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#F4F6F9",
+          "image": "./src/assets/logo.png",
+          "imageWidth": 160,
+          "resizeMode": "contain"
+        }
+      ],
       "expo-font",
       [
         "expo-camera",
