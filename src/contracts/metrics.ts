@@ -25,6 +25,9 @@ export const waterSchema = z.object({
   day: localDaySchema,
   totalMl: z.number(),
   targetMl: z.number(),
+  glassMl: z.number().optional(),
+  glasses: z.number().optional(),
+  targetGlasses: z.number().optional(),
 });
 export type Water = z.infer<typeof waterSchema>;
 

@@ -2,23 +2,38 @@ import { z } from "zod";
 import { localDaySchema } from "./common";
 import { dailyTotalsSchema } from "./foods";
 
-/**
- * Dashboard payload. Free users see calories vs a 2,000 default; premium users
- * get macros, personalized target and streak (entitlement enforced server-side).
- */
-export const dashboardSchema = z.object({
+export const dashboardCaloriesSchema = z.object({
   day: localDaySchema,
-  consumed: dailyTotalsSchema,
+  consumedCalories: z.number(),
   targetCalories: z.number(),
-  /** Premium-only fields are null for free users. */
-  targetProteinG: z.number().nullable(),
-  targetCarbsG: z.number().nullable(),
-  targetFatG: z.number().nullable(),
-  streakDays: z.number().nullable(),
-  latestWeightKg: z.number().nullable(),
-  waterMl: z.number().nullable(),
+  remainingCalories: z.number(),
+  percentUsed: z.number(),
 });
-export type Dashboard = z.infer<typeof dashboardSchema>;
+export type DashboardCalories = z.infer<typeof dashboardCaloriesSchema>;
 
-export const dashboardResponse = z.object({ dashboard: dashboardSchema });
-export type DashboardResponse = z.infer<typeof dashboardResponse>;
+export const dashboardCaloriesResponse = z.object({ calories: dashboardCaloriesSchema });
+export type DashboardCaloriesResponse = z.infer<typeof dashboardCaloriesResponse>;
+
+export const macroSummarySchema = z.object({
+  day: localDaySchema,
+  consumed: dailyTotalsSchema.pick({ proteinG: true, carbsG: true, fatG: true }),
+  target: z.object({
+    proteinG: z.number(),
+    carbsG: z.number(),
+    fatG: z.number(),
+  }),
+});
+export type MacroSummary = z.infer<typeof macroSummarySchema>;
+
+export const dashboardMacrosResponse = z.object({ macros: macroSummarySchema });
+export type DashboardMacrosResponse = z.infer<typeof dashboardMacrosResponse>;
+
+export const streakSummarySchema = z.object({
+  currentStreakDays: z.number(),
+  longestStreakDays: z.number(),
+  lastLoggedDay: localDaySchema.nullable(),
+});
+export type StreakSummary = z.infer<typeof streakSummarySchema>;
+
+export const dashboardStreakResponse = z.object({ streak: streakSummarySchema });
+export type DashboardStreakResponse = z.infer<typeof dashboardStreakResponse>;

@@ -3,12 +3,14 @@ export {
   useAppleSignIn,
   useGoogleSignIn,
   useLogout,
-  useRequestMagicLink,
+  useRequestOtp,
+  useVerifyOtp,
 } from "./hooks/useAuth";
 export { FigmaAuthRow } from "./components/FigmaAuthRow";
 export { SocialAuthButtons, type SocialAuthProvider } from "./components/SocialAuthButtons";
 export {
-  requestMagicLink,
+  requestOtp,
+  verifyOtp,
   logoutSession,
   googleStartUrl,
   tokenPairSchema,

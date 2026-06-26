@@ -5,11 +5,11 @@ import type { QueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/api";
 import { ApiError, isApiError } from "@/api/errors";
 import { env } from "@/config/env";
-import type { MagicLinkRequestPayload, User } from "@/contracts";
+import type { OtpRequestPayload, OtpVerifyPayload, User } from "@/contracts";
 import { setTokens, clearTokens, getRefreshToken, analytics } from "@/lib";
 import { getMe } from "@/features/profile";
 import { useSessionActions } from "@/stores";
-import { requestMagicLink, logoutSession, googleStartUrl } from "../api/auth.api";
+import { requestOtp, verifyOtp, logoutSession, googleStartUrl } from "../api/auth.api";
 
 // The OAuth callback redirects here with the issued tokens; openAuthSessionAsync
 // watches for this exact return URL (matches the backend APP_AUTH_REDIRECT_URL).
@@ -47,9 +47,21 @@ async function applyTokens(
   }
 }
 
-export function useRequestMagicLink() {
+export function useRequestOtp() {
   return useMutation({
-    mutationFn: (input: MagicLinkRequestPayload) => requestMagicLink(input),
+    mutationFn: (input: OtpRequestPayload) => requestOtp(input),
+  });
+}
+
+export function useVerifyOtp() {
+  const { setSession } = useSessionActions();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: OtpVerifyPayload) => {
+      const tokens = await verifyOtp(input);
+      return applyTokens(tokens.accessToken, tokens.refreshToken, setSession, queryClient);
+    },
   });
 }
 

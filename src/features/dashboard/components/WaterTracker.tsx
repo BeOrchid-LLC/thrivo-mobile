@@ -3,18 +3,23 @@ import { Drop, PlusCircle } from "phosphor-react-native";
 import { Text } from "@/components";
 import { colors } from "@/theme";
 
-const GLASS_TARGET = 8;
-
 interface WaterTrackerProps {
   glasses: number;
+  targetGlasses?: number;
   onAdd: () => void;
   adding?: boolean;
   error?: string | null;
 }
 
 /** Daily water card: a row of glass icons + an add button (Figma dashboard). */
-export function WaterTracker({ glasses, onAdd, adding = false, error }: WaterTrackerProps) {
-  const filled = Math.min(glasses, GLASS_TARGET);
+export function WaterTracker({
+  glasses,
+  targetGlasses = 8,
+  onAdd,
+  adding = false,
+  error,
+}: WaterTrackerProps) {
+  const filled = Math.min(glasses, targetGlasses);
   return (
     <View className="gap-sm rounded-[16px] bg-primarySoft px-lg py-md">
       <View className="flex-row items-center">
@@ -34,10 +39,10 @@ export function WaterTracker({ glasses, onAdd, adding = false, error }: WaterTra
       </View>
       <View className="flex-row items-center">
         <Text variant="body" color="muted" className="flex-1">
-          {glasses} of {GLASS_TARGET} glasses
+          {glasses} of {targetGlasses} glasses
         </Text>
         <View className="flex-row gap-xs">
-          {Array.from({ length: GLASS_TARGET }).map((_, i) => (
+          {Array.from({ length: targetGlasses }).map((_, i) => (
             <Drop
               key={i}
               size={20}

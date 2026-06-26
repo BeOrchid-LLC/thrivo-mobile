@@ -28,11 +28,12 @@ export type FoodItem = z.infer<typeof foodItemSchema>;
 
 export const foodLogEntrySchema = z.object({
   id: idSchema,
-  foodItemId: idSchema,
+  foodItemId: idSchema.nullable(),
   name: z.string(),
   meal: mealTypeSchema,
   day: localDaySchema,
   servings: z.number().positive(),
+  servingUnit: z.string().nullable().optional(),
   /** Nutrients snapshotted at log time (immune to later item edits). */
   nutrients: nutrientsSchema,
   loggedAt: isoDateSchema,
@@ -92,6 +93,35 @@ export type LogMutationResponse = z.infer<typeof logMutationResponse>;
 
 export const logHistoryResponse = z.object({ entries: z.array(foodLogEntrySchema) });
 export type LogHistoryResponse = z.infer<typeof logHistoryResponse>;
+
+export const mealGroupSchema = z.object({
+  meal: mealTypeSchema,
+  label: z.string(),
+  calories: z.number(),
+  entries: z.array(foodLogEntrySchema),
+});
+export type MealGroup = z.infer<typeof mealGroupSchema>;
+
+export const foodLogDayResponse = z.object({
+  day: localDaySchema,
+  groups: z.array(mealGroupSchema),
+  isEmptyDay: z.boolean(),
+});
+export type FoodLogDayResponse = z.infer<typeof foodLogDayResponse>;
+
+export const historyDaySchema = z.object({
+  day: localDaySchema,
+  isLocked: z.boolean(),
+  lockReason: z.enum(["free_history_limit"]).nullable(),
+  groups: z.array(mealGroupSchema),
+});
+export type HistoryDay = z.infer<typeof historyDaySchema>;
+
+export const foodLogHistoryResponse = z.object({
+  days: z.array(historyDaySchema),
+  historyLimitDays: z.number(),
+});
+export type FoodLogHistoryResponse = z.infer<typeof foodLogHistoryResponse>;
 
 export const favoritesResponse = z.object({ items: z.array(foodItemSchema) });
 export type FavoritesResponse = z.infer<typeof favoritesResponse>;

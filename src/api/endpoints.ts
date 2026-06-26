@@ -101,6 +101,19 @@ export const ENDPOINTS = {
     payload: c.updateProfilePayload,
     response: c.userSchema,
   },
+  GET_SETTINGS: {
+    path: "/users/me/settings",
+    method: "GET",
+    auth: true,
+    response: c.userSettingsSchema,
+  },
+  UPDATE_SETTINGS: {
+    path: "/users/me/settings",
+    method: "PATCH",
+    auth: true,
+    payload: c.updateUserSettingsPayload,
+    response: c.userSettingsSchema,
+  },
 
   // --- Foods (free tier) ---
   FOOD_LOOKUP: {
@@ -153,7 +166,13 @@ export const ENDPOINTS = {
     path: "/foods/log/history",
     method: "GET",
     auth: true,
-    response: c.logHistoryResponse,
+    response: c.foodLogHistoryResponse,
+  },
+  FOOD_LOG_DAY: {
+    path: "/foods/log/day",
+    method: "GET",
+    auth: true,
+    response: c.foodLogDayResponse,
   },
   FOOD_FAVORITES_LIST: {
     path: "/foods/favorites",
@@ -176,11 +195,23 @@ export const ENDPOINTS = {
   },
 
   // --- Dashboard ---
-  GET_DASHBOARD: {
-    path: "/dashboard",
+  DASHBOARD_CALORIES: {
+    path: "/dashboard/calories",
     method: "GET",
     auth: true,
-    response: c.dashboardResponse,
+    response: c.dashboardCaloriesResponse,
+  },
+  DASHBOARD_MACROS: {
+    path: "/dashboard/macros",
+    method: "GET",
+    auth: true,
+    response: c.dashboardMacrosResponse,
+  },
+  DASHBOARD_STREAK: {
+    path: "/dashboard/streak",
+    method: "GET",
+    auth: true,
+    response: c.dashboardStreakResponse,
   },
 
   // --- Metrics (premium) ---
@@ -237,6 +268,27 @@ export const ENDPOINTS = {
     path: "/subscriptions/me",
     method: "GET",
     auth: true,
+    response: c.subscriptionResponse,
+  },
+  START_TRIAL: {
+    path: "/subscriptions/trial",
+    method: "POST",
+    auth: true,
+    payload: c.startTrialPayload,
+    response: c.subscriptionResponse,
+  },
+  PURCHASE_SUBSCRIPTION: {
+    path: "/subscriptions/purchase",
+    method: "POST",
+    auth: true,
+    payload: c.purchaseSubscriptionPayload,
+    response: c.subscriptionResponse,
+  },
+  CANCEL_SUBSCRIPTION: {
+    path: "/subscriptions/cancel",
+    method: "POST",
+    auth: true,
+    payload: c.cancelSubscriptionPayload,
     response: c.subscriptionResponse,
   },
 } satisfies Record<string, EndpointConfig>;

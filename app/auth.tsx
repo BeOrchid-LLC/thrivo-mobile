@@ -15,7 +15,9 @@ type AuthCallbackParams = {
 
 function signInWithAuthError(router: ReturnType<typeof useRouter>, error?: string) {
   const authError =
-    error === "expired" || error === "auth_failed" || error === "access_denied" ? error : "auth_failed";
+    error === "expired" || error === "auth_failed" || error === "access_denied"
+      ? error
+      : "auth_failed";
 
   router.replace({
     pathname: "/(auth)/sign-in",
@@ -24,10 +26,11 @@ function signInWithAuthError(router: ReturnType<typeof useRouter>, error?: strin
 }
 
 /**
- * Handles `thrivo://auth?token=X&refresh=Y` deep links produced by Google OAuth
- * and the magic-link HTTPS callback. Applies the tokens, fetches the user
- * profile, and routes to onboarding or dashboard. Root guard is excluded from
- * redirecting while this screen is active (see app/_layout.tsx).
+ * Handles `thrivo://auth?token=X&refresh=Y` deep links produced by Google OAuth.
+ * Magic-link auth remains API-supported but is hidden in mobile while the UX is
+ * revisited. Applies the tokens, fetches the user profile, and routes to
+ * onboarding or dashboard. Root guard is excluded from redirecting while this
+ * screen is active (see app/_layout.tsx).
  */
 export default function AuthCallbackScreen() {
   const { token, refresh, error } = useLocalSearchParams<AuthCallbackParams>();
@@ -84,4 +87,4 @@ export default function AuthCallbackScreen() {
   }, [status]);
 
   return <BrandSplash />;
-};
+}

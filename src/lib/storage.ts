@@ -28,4 +28,5 @@ export async function removeItem(key: string): Promise<void> {
 export const storageKeys = {
   notifyAt: "thrivo.pref.notifyAt",
   unitSystem: "thrivo.pref.unitSystem",
+  biometricAuthEnabled: "thrivo.pref.biometricAuthEnabled",
 } as const;
