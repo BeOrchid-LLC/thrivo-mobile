@@ -5,6 +5,7 @@ describe("Phase 7 — query-key factories", () => {
     expect(queryKeys.me()).toEqual(["me"]);
     expect(queryKeys.dashboard.byDay("2026-06-14")).toEqual(["dashboard", "2026-06-14"]);
     expect(queryKeys.foods.search("apple")).toEqual(["foods", "search", "apple"]);
+    expect(queryKeys.settings.me()).toEqual(["settings", "me"]);
     expect(queryKeys.subscription.me()).toEqual(["subscription", "me"]);
   });
 

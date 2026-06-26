@@ -31,6 +31,10 @@ export const queryKeys = {
     byDay: (day: string) => ["checkins", day] as const,
   },
 
+  settings: {
+    me: () => ["settings", "me"] as const,
+  },
+
   subscription: {
     me: () => ["subscription", "me"] as const,
   },

@@ -101,6 +101,19 @@ export const ENDPOINTS = {
     payload: c.updateProfilePayload,
     response: c.userSchema,
   },
+  GET_SETTINGS: {
+    path: "/users/me/settings",
+    method: "GET",
+    auth: true,
+    response: c.userSettingsSchema,
+  },
+  UPDATE_SETTINGS: {
+    path: "/users/me/settings",
+    method: "PATCH",
+    auth: true,
+    payload: c.updateUserSettingsPayload,
+    response: c.userSettingsSchema,
+  },
 
   // --- Foods (free tier) ---
   FOOD_LOOKUP: {
@@ -255,6 +268,27 @@ export const ENDPOINTS = {
     path: "/subscriptions/me",
     method: "GET",
     auth: true,
+    response: c.subscriptionResponse,
+  },
+  START_TRIAL: {
+    path: "/subscriptions/trial",
+    method: "POST",
+    auth: true,
+    payload: c.startTrialPayload,
+    response: c.subscriptionResponse,
+  },
+  PURCHASE_SUBSCRIPTION: {
+    path: "/subscriptions/purchase",
+    method: "POST",
+    auth: true,
+    payload: c.purchaseSubscriptionPayload,
+    response: c.subscriptionResponse,
+  },
+  CANCEL_SUBSCRIPTION: {
+    path: "/subscriptions/cancel",
+    method: "POST",
+    auth: true,
+    payload: c.cancelSubscriptionPayload,
     response: c.subscriptionResponse,
   },
 } satisfies Record<string, EndpointConfig>;
