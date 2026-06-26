@@ -96,6 +96,61 @@ describe("Phase 2 — endpoints contract", () => {
     expect(parsed.success).toBe(true);
   });
 
+  it("parses settings and subscription endpoint responses", () => {
+    expect(
+      successEnvelope(ENDPOINTS.GET_SETTINGS.response).safeParse({
+        success: true,
+        responseCode: 200,
+        message: "OK",
+        data: {
+          id: "68711c81-d52c-4798-9fb0-ccda25f27a24",
+          userId: "68711c81-d52c-4798-9fb0-ccda25f27a25",
+          unitSystem: "metric",
+          pushNotificationsEnabled: true,
+          dailyFoodLogReminderEnabled: true,
+          dailyFoodLogReminderTime: "08:00",
+          weightCheckReminderEnabled: true,
+          weightCheckReminderDay: "friday",
+          weightCheckReminderTime: "09:00",
+          hydrationReminderEnabled: true,
+          hydrationReminderIntervalMinutes: 40,
+          createdAt: "2026-06-26T00:00:00.000Z",
+          updatedAt: "2026-06-26T00:00:00.000Z",
+        },
+      }).success
+    ).toBe(true);
+
+    expect(
+      successEnvelope(ENDPOINTS.GET_SUBSCRIPTION.response).safeParse({
+        success: true,
+        responseCode: 200,
+        message: "OK",
+        data: {
+          subscription: {
+            entitlement: "premium",
+            status: "active",
+            plan: "monthly",
+            productId: "thrivo_premium_monthly",
+            priceLabel: "$14.99",
+            renewsAt: "2026-07-26T00:00:00.000Z",
+            accessEndsAt: "2026-07-26T00:00:00.000Z",
+            cancelAtPeriodEnd: false,
+            trialUsed: true,
+            trialDays: 14,
+            plans: [
+              {
+                plan: "monthly",
+                productId: "thrivo_premium_monthly",
+                priceLabel: "$14.99",
+                billingPeriodLabel: "month",
+              },
+            ],
+          },
+        },
+      }).success
+    ).toBe(true);
+  });
+
   it("maps a backend error envelope to a typed ApiError", () => {
     const err = apiErrorFromResponse(429, {
       success: false,
