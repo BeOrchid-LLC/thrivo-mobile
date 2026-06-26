@@ -14,4 +14,5 @@ export * from "./dashboard";
 export * from "./metrics";
 export * from "./checkins";
 export * from "./subscription";
+export * from "./settings";
 export * from "./push";

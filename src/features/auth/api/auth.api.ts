@@ -1,10 +1,10 @@
 import { z } from "zod";
 import { env } from "@/config/env";
 import { apiErrorFromResponse, networkError, parseError } from "@/api/errors";
-import type { MagicLinkRequestPayload } from "@/contracts";
+import type { OtpRequestPayload, OtpVerifyPayload } from "@/contracts";
 
 /**
- * Auth intent functions for the hand-rolled backend auth (magic link + Google).
+ * Auth intent functions for the hand-rolled backend auth (email OTP + Google).
  * These hit the public `/auth/*` endpoints directly — they're unauthenticated
  * and return the `{ data }` envelope, so they bypass `callApi` (which injects a
  * bearer + is typed for the endpoint registry). Hooks consume these; screens
@@ -56,9 +56,13 @@ async function authPost<T>(path: string, body: unknown, schema: z.ZodType<T>): P
   return parsed.data;
 }
 
-/** Request a magic-link email. Backend always 202s (no account enumeration). */
-export const requestMagicLink = (payload: MagicLinkRequestPayload) =>
-  authPost("/magic-link/request", { email: payload.email }, ackSchema);
+/** Request an email OTP. Backend always 202s (no account enumeration). */
+export const requestOtp = (payload: OtpRequestPayload) =>
+  authPost("/otp/request", { email: payload.email }, ackSchema);
+
+/** Verify an email OTP and receive the token pair. */
+export const verifyOtp = (payload: OtpVerifyPayload) =>
+  authPost("/otp/verify", { email: payload.email, code: payload.code }, tokenPairSchema);
 
 /** Revoke the refresh session server-side. Tolerates an unknown token (204). */
 export const logoutSession = async (refreshToken: string): Promise<void> => {

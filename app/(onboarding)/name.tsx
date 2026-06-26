@@ -12,16 +12,16 @@ export default function NameStep() {
   const { setIsOnboardingSkipped } = useSessionActions();
   const { data: me } = useMe();
   const { submit, isPending } = useSubmitOnboarding();
-  const [firstName, setFirstName] = useState(draft.firstName ?? me?.name ?? "");
+  const [name, setName] = useState(draft.firstName ?? me?.name ?? "");
 
   useEffect(() => {
     if (!draft.firstName && me?.name) {
-      setFirstName(me.name);
+      setName(me.name);
       setFields({ firstName: me.name, onboardingStep: 1 });
     }
   }, [draft.firstName, me?.name, setFields]);
 
-  const trimmed = firstName.trim();
+  const trimmed = name.trim();
 
   const next = () => {
     if (!trimmed) return;
@@ -53,13 +53,13 @@ export default function NameStep() {
       }
     >
       <Input
-        label="First name"
+        label="Name"
         uppercaseLabel
-        placeholder="Alex"
+        placeholder="Ada Lovelace"
         autoCapitalize="words"
-        autoComplete="given-name"
-        value={firstName}
-        onChangeText={setFirstName}
+        autoComplete="name"
+        value={name}
+        onChangeText={setName}
         returnKeyType="next"
         onSubmitEditing={next}
       />

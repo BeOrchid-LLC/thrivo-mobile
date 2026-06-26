@@ -7,7 +7,8 @@
 export type AuthStackParamList = {
   welcome: undefined;
   "sign-in": { authError?: string } | undefined;
-  "magic-link": undefined;
+  email: undefined;
+  otp: { email: string; source?: "email" | "sign-in" };
 };
 
 export type OnboardingStackParamList = {
@@ -32,6 +33,7 @@ export type AppTabParamList = {
 /** Non-tab routes reachable within (app) by push (hidden from the tab bar). */
 export type AppStackParamList = {
   foods: undefined;
+  "settings/personal-info": undefined;
   "settings/subscription": undefined;
 };
 
