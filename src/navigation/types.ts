@@ -33,6 +33,7 @@ export type AppTabParamList = {
 /** Non-tab routes reachable within (app) by push (hidden from the tab bar). */
 export type AppStackParamList = {
   foods: undefined;
+  "settings/personal-info": undefined;
   "settings/subscription": undefined;
 };
 
