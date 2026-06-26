@@ -9,6 +9,9 @@ export const queryKeys = {
   dashboard: {
     all: () => ["dashboard"] as const,
     byDay: (day: string) => ["dashboard", day] as const,
+    calories: (day: string) => ["dashboard", "calories", day] as const,
+    macros: (day: string) => ["dashboard", "macros", day] as const,
+    streak: () => ["dashboard", "streak"] as const,
   },
 
   foods: {
@@ -16,6 +19,7 @@ export const queryKeys = {
     lookup: (barcode: string) => ["foods", "lookup", barcode] as const,
     favorites: () => ["foods", "favorites"] as const,
     logHistory: () => ["foods", "log", "history"] as const,
+    logDay: (day: string) => ["foods", "log", "day", day] as const,
   },
 
   metrics: {

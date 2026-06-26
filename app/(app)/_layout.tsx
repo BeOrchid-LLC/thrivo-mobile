@@ -1,6 +1,6 @@
 import { Tabs } from "expo-router";
 import type { Icon } from "phosphor-react-native";
-import { ChartLine, ForkKnife, Gear, House, Smiley } from "phosphor-react-native";
+import { ChartLine, ForkKnife, Gear, House } from "phosphor-react-native";
 import { colors } from "@/theme";
 
 /** Phosphor tab icon, filled when the tab is active (Figma tab bar). */
@@ -34,12 +34,16 @@ export default function AppLayout() {
     >
       <Tabs.Screen
         name="dashboard"
-        options={{ title: "Home", tabBarIcon: tabIcon(House), tabBarAccessibilityLabel: "Home" }}
+        options={{
+          title: "Dashboard",
+          tabBarIcon: tabIcon(House),
+          tabBarAccessibilityLabel: "Dashboard",
+        }}
       />
       <Tabs.Screen
         name="log"
         options={{
-          title: "Log",
+          title: "Log Food",
           tabBarIcon: tabIcon(ForkKnife),
           tabBarAccessibilityLabel: "Log food",
         }}
@@ -47,17 +51,9 @@ export default function AppLayout() {
       <Tabs.Screen
         name="metrics"
         options={{
-          title: "Metrics",
+          title: "Progress",
           tabBarIcon: tabIcon(ChartLine),
-          tabBarAccessibilityLabel: "Metrics",
-        }}
-      />
-      <Tabs.Screen
-        name="checkin"
-        options={{
-          title: "Check-in",
-          tabBarIcon: tabIcon(Smiley),
-          tabBarAccessibilityLabel: "Daily check-in",
+          tabBarAccessibilityLabel: "Progress",
         }}
       />
       <Tabs.Screen
@@ -69,6 +65,8 @@ export default function AppLayout() {
         }}
       />
       <Tabs.Screen name="foods" options={{ href: null }} />
+      <Tabs.Screen name="history" options={{ href: null }} />
+      <Tabs.Screen name="checkin" options={{ href: null }} />
     </Tabs>
   );
 }

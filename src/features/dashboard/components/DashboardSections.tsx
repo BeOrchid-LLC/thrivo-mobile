@@ -12,21 +12,28 @@ import {
 } from "@/components";
 import { colors } from "@/theme";
 import type { MealType } from "@/contracts";
-import { deriveMacroTargets } from "@/features/onboarding/utils/tdee";
 import { MacroBars } from "./MacroBars";
 import { MealLog } from "./MealLog";
 import { StreakBanner } from "./StreakBanner";
 import { WaterTracker } from "./WaterTracker";
-import { useAddWater, useDashboard, useTodayFoodLog } from "../hooks/useDashboard";
+import {
+  useAddWater,
+  useDashboardCalories,
+  useDashboardMacros,
+  useDashboardMealLog,
+  useDashboardStreak,
+  useDashboardWater,
+} from "../hooks/useDashboard";
 
 const GLASS_ML = 250;
 
 const goToLog = (_meal?: MealType) => router.push("/(app)/log");
+const goToHistory = () => router.push("/(app)/history");
 
 export function CaloriesSummarySection() {
-  const dashboard = useDashboard();
+  const calories = useDashboardCalories();
 
-  if (dashboard.isLoading) {
+  if (calories.isLoading) {
     return (
       <Card
         accessibilityRole="progressbar"
@@ -43,35 +50,34 @@ export function CaloriesSummarySection() {
     );
   }
 
-  if (dashboard.isError || !dashboard.data) {
+  if (calories.isError || !calories.data) {
     return (
       <SectionError
         title="Could not load calories"
         message="Your calorie summary is unavailable right now."
-        onRetry={() => void dashboard.refetch()}
+        onRetry={() => void calories.refetch()}
       />
     );
   }
 
-  const { consumed, targetCalories } = dashboard.data;
-  const remaining = Math.max(targetCalories - consumed.calories, 0);
+  const { consumedCalories, targetCalories, remainingCalories } = calories.data;
 
   return (
     <Card className="flex-row items-center gap-lg">
       <CalorieRing
-        consumed={consumed.calories}
+        consumed={consumedCalories}
         target={targetCalories}
         emptyLabel="Log your first meal"
       />
       <View className="flex-1 gap-xs">
         <Text variant="heading1" color="dark">
-          {consumed.calories.toLocaleString()}
+          {consumedCalories.toLocaleString()}
         </Text>
         <Text variant="body" color="muted">
           of {targetCalories.toLocaleString()} daily target
         </Text>
         <Text variant="body" color="primary">
-          {remaining.toLocaleString()} remaining
+          {remainingCalories.toLocaleString()} remaining
         </Text>
       </View>
     </Card>
@@ -79,9 +85,9 @@ export function CaloriesSummarySection() {
 }
 
 export function MacrosSection() {
-  const dashboard = useDashboard();
+  const macros = useDashboardMacros();
 
-  if (dashboard.isLoading) {
+  if (macros.isLoading) {
     return (
       <Card accessibilityRole="progressbar" accessibilityLabel="Loading macros">
         <View className="gap-md">
@@ -99,44 +105,34 @@ export function MacrosSection() {
     );
   }
 
-  if (dashboard.isError || !dashboard.data) {
+  if (macros.isError || !macros.data) {
     return (
       <SectionError
         title="Could not load macros"
         message="Macro progress will return when the connection does."
-        onRetry={() => void dashboard.refetch()}
+        onRetry={() => void macros.refetch()}
       />
     );
   }
-
-  const { consumed, targetCalories } = dashboard.data;
-  const macroTarget =
-    dashboard.data.targetProteinG && dashboard.data.targetCarbsG && dashboard.data.targetFatG
-      ? {
-          proteinG: dashboard.data.targetProteinG,
-          carbsG: dashboard.data.targetCarbsG,
-          fatG: dashboard.data.targetFatG,
-        }
-      : deriveMacroTargets(targetCalories);
 
   return (
     <Card>
       <MacroBars
         consumed={{
-          proteinG: consumed.proteinG,
-          carbsG: consumed.carbsG,
-          fatG: consumed.fatG,
+          proteinG: macros.data.consumed.proteinG,
+          carbsG: macros.data.consumed.carbsG,
+          fatG: macros.data.consumed.fatG,
         }}
-        target={macroTarget}
+        target={macros.data.target}
       />
     </Card>
   );
 }
 
 export function StreakSection() {
-  const dashboard = useDashboard();
+  const streak = useDashboardStreak();
 
-  if (dashboard.isLoading) {
+  if (streak.isLoading) {
     return (
       <View
         accessibilityRole="progressbar"
@@ -149,26 +145,26 @@ export function StreakSection() {
     );
   }
 
-  if (dashboard.isError || !dashboard.data) {
+  if (streak.isError || !streak.data) {
     return (
       <SectionError
         title="Could not load streak"
         message="Your streak status is unavailable right now."
-        onRetry={() => void dashboard.refetch()}
+        onRetry={() => void streak.refetch()}
       />
     );
   }
 
-  return dashboard.data.streakDays && dashboard.data.streakDays > 0 ? (
-    <StreakBanner days={dashboard.data.streakDays} />
+  return streak.data.currentStreakDays > 0 ? (
+    <StreakBanner days={streak.data.currentStreakDays} />
   ) : null;
 }
 
 export function WaterSection() {
-  const dashboard = useDashboard();
+  const water = useDashboardWater();
   const addWater = useAddWater();
 
-  if (dashboard.isLoading) {
+  if (water.isLoading) {
     return (
       <View
         accessibilityRole="progressbar"
@@ -192,21 +188,23 @@ export function WaterSection() {
     );
   }
 
-  if (dashboard.isError || !dashboard.data) {
+  if (water.isError || !water.data) {
     return (
       <SectionError
         title="Could not load water"
         message="Water tracking is unavailable right now."
-        onRetry={() => void dashboard.refetch()}
+        onRetry={() => void water.refetch()}
       />
     );
   }
 
-  const glasses = Math.round((dashboard.data.waterMl ?? 0) / GLASS_ML);
+  const glasses = water.data.glasses ?? Math.floor(water.data.totalMl / GLASS_ML);
+  const targetGlasses = water.data.targetGlasses ?? Math.round(water.data.targetMl / GLASS_ML);
 
   return (
     <WaterTracker
       glasses={glasses}
+      targetGlasses={targetGlasses}
       adding={addWater.isPending}
       error={addWater.error?.message ?? null}
       onAdd={() => addWater.mutate()}
@@ -215,7 +213,7 @@ export function WaterSection() {
 }
 
 export function TodayMealLogSection() {
-  const foodLog = useTodayFoodLog();
+  const foodLog = useDashboardMealLog();
 
   if (foodLog.isLoading) {
     return (
@@ -248,10 +246,10 @@ export function TodayMealLogSection() {
     );
   }
 
-  const entries = foodLog.data ?? [];
+  const groups = foodLog.data?.groups ?? [];
 
-  return entries.length > 0 ? (
-    <MealLog entries={entries} onLogFood={goToLog} />
+  return groups.length > 0 ? (
+    <MealLog groups={groups} onLogFood={goToLog} onViewAll={goToHistory} />
   ) : (
     <Card className="items-center gap-md">
       <View className="h-[52px] w-[52px] items-center justify-center rounded-pill bg-primarySoft">

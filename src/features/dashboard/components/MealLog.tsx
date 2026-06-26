@@ -2,70 +2,64 @@ import { Pressable, View } from "react-native";
 import { PlusCircle } from "phosphor-react-native";
 import { Text } from "@/components";
 import { colors } from "@/theme";
-import type { FoodLogEntry, MealType } from "@/contracts";
+import type { MealGroup, MealType } from "@/contracts";
 
-const MEAL_ORDER: MealType[] = ["breakfast", "lunch", "dinner", "snack"];
-const MEAL_LABEL: Record<MealType, string> = {
-  breakfast: "Breakfast",
-  lunch: "Lunch",
-  dinner: "Dinner",
-  snack: "Snacks",
-};
-
-// Entry nutrients are per-serving snapshots; multiply by servings for the total.
-const entryKcal = (e: FoodLogEntry) => Math.round(e.nutrients.calories * e.servings);
+const entryKcal = (calories: number, servings: number) => Math.round(calories * servings);
 
 interface MealLogProps {
-  entries: FoodLogEntry[];
+  groups: MealGroup[];
   onLogFood: (meal: MealType) => void;
+  onViewAll: () => void;
 }
 
 /** Today's logged foods grouped by meal (Figma dashboard, populated state). */
-export function MealLog({ entries, onLogFood }: MealLogProps) {
-  const groups = MEAL_ORDER.map((meal) => ({
-    meal,
-    items: entries.filter((e) => e.meal === meal),
-  })).filter((g) => g.items.length > 0);
-
+export function MealLog({ groups, onLogFood, onViewAll }: MealLogProps) {
   return (
     <View className="gap-lg">
-      {groups.map(({ meal, items }) => {
-        const total = items.reduce((sum, e) => sum + entryKcal(e), 0);
-        return (
-          <View key={meal} className="gap-sm">
-            <View className="flex-row items-center justify-between border-b border-gray-200 pb-sm">
-              <Text variant="body" color="dark" className="font-semibold">
-                {MEAL_LABEL[meal]}{" "}
-                <Text variant="body" color="muted" className="font-regular">
-                  {total} kcal
-                </Text>
+      {groups.map((group, index) => (
+        <View key={group.meal} className="gap-sm">
+          <View className="flex-row items-center justify-between border-b border-gray-200 pb-sm">
+            <Text variant="body" color="dark" className="font-semibold">
+              {group.label}{" "}
+              <Text variant="body" color="muted" className="font-regular">
+                {group.calories} kcal
               </Text>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`Log food for ${MEAL_LABEL[meal]}`}
-                onPress={() => onLogFood(meal)}
-                className="flex-row items-center gap-xs"
-              >
-                <PlusCircle size={18} color={colors.primary} weight="regular" />
-                <Text variant="caption" color="primary" className="font-semibold">
-                  Log food
-                </Text>
-              </Pressable>
-            </View>
-            {items.map((e) => (
-              <View key={e.id} className="flex-row justify-between">
-                <Text variant="body" color="dark" className="flex-1">
-                  {e.name}
-                  {e.servings !== 1 ? ` ×${e.servings}` : ""}
-                </Text>
-                <Text variant="body" color="muted">
-                  {entryKcal(e)} kcal
-                </Text>
-              </View>
-            ))}
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Log food for ${group.label}`}
+              onPress={() => onLogFood(group.meal)}
+              className="flex-row items-center gap-xs"
+            >
+              <PlusCircle size={18} color={colors.primary} weight="regular" />
+              <Text variant="caption" color="primary" className="font-semibold">
+                {index === 0 ? "Log food" : "Add"}
+              </Text>
+            </Pressable>
           </View>
-        );
-      })}
+          {group.entries.map((e) => (
+            <View key={e.id} className="flex-row justify-between gap-md">
+              <Text variant="body" color="dark" className="flex-1">
+                {e.name}
+                {e.servings !== 1 ? `, ${e.servings}${e.servingUnit ?? " servings"}` : ""}
+              </Text>
+              <Text variant="body" color="dark">
+                {entryKcal(e.nutrients.calories, e.servings)} kcal
+              </Text>
+            </View>
+          ))}
+        </View>
+      ))}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="View all food logs"
+        onPress={onViewAll}
+        className="items-center py-md"
+      >
+        <Text variant="body" color="primary" className="font-semibold">
+          View all logs
+        </Text>
+      </Pressable>
     </View>
   );
 }
