@@ -1,11 +1,14 @@
 import { fireEvent, render } from "@testing-library/react-native";
 import { router } from "expo-router";
 import Dashboard from "../../../../app/(app)/dashboard";
-import type { Dashboard as DashboardData, FoodLogEntry } from "@/contracts";
+import type { DashboardCalories, MacroSummary, MealGroup, StreakSummary, Water } from "@/contracts";
 
 const mockUseMe = jest.fn();
-const mockUseDashboard = jest.fn();
-const mockUseTodayFoodLog = jest.fn();
+const mockUseDashboardCalories = jest.fn();
+const mockUseDashboardMacros = jest.fn();
+const mockUseDashboardStreak = jest.fn();
+const mockUseDashboardWater = jest.fn();
+const mockUseDashboardMealLog = jest.fn();
 const mockUseAddWater = jest.fn();
 const mockPush = jest.fn();
 
@@ -14,32 +17,60 @@ jest.mock("@/features/profile", () => ({
 }));
 
 jest.mock("../hooks/useDashboard", () => ({
-  useDashboard: () => mockUseDashboard(),
-  useTodayFoodLog: () => mockUseTodayFoodLog(),
+  useDashboardCalories: () => mockUseDashboardCalories(),
+  useDashboardMacros: () => mockUseDashboardMacros(),
+  useDashboardStreak: () => mockUseDashboardStreak(),
+  useDashboardWater: () => mockUseDashboardWater(),
+  useDashboardMealLog: () => mockUseDashboardMealLog(),
   useAddWater: () => mockUseAddWater(),
 }));
 
-const emptyDashboard: DashboardData = {
+const emptyCalories: DashboardCalories = {
   day: "2026-06-22",
-  consumed: { day: "2026-06-22", calories: 0, proteinG: 0, carbsG: 0, fatG: 0 },
+  consumedCalories: 0,
   targetCalories: 1800,
-  targetProteinG: 135,
-  targetCarbsG: 180,
-  targetFatG: 60,
-  streakDays: 0,
-  latestWeightKg: null,
-  waterMl: 0,
+  remainingCalories: 1800,
+  percentUsed: 0,
 };
 
-const lunchEntry: FoodLogEntry = {
-  id: "entry-1",
-  foodItemId: "food-1",
-  name: "Greek yogurt",
-  meal: "lunch",
+const emptyMacros: MacroSummary = {
   day: "2026-06-22",
-  servings: 1,
-  nutrients: { calories: 120, proteinG: 18, carbsG: 8, fatG: 2 },
-  loggedAt: "2026-06-22T12:00:00.000Z",
+  consumed: { proteinG: 0, carbsG: 0, fatG: 0 },
+  target: { proteinG: 135, carbsG: 180, fatG: 60 },
+};
+
+const emptyStreak: StreakSummary = {
+  currentStreakDays: 0,
+  longestStreakDays: 0,
+  lastLoggedDay: null,
+};
+
+const emptyWater: Water = {
+  day: "2026-06-22",
+  totalMl: 0,
+  targetMl: 2000,
+  glassMl: 250,
+  glasses: 0,
+  targetGlasses: 8,
+};
+
+const lunchGroup: MealGroup = {
+  meal: "lunch",
+  label: "Lunch",
+  calories: 120,
+  entries: [
+    {
+      id: "entry-1",
+      foodItemId: "food-1",
+      name: "Greek yogurt",
+      meal: "lunch",
+      day: "2026-06-22",
+      servings: 1,
+      servingUnit: null,
+      nutrients: { calories: 120, proteinG: 18, carbsG: 8, fatG: 2 },
+      loggedAt: "2026-06-22T12:00:00.000Z",
+    },
+  ],
 };
 
 const loadingQuery = {
@@ -68,15 +99,23 @@ describe("Dashboard graceful degradation", () => {
     jest.clearAllMocks();
     (router as unknown as { push: jest.Mock }).push = mockPush;
     mockUseMe.mockReturnValue(successQuery({ name: "Ada Lovelace" }));
-    mockUseDashboard.mockReturnValue(successQuery(emptyDashboard));
-    mockUseTodayFoodLog.mockReturnValue(successQuery([]));
+    mockUseDashboardCalories.mockReturnValue(successQuery(emptyCalories));
+    mockUseDashboardMacros.mockReturnValue(successQuery(emptyMacros));
+    mockUseDashboardStreak.mockReturnValue(successQuery(emptyStreak));
+    mockUseDashboardWater.mockReturnValue(successQuery(emptyWater));
+    mockUseDashboardMealLog.mockReturnValue(
+      successQuery({ day: "2026-06-22", groups: [], isEmptyDay: true })
+    );
     mockUseAddWater.mockReturnValue({ mutate: jest.fn(), isPending: false, error: null });
   });
 
   it("renders static header content while dashboard sections are loading", () => {
     mockUseMe.mockReturnValue(loadingQuery);
-    mockUseDashboard.mockReturnValue(loadingQuery);
-    mockUseTodayFoodLog.mockReturnValue(loadingQuery);
+    mockUseDashboardCalories.mockReturnValue(loadingQuery);
+    mockUseDashboardMacros.mockReturnValue(loadingQuery);
+    mockUseDashboardStreak.mockReturnValue(loadingQuery);
+    mockUseDashboardWater.mockReturnValue(loadingQuery);
+    mockUseDashboardMealLog.mockReturnValue(loadingQuery);
 
     const screen = render(<Dashboard />);
 
@@ -98,7 +137,10 @@ describe("Dashboard graceful degradation", () => {
   });
 
   it("shows dashboard section errors without hiding static content", () => {
-    mockUseDashboard.mockReturnValue(errorQuery);
+    mockUseDashboardCalories.mockReturnValue(errorQuery);
+    mockUseDashboardMacros.mockReturnValue(errorQuery);
+    mockUseDashboardStreak.mockReturnValue(errorQuery);
+    mockUseDashboardWater.mockReturnValue(errorQuery);
 
     const screen = render(<Dashboard />);
 
@@ -110,7 +152,7 @@ describe("Dashboard graceful degradation", () => {
   });
 
   it("keeps the rest of the dashboard available when only the meal log fails", () => {
-    mockUseTodayFoodLog.mockReturnValue(errorQuery);
+    mockUseDashboardMealLog.mockReturnValue(errorQuery);
 
     const screen = render(<Dashboard />);
 
@@ -131,7 +173,9 @@ describe("Dashboard graceful degradation", () => {
   });
 
   it("renders logged meals when the meal-log section has data", () => {
-    mockUseTodayFoodLog.mockReturnValue(successQuery([lunchEntry]));
+    mockUseDashboardMealLog.mockReturnValue(
+      successQuery({ day: "2026-06-22", groups: [lunchGroup], isEmptyDay: false })
+    );
 
     const screen = render(<Dashboard />);
 

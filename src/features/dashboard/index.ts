@@ -4,6 +4,7 @@ export { StreakBanner } from "./components/StreakBanner";
 export { WaterTracker } from "./components/WaterTracker";
 export { MealLog } from "./components/MealLog";
 export { DashboardHeader } from "./components/DashboardHeader";
+export { FoodHistoryScreen } from "./components/FoodHistoryScreen";
 export {
   CaloriesSummarySection,
   MacrosSection,
@@ -11,4 +12,12 @@ export {
   WaterSection,
   TodayMealLogSection,
 } from "./components/DashboardSections";
-export { useDashboard, useTodayFoodLog, useAddWater } from "./hooks/useDashboard";
+export {
+  useAddWater,
+  useDashboardCalories,
+  useDashboardMacros,
+  useDashboardMealLog,
+  useDashboardStreak,
+  useDashboardWater,
+  useFoodLogHistory,
+} from "./hooks/useDashboard";

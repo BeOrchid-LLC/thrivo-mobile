@@ -153,7 +153,13 @@ export const ENDPOINTS = {
     path: "/foods/log/history",
     method: "GET",
     auth: true,
-    response: c.logHistoryResponse,
+    response: c.foodLogHistoryResponse,
+  },
+  FOOD_LOG_DAY: {
+    path: "/foods/log/day",
+    method: "GET",
+    auth: true,
+    response: c.foodLogDayResponse,
   },
   FOOD_FAVORITES_LIST: {
     path: "/foods/favorites",
@@ -176,11 +182,23 @@ export const ENDPOINTS = {
   },
 
   // --- Dashboard ---
-  GET_DASHBOARD: {
-    path: "/dashboard",
+  DASHBOARD_CALORIES: {
+    path: "/dashboard/calories",
     method: "GET",
     auth: true,
-    response: c.dashboardResponse,
+    response: c.dashboardCaloriesResponse,
+  },
+  DASHBOARD_MACROS: {
+    path: "/dashboard/macros",
+    method: "GET",
+    auth: true,
+    response: c.dashboardMacrosResponse,
+  },
+  DASHBOARD_STREAK: {
+    path: "/dashboard/streak",
+    method: "GET",
+    auth: true,
+    response: c.dashboardStreakResponse,
   },
 
   // --- Metrics (premium) ---
