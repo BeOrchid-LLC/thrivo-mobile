@@ -1,6 +1,5 @@
-import { PlaceholderScreen } from "@/components";
+import { SubscriptionPlansScreen } from "@/features/subscription/screens/SubscriptionPlansScreen";
 
-/** Subscription manage — cancel in ≤2 taps. */
 export default function Subscription() {
-  return <PlaceholderScreen title="Subscription" subtitle="Manage · cancel in ≤2 taps" />;
+  return <SubscriptionPlansScreen />;
 }
