@@ -62,13 +62,17 @@ function ModalShell({
     <View className="flex-1 items-center justify-center bg-black/30 px-xl">
       <View className="w-full gap-lg rounded-lg bg-white p-xl">
         <View
-          className={`h-[48px] w-[48px] self-center items-center justify-center rounded-full ${
+          className={`h-[48px] w-[48px] items-center justify-center self-center rounded-full ${
             isSuccess ? "bg-primarySoft" : "bg-red-100"
           }`}
         >
-          {isSuccess ? <Check size={26} color={colors.primaryBright} /> : <X size={26} color={colors.error} />}
+          {isSuccess ? (
+            <Check size={26} color={colors.primaryBright} />
+          ) : (
+            <X size={26} color={colors.error} />
+          )}
         </View>
-        <Text className="text-center text-[18px] font-semibold">{title}</Text>
+        <Text className="text-center font-semibold text-[18px]">{title}</Text>
         <Text color="dark" className="text-center leading-[24px]">
           {body}
         </Text>
@@ -148,7 +152,7 @@ export function SubscriptionPlansScreen() {
       >
         <View className="flex-row items-start justify-between">
           <View>
-            <Text className={`text-[40px] font-semibold ${plan === "annual" ? "text-white" : ""}`}>
+            <Text className={`font-semibold text-[40px] ${plan === "annual" ? "text-white" : ""}`}>
               {selected.price}
               <Text className={`text-[18px] ${plan === "annual" ? "text-white" : "text-gray-500"}`}>
                 {" "}
@@ -164,15 +168,24 @@ export function SubscriptionPlansScreen() {
           </View>
           {plan === "annual" ? (
             <View className="rounded-md bg-warning px-md py-sm">
-              <Text className="text-[13px] font-semibold">Best value</Text>
+              <Text className="font-semibold text-[13px]">Best value</Text>
             </View>
           ) : null}
         </View>
 
         <View className="mt-xl gap-md">
-          <PriceRow label="Trial ends" value={formatShortDate(trialEnd)} inverted={plan === "annual"} />
+          <PriceRow
+            label="Trial ends"
+            value={formatShortDate(trialEnd)}
+            inverted={plan === "annual"}
+          />
           <PriceRow label="First charge" value={firstChargeLabel} inverted={plan === "annual"} />
-          <PriceRow label="Cancel before then" value="Pay nothing" highlight inverted={plan === "annual"} />
+          <PriceRow
+            label="Cancel before then"
+            value="Pay nothing"
+            highlight
+            inverted={plan === "annual"}
+          />
         </View>
       </View>
 

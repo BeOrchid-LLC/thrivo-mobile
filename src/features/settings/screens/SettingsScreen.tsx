@@ -82,7 +82,7 @@ function Row({
     <View className="min-h-[72px] flex-row items-center gap-md border-b border-gray-200 px-lg py-md">
       <View className={`${iconWide ? "w-[64px]" : "w-[32px]"} items-center`}>{icon}</View>
       <View className="flex-1">
-        <Text className="text-[16px] font-semibold">{title}</Text>
+        <Text className="font-semibold text-[16px]">{title}</Text>
         {subtitle ? (
           <Text variant="caption" color="muted" className="mt-xxs text-[13px]">
             {subtitle}
@@ -138,7 +138,7 @@ export function SettingsScreen() {
           iconWide
           icon={
             <View className="h-[64px] w-[64px] items-center justify-center rounded-full bg-primarySoft">
-              <Text className="text-[20px] font-semibold">{initials(user?.name)}</Text>
+              <Text className="font-semibold text-[20px]">{initials(user?.name)}</Text>
             </View>
           }
           title={user?.name || "Your profile"}
