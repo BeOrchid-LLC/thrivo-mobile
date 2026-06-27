@@ -17,6 +17,8 @@ export const queryKeys = {
   foods: {
     search: (q: string) => ["foods", "search", q] as const,
     lookup: (barcode: string) => ["foods", "lookup", barcode] as const,
+    detail: (id: string) => ["foods", "detail", id] as const,
+    recent: () => ["foods", "recent"] as const,
     favorites: () => ["foods", "favorites"] as const,
     logHistory: () => ["foods", "log", "history"] as const,
     logDay: (day: string) => ["foods", "log", "day", day] as const,
