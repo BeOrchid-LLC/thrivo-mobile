@@ -142,11 +142,24 @@ export const ENDPOINTS = {
     payload: c.upsertFoodPayload,
     response: c.foodItemResponse,
   },
+  FOOD_DETAIL: {
+    path: "/foods/:id",
+    method: "GET",
+    auth: true,
+    response: c.foodItemResponse,
+  },
   FOOD_LOG: {
     path: "/foods/log",
     method: "POST",
     auth: true,
     payload: c.logFoodPayload,
+    response: c.logMutationResponse,
+  },
+  FOOD_LOG_ESTIMATE: {
+    path: "/foods/log/estimate",
+    method: "POST",
+    auth: true,
+    payload: c.logEstimatePayload,
     response: c.logMutationResponse,
   },
   FOOD_LOG_UPDATE: {
@@ -174,6 +187,12 @@ export const ENDPOINTS = {
     auth: true,
     response: c.foodLogDayResponse,
   },
+  FOOD_RECENT: {
+    path: "/foods/recent",
+    method: "GET",
+    auth: true,
+    response: c.recentFoodsResponse,
+  },
   FOOD_FAVORITES_LIST: {
     path: "/foods/favorites",
     method: "GET",
@@ -192,6 +211,13 @@ export const ENDPOINTS = {
     method: "DELETE",
     auth: true,
     response: c.favoritesResponse,
+  },
+  FOOD_ESTIMATE: {
+    path: "/foods/estimate",
+    method: "POST",
+    auth: true,
+    payload: c.estimateFoodPayload,
+    response: c.estimateFoodResponse,
   },
 
   // --- Dashboard ---
@@ -245,6 +271,12 @@ export const ENDPOINTS = {
     method: "POST",
     auth: true,
     payload: c.addWaterPayload,
+    response: c.waterResponse,
+  },
+  WATER_DELETE: {
+    path: "/metrics/water/:id",
+    method: "DELETE",
+    auth: true,
     response: c.waterResponse,
   },
 
