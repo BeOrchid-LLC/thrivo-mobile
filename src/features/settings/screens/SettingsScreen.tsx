@@ -12,18 +12,13 @@ import {
   X,
 } from "phosphor-react-native";
 import { Button, Screen, SectionError, SkeletonText, Text } from "@/components";
+import { LEGAL_LINKS } from "@/config/links";
 import { useLogout } from "@/features/auth/hooks/useAuth";
 import { useMe } from "@/features/profile";
 import { useSubscription } from "@/features/subscription";
 import { colors } from "@/theme";
 import { useSettings } from "../hooks/useSettings";
 import { useUpdateSettings } from "../hooks/useUpdateSettings";
-
-const LEGAL_LINKS = {
-  privacy: "https://www.traxq.com/privacy",
-  terms: "https://www.traxq.com/terms",
-  cancellation: "https://www.traxq.com/terms",
-};
 
 function initials(name?: string | null) {
   const parts = (name || "Thrivo User").trim().split(/\s+/);
