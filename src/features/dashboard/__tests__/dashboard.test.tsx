@@ -1,7 +1,13 @@
 import { fireEvent, render } from "@testing-library/react-native";
 import { router } from "expo-router";
 import Dashboard from "../../../../app/(app)/dashboard";
-import type { DashboardCalories, FoodLogEntry, MacroSummary, StreakSummary, Water } from "@/contracts";
+import type {
+  DashboardCalories,
+  FoodLogEntry,
+  MacroSummary,
+  StreakSummary,
+  Water,
+} from "@/contracts";
 
 const mockUseMe = jest.fn();
 const mockUseDashboardCalories = jest.fn();
