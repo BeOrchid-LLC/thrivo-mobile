@@ -147,10 +147,7 @@ export function useDeleteWaterLog(day = localDay()) {
   });
 }
 
-function invalidateFoodQueries(
-  queryClient: ReturnType<typeof useQueryClient>,
-  day: string
-): void {
+function invalidateFoodQueries(queryClient: ReturnType<typeof useQueryClient>, day: string): void {
   void queryClient.invalidateQueries({ queryKey: queryKeys.foods.logDay(day) });
   void queryClient.invalidateQueries({ queryKey: queryKeys.foods.recent() });
   void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.calories(day) });

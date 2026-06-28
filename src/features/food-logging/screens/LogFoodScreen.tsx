@@ -2,7 +2,6 @@ import { useMemo, useState, type ReactNode } from "react";
 import { Pressable, TextInput, View } from "react-native";
 import {
   Barcode,
-  Drop,
   Heart,
   MagnifyingGlass,
   Minus,
@@ -99,7 +98,11 @@ function FoodHome({ onScan, onDescribe }: { onScan: () => void; onDescribe: () =
   return (
     <View className="gap-xl">
       <View className="flex-row justify-between">
-        <QuickAction icon={<Barcode size={22} color={colors.dark} />} label="Scan barcode" onPress={onScan} />
+        <QuickAction
+          icon={<Barcode size={22} color={colors.dark} />}
+          label="Scan barcode"
+          onPress={onScan}
+        />
         <QuickAction
           icon={<Heart size={22} color={colors.dark} />}
           label="Favorites"
@@ -121,7 +124,7 @@ function FoodHome({ onScan, onDescribe }: { onScan: () => void; onDescribe: () =
       {hasQuery ? (
         <Card className="gap-md">
           <Text variant="body" color="dark">
-            Showing results for "{query.trim()}"
+            {`Showing results for "${query.trim()}"`}
           </Text>
           {search.isLoading ? <Text color="muted">Searching...</Text> : null}
           {results.map((item) => (
@@ -136,7 +139,7 @@ function FoodHome({ onScan, onDescribe }: { onScan: () => void; onDescribe: () =
           {!search.isLoading && results.length === 0 ? (
             <View className="items-center gap-xs py-md">
               <Text variant="caption" color="muted">
-                Don't see it?
+                {"Don't see it?"}
               </Text>
               <Pressable accessibilityRole="button" onPress={onDescribe}>
                 <Text variant="body" color="primary" className="font-semibold">
@@ -290,10 +293,13 @@ function WaterHome() {
       </View>
       <View className="gap-md">
         <Text variant="heading3" color="muted">
-          Today's log
+          {"Today's log"}
         </Text>
         {data.entries.map((entry) => (
-          <View key={entry.id} className="flex-row items-center justify-between border-b border-gray-200 py-sm">
+          <View
+            key={entry.id}
+            className="flex-row items-center justify-between border-b border-gray-200 py-sm"
+          >
             <View>
               <Text variant="body" color="dark">
                 Glass of water
@@ -334,7 +340,11 @@ function ScanBarcodeScreen({ onBack }: { onBack: () => void }) {
 
   return (
     <Screen scroll style={{ gap: 24 }}>
-      <HeaderBack title="Scan Barcode" subtitle="Packaged foods - instant nutrition look up." onBack={onBack} />
+      <HeaderBack
+        title="Scan Barcode"
+        subtitle="Packaged foods - instant nutrition look up."
+        onBack={onBack}
+      />
       <View className="h-[200px] justify-between rounded-lg bg-dark p-lg">
         <View className="flex-row justify-between">
           <Corner />
@@ -347,7 +357,9 @@ function ScanBarcodeScreen({ onBack }: { onBack: () => void }) {
         </Text>
       </View>
       <Text variant="caption" color="dark">
-        Offline scans should queue the decoded barcode value and replay lookup when you're back online.
+        {
+          "Offline scans should queue the decoded barcode value and replay lookup when you're back online."
+        }
       </Text>
       <Input
         label="Barcode"
@@ -401,10 +413,19 @@ function DescribeMealScreen({ onBack }: { onBack: () => void }) {
 
   return (
     <Screen scroll style={{ gap: 20 }}>
-      <HeaderBack title="Describe a meal" subtitle="We'll help you estimate the calories." onBack={onBack} />
+      <HeaderBack
+        title="Describe a meal"
+        subtitle="We'll help you estimate the calories."
+        onBack={onBack}
+      />
       <Input label="Name of food" value={name} onChangeText={setName} />
       <Input label="Main Ingredients" value={ingredients} onChangeText={setIngredients} />
-      <Input label="Cooking method" value={method} onChangeText={setMethod} placeholder="How was it cooked?" />
+      <Input
+        label="Cooking method"
+        value={method}
+        onChangeText={setMethod}
+        placeholder="How was it cooked?"
+      />
       <View className="gap-sm">
         <Text variant="caption" color="dark">
           Portion measure
@@ -412,7 +433,10 @@ function DescribeMealScreen({ onBack }: { onBack: () => void }) {
         <Segmented value={measure} onChange={setMeasure} options={portions} />
       </View>
       <View className="flex-row items-center gap-md">
-        <StepperButton label="-" onPress={() => setQuantity(String(Math.max(Number(quantity) - 1, 1)))} />
+        <StepperButton
+          label="-"
+          onPress={() => setQuantity(String(Math.max(Number(quantity) - 1, 1)))}
+        />
         <TextInput
           value={quantity}
           onChangeText={setQuantity}
@@ -424,7 +448,11 @@ function DescribeMealScreen({ onBack }: { onBack: () => void }) {
         </Text>
         <StepperButton label="+" onPress={() => setQuantity(String(Number(quantity || 0) + 1))} />
       </View>
-      <Button label="Estimate" loading={estimate.isPending} onPress={() => estimate.mutate(payload)} />
+      <Button
+        label="Estimate"
+        loading={estimate.isPending}
+        onPress={() => estimate.mutate(payload)}
+      />
       {estimateResult ? (
         <View className="gap-lg">
           <View className="items-center">
@@ -457,10 +485,20 @@ function DescribeMealScreen({ onBack }: { onBack: () => void }) {
   );
 }
 
-function QuickAction({ icon, label, onPress }: { icon: ReactNode; label: string; onPress: () => void }) {
+function QuickAction({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: ReactNode;
+  label: string;
+  onPress: () => void;
+}) {
   return (
     <Pressable accessibilityRole="button" onPress={onPress} className="items-center gap-xs">
-      <View className="h-[42px] w-[42px] items-center justify-center rounded-pill bg-primarySoft">{icon}</View>
+      <View className="h-[42px] w-[42px] items-center justify-center rounded-pill bg-primarySoft">
+        {icon}
+      </View>
       <Text variant="caption" color="dark">
         {label}
       </Text>
@@ -491,10 +529,19 @@ function FoodResultRow({
         </Text>
       </View>
       <View className="flex-row gap-sm">
-        <Pressable accessibilityRole="button" accessibilityLabel="Add favorite" onPress={onFavorite}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Add favorite"
+          onPress={onFavorite}
+        >
           <Heart size={22} color={colors.primary} />
         </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel="Log food" disabled={loading} onPress={onLog}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Log food"
+          disabled={loading}
+          onPress={onLog}
+        >
           <Plus size={22} color={colors.primary} />
         </Pressable>
       </View>
@@ -525,7 +572,11 @@ function RecentFoodRow({ entry }: { entry: FoodLogEntry }) {
   );
 }
 
-function MacroCards({ nutrients }: { nutrients: { proteinG: number; carbsG: number; fatG: number } }) {
+function MacroCards({
+  nutrients,
+}: {
+  nutrients: { proteinG: number; carbsG: number; fatG: number };
+}) {
   return (
     <View className="flex-row gap-md">
       {[
@@ -576,7 +627,11 @@ function StepperButton({ label, onPress }: { label: string; onPress: () => void 
       onPress={onPress}
       className="h-[28px] w-[28px] items-center justify-center rounded-sm border border-gray-200 bg-primarySoft"
     >
-      {label === "-" ? <Minus size={16} color={colors.primary} /> : <Plus size={16} color={colors.primary} />}
+      {label === "-" ? (
+        <Minus size={16} color={colors.primary} />
+      ) : (
+        <Plus size={16} color={colors.primary} />
+      )}
     </Pressable>
   );
 }

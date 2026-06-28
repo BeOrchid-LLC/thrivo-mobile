@@ -57,7 +57,10 @@ function HistoryDay({ day }: { day: HistoryDayModel }) {
         {day.day}
       </Text>
       {day.entries.map((entry) => (
-        <View key={entry.id} className="flex-row justify-between gap-md border-b border-gray-200 pb-sm">
+        <View
+          key={entry.id}
+          className="flex-row justify-between gap-md border-b border-gray-200 pb-sm"
+        >
           <View className="flex-1">
             <Text variant="body" color="dark">
               {entry.name}

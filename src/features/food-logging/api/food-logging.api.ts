@@ -38,11 +38,9 @@ export const getFavorites = () => callApi("FOOD_FAVORITES_LIST");
 export const addFavorite = (payload: AddFavoritePayload) =>
   callApi("FOOD_FAVORITE_ADD", { payload });
 
-export const removeFavorite = (id: string) =>
-  callApi("FOOD_FAVORITE_REMOVE", { params: { id } });
+export const removeFavorite = (id: string) => callApi("FOOD_FAVORITE_REMOVE", { params: { id } });
 
-export const estimateFood = (payload: EstimateFoodPayload) =>
-  callApi("FOOD_ESTIMATE", { payload });
+export const estimateFood = (payload: EstimateFoodPayload) => callApi("FOOD_ESTIMATE", { payload });
 
 export const logEstimate = (payload: LogEstimatePayload) =>
   callApi("FOOD_LOG_ESTIMATE", { payload });
