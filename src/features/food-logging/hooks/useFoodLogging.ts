@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { queryKeys } from "@/api";
+import { invalidateFoodLogViews, invalidateWaterViews, queryKeys } from "@/api";
 import { localDay } from "@/utils";
 import type { EstimateFoodPayload, LogEstimatePayload, LogFoodPayload } from "@/contracts";
 import {
@@ -78,7 +78,7 @@ export function useLogFood() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: LogFoodPayload) => logFood(payload),
-    onSuccess: (_data, payload) => invalidateFoodQueries(queryClient, payload.day),
+    onSuccess: (_data, payload) => invalidateFoodLogViews(queryClient, payload.day),
   });
 }
 
@@ -86,7 +86,7 @@ export function useLogEstimate() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: LogEstimatePayload) => logEstimate(payload),
-    onSuccess: (_data, payload) => invalidateFoodQueries(queryClient, payload.day),
+    onSuccess: (_data, payload) => invalidateFoodLogViews(queryClient, payload.day),
   });
 }
 
@@ -95,7 +95,7 @@ export function useUpdateFoodLog() {
   return useMutation({
     mutationFn: ({ id, servings }: { id: string; servings: number }) =>
       updateFoodLog(id, { servings }),
-    onSuccess: (data) => invalidateFoodQueries(queryClient, data.totals.day),
+    onSuccess: (data) => invalidateFoodLogViews(queryClient, data.totals.day),
   });
 }
 
@@ -103,7 +103,7 @@ export function useDeleteFoodLog() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => deleteFoodLog(id),
-    onSuccess: () => invalidateFoodQueries(queryClient, localDay()),
+    onSuccess: () => invalidateFoodLogViews(queryClient, localDay()),
   });
 }
 
@@ -132,7 +132,7 @@ export function useAddWaterLog(day = localDay()) {
   return useMutation({
     mutationFn: (amountMl: number) => addWater(amountMl, day),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.metrics.waterByDay(day) });
+      invalidateWaterViews(queryClient, day);
     },
   });
 }
@@ -142,14 +142,7 @@ export function useDeleteWaterLog(day = localDay()) {
   return useMutation({
     mutationFn: (id: string) => deleteWater(id),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.metrics.waterByDay(day) });
+      invalidateWaterViews(queryClient, day);
     },
   });
-}
-
-function invalidateFoodQueries(queryClient: ReturnType<typeof useQueryClient>, day: string): void {
-  void queryClient.invalidateQueries({ queryKey: queryKeys.foods.logDay(day) });
-  void queryClient.invalidateQueries({ queryKey: queryKeys.foods.recent() });
-  void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.calories(day) });
-  void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.macros(day) });
 }

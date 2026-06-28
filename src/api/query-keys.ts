@@ -25,6 +25,8 @@ export const queryKeys = {
   },
 
   metrics: {
+    all: () => ["metrics"] as const,
+    chartRoot: () => ["metrics", "chart"] as const,
     progress: (day: string) => ["metrics", "progress", day] as const,
     chart: (metric: string, period: string, day: string) =>
       ["metrics", "chart", metric, period, day] as const,

@@ -1,4 +1,4 @@
-import { fireEvent, render } from "@testing-library/react-native";
+import { act, fireEvent, render, waitFor } from "@testing-library/react-native";
 import { LogFoodScreen } from "../screens/LogFoodScreen";
 
 const mockUseFoodSearch = jest.fn();
@@ -12,6 +12,27 @@ const mockUseDeleteWaterLog = jest.fn();
 const mockUseEstimateFood = jest.fn();
 const mockUseLogEstimate = jest.fn();
 const mockUseBarcodeLookup = jest.fn();
+const mockCameraScan = jest.fn();
+
+jest.mock("expo-camera", () => {
+  const { View } = jest.requireActual("react-native");
+  return {
+    CameraView: ({ onBarcodeScanned }: { onBarcodeScanned?: (result: unknown) => void }) => {
+      mockCameraScan.mockImplementation(() =>
+        onBarcodeScanned?.({ data: "1234567890123", raw: "1234567890123", type: "ean13" })
+      );
+      return <View testID="camera-view" />;
+    },
+    useCameraPermissions: () => [{ granted: true }, jest.fn()],
+  };
+});
+
+jest.mock("@/lib", () => ({
+  isNetworkReachable: jest.fn(async () => true),
+  queueBarcodeScan: jest.fn(),
+  readQueuedBarcodeScans: jest.fn(async () => []),
+  removeQueuedBarcodeScan: jest.fn(),
+}));
 
 jest.mock("../hooks/useFoodLogging", () => ({
   useFoodSearch: (query: string) => mockUseFoodSearch(query),
@@ -107,7 +128,8 @@ describe("LogFoodScreen", () => {
 
     expect(screen.getByText("Chicken breast, grilled")).toBeTruthy();
     expect(mutate).toHaveBeenCalledWith(
-      expect.objectContaining({ foodItemId: "food-1", servings: 1 })
+      expect.objectContaining({ foodItemId: "food-1", servings: 1 }),
+      expect.any(Object)
     );
   });
 
@@ -117,10 +139,37 @@ describe("LogFoodScreen", () => {
 
     const screen = render(<LogFoodScreen />);
     fireEvent.press(screen.getByText("Describe it"));
+    fireEvent.changeText(screen.getByPlaceholderText("Chicken breast, grilled"), "Greek yoghurt");
     fireEvent.press(screen.getByText("Estimate"));
 
     expect(screen.getByText(/Describe a meal/)).toBeTruthy();
-    expect(mutate).toHaveBeenCalledWith(expect.objectContaining({ portionMeasure: "weight" }));
+    expect(mutate).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "Greek yoghurt", portionMeasure: "weight" }),
+      expect.any(Object)
+    );
+  });
+
+  it("opens a favorites-only state from the quick action", () => {
+    mockUseFavorites.mockReturnValue(successQuery({ items: [food] }));
+
+    const screen = render(<LogFoodScreen />);
+    fireEvent.press(screen.getAllByText("Favorites")[0]);
+
+    expect(screen.getAllByText("Favorites").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Chicken breast, grilled").length).toBeGreaterThan(0);
+  });
+
+  it("captures a barcode from the camera scanner", () => {
+    const screen = render(<LogFoodScreen />);
+    fireEvent.press(screen.getByText("Scan barcode"));
+    act(() => {
+      mockCameraScan();
+    });
+
+    return waitFor(() => {
+      expect(screen.getByText("Captured barcode")).toBeTruthy();
+      expect(mockUseBarcodeLookup).toHaveBeenLastCalledWith("1234567890123");
+    });
   });
 
   it("renders water progress and supports quick add/delete", () => {
@@ -136,7 +185,7 @@ describe("LogFoodScreen", () => {
 
     expect(screen.getByText(/980/)).toBeTruthy();
     expect(screen.getByText("Drink up")).toBeTruthy();
-    expect(add).toHaveBeenCalledWith(250);
-    expect(remove).toHaveBeenCalledWith("water-1");
+    expect(add).toHaveBeenCalledWith(250, expect.any(Object));
+    expect(remove).toHaveBeenCalledWith("water-1", expect.any(Object));
   });
 });

@@ -1,6 +1,5 @@
-import { PlaceholderScreen } from "@/components";
+import { Redirect } from "expo-router";
 
-/** Mood check-in → "Thrivo Tip" (premium). */
 export default function Checkin() {
-  return <PlaceholderScreen title="Daily check-in" subtitle="Mood → tip" premium />;
+  return <Redirect href="/(app)/dashboard" />;
 }

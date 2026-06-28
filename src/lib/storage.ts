@@ -29,4 +29,5 @@ export const storageKeys = {
   notifyAt: "thrivo.pref.notifyAt",
   unitSystem: "thrivo.pref.unitSystem",
   biometricAuthEnabled: "thrivo.pref.biometricAuthEnabled",
+  offlineBarcodeScans: "thrivo.food.offlineBarcodeScans",
 } as const;

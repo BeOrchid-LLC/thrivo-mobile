@@ -1,5 +1,11 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Pressable, TextInput, View } from "react-native";
+import {
+  CameraView,
+  useCameraPermissions,
+  type BarcodeScanningResult,
+  type BarcodeType,
+} from "expo-camera";
 import {
   Barcode,
   Heart,
@@ -10,9 +16,25 @@ import {
   Warning,
   XCircle,
 } from "phosphor-react-native";
-import { Button, Card, Input, Screen, Segmented, Text } from "@/components";
+import {
+  Button,
+  Card,
+  Input,
+  Screen,
+  SectionError,
+  Segmented,
+  SkeletonBlock,
+  SkeletonText,
+  Text,
+} from "@/components";
+import { useCurrentDay } from "@/hooks/useCurrentDay";
+import {
+  isNetworkReachable,
+  queueBarcodeScan,
+  readQueuedBarcodeScans,
+  removeQueuedBarcodeScan,
+} from "@/lib";
 import { colors } from "@/theme";
-import { localDay } from "@/utils";
 import type { FoodItem, FoodLogEntry, PortionMeasure } from "@/contracts";
 import {
   useAddFavorite,
@@ -31,7 +53,6 @@ import {
 type Segment = "food" | "water";
 type Subview = "main" | "scan" | "describe";
 
-const today = localDay();
 const portions: { label: string; value: PortionMeasure }[] = [
   { label: "Serving", value: "serving" },
   { label: "Weight", value: "weight" },
@@ -41,11 +62,13 @@ const portions: { label: string; value: PortionMeasure }[] = [
 ];
 
 export function LogFoodScreen() {
+  const day = useCurrentDay();
   const [segment, setSegment] = useState<Segment>("food");
   const [subview, setSubview] = useState<Subview>("main");
 
-  if (subview === "scan") return <ScanBarcodeScreen onBack={() => setSubview("main")} />;
-  if (subview === "describe") return <DescribeMealScreen onBack={() => setSubview("main")} />;
+  if (subview === "scan") return <ScanBarcodeScreen day={day} onBack={() => setSubview("main")} />;
+  if (subview === "describe")
+    return <DescribeMealScreen day={day} onBack={() => setSubview("main")} />;
 
   return (
     <Screen scroll style={{ gap: 24 }}>
@@ -66,16 +89,30 @@ export function LogFoodScreen() {
         ]}
       />
       {segment === "food" ? (
-        <FoodHome onScan={() => setSubview("scan")} onDescribe={() => setSubview("describe")} />
+        <FoodHome
+          day={day}
+          onScan={() => setSubview("scan")}
+          onDescribe={() => setSubview("describe")}
+        />
       ) : (
-        <WaterHome />
+        <WaterHome day={day} />
       )}
     </Screen>
   );
 }
 
-function FoodHome({ onScan, onDescribe }: { onScan: () => void; onDescribe: () => void }) {
+function FoodHome({
+  day,
+  onScan,
+  onDescribe,
+}: {
+  day: string;
+  onScan: () => void;
+  onDescribe: () => void;
+}) {
   const [query, setQuery] = useState("");
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
   const search = useFoodSearch(query);
   const recent = useRecentFoods();
   const favorites = useFavorites();
@@ -85,13 +122,27 @@ function FoodHome({ onScan, onDescribe }: { onScan: () => void; onDescribe: () =
   const hasQuery = query.trim().length > 0;
   const results = search.data?.items ?? [];
   const recentItems = recent.data?.items ?? [];
+  const favoriteItems = favorites.data?.items ?? [];
 
   const logItem = (food: FoodItem) => {
-    logFood.mutate({
-      foodItemId: food.id,
-      day: today,
-      servings: 1,
-      servingUnit: food.servingLabel,
+    logFood.mutate(
+      {
+        foodItemId: food.id,
+        day,
+        servings: 1,
+        servingUnit: food.servingLabel,
+      },
+      {
+        onSuccess: () => setMessage(`${food.name} logged.`),
+        onError: () => setMessage("Could not log food. Try again."),
+      }
+    );
+  };
+
+  const favoriteItem = (food: FoodItem) => {
+    addFavorite.mutate(food.id, {
+      onSuccess: () => setMessage(`${food.name} added to favorites.`),
+      onError: () => setMessage("Could not update favorites. Try again."),
     });
   };
 
@@ -106,7 +157,10 @@ function FoodHome({ onScan, onDescribe }: { onScan: () => void; onDescribe: () =
         <QuickAction
           icon={<Heart size={22} color={colors.dark} />}
           label="Favorites"
-          onPress={() => undefined}
+          onPress={() => {
+            setQuery("");
+            setShowFavoritesOnly(true);
+          }}
         />
         <QuickAction
           icon={<TextAlignLeft size={22} color={colors.dark} />}
@@ -116,27 +170,43 @@ function FoodHome({ onScan, onDescribe }: { onScan: () => void; onDescribe: () =
       </View>
       <Input
         value={query}
-        onChangeText={setQuery}
+        onChangeText={(value) => {
+          setQuery(value);
+          setShowFavoritesOnly(false);
+        }}
         placeholder="Or, search by name..."
         autoCapitalize="none"
         leadingIcon={<MagnifyingGlass size={20} color={colors.gray[500]} />}
       />
+      {message ? (
+        <Text variant="caption" color={message.includes("Could not") ? "error" : "primary"}>
+          {message}
+        </Text>
+      ) : null}
       {hasQuery ? (
         <Card className="gap-md">
           <Text variant="body" color="dark">
             {`Showing results for "${query.trim()}"`}
           </Text>
-          {search.isLoading ? <Text color="muted">Searching...</Text> : null}
+          {search.isLoading ? <FoodRowSkeleton count={4} /> : null}
+          {search.isError ? (
+            <SectionError
+              title="Could not search foods"
+              message="Check your connection and try again."
+              onRetry={() => void search.refetch()}
+              className="border-0 p-0"
+            />
+          ) : null}
           {results.map((item) => (
             <FoodResultRow
               key={item.id}
               item={item}
               onLog={() => logItem(item)}
-              onFavorite={() => addFavorite.mutate(item.id)}
+              onFavorite={() => favoriteItem(item)}
               loading={logFood.isPending}
             />
           ))}
-          {!search.isLoading && results.length === 0 ? (
+          {!search.isLoading && !search.isError && results.length === 0 ? (
             <View className="items-center gap-xs py-md">
               <Text variant="caption" color="muted">
                 {"Don't see it?"}
@@ -149,6 +219,25 @@ function FoodHome({ onScan, onDescribe }: { onScan: () => void; onDescribe: () =
             </View>
           ) : null}
         </Card>
+      ) : showFavoritesOnly ? (
+        <FoodListSection
+          title="Favorites"
+          isLoading={favorites.isLoading}
+          isError={favorites.isError}
+          onRetry={() => void favorites.refetch()}
+          emptyTitle="No favorites yet"
+          emptyBody="Tap the heart beside a food to save it here."
+        >
+          {favoriteItems.map((item) => (
+            <FoodResultRow
+              key={item.id}
+              item={item}
+              onLog={() => logItem(item)}
+              onFavorite={() => undefined}
+              loading={logFood.isPending}
+            />
+          ))}
+        </FoodListSection>
       ) : recentItems.length > 0 ? (
         <View className="gap-md">
           <Text variant="heading3" color="muted">
@@ -158,6 +247,19 @@ function FoodHome({ onScan, onDescribe }: { onScan: () => void; onDescribe: () =
             <RecentFoodRow key={entry.id} entry={entry} />
           ))}
         </View>
+      ) : recent.isLoading ? (
+        <View className="gap-md">
+          <Text variant="heading3" color="muted">
+            Recent foods
+          </Text>
+          <FoodRowSkeleton count={3} />
+        </View>
+      ) : recent.isError ? (
+        <SectionError
+          title="Could not load recent foods"
+          message="You can still search, scan, or describe a meal."
+          onRetry={() => void recent.refetch()}
+        />
       ) : (
         <Card className="items-center gap-md bg-primarySoft">
           <Text variant="heading3" color="dark">
@@ -189,27 +291,27 @@ function FoodHome({ onScan, onDescribe }: { onScan: () => void; onDescribe: () =
   );
 }
 
-function WaterHome() {
-  const water = useWater(today);
-  const addWater = useAddWaterLog(today);
-  const deleteWater = useDeleteWaterLog(today);
+function WaterHome({ day }: { day: string }) {
+  const water = useWater(day);
+  const addWater = useAddWaterLog(day);
+  const deleteWater = useDeleteWaterLog(day);
   const [manual, setManual] = useState("250");
+  const [message, setMessage] = useState<string | null>(null);
   const data = water.data?.water;
+  const manualAmount = Number(manual);
+  const manualValid = Number.isInteger(manualAmount) && manualAmount > 0 && manualAmount <= 5000;
 
   if (water.isLoading) {
-    return <Text color="muted">Loading water...</Text>;
+    return <WaterSkeleton />;
   }
 
   if (water.isError || !data) {
     return (
-      <Card className="gap-md">
-        <Text variant="heading3" color="dark">
-          Could not load water
-        </Text>
-        <Text variant="body" color="muted">
-          Your hydration log is unavailable right now. Pull back in a moment and try again.
-        </Text>
-      </Card>
+      <SectionError
+        title="Could not load water"
+        message="Your hydration log is unavailable right now."
+        onRetry={() => void water.refetch()}
+      />
     );
   }
 
@@ -261,7 +363,13 @@ function WaterHome() {
             <Pressable
               key={amount}
               accessibilityRole="button"
-              onPress={() => addWater.mutate(amount)}
+              disabled={addWater.isPending}
+              onPress={() =>
+                addWater.mutate(amount, {
+                  onSuccess: () => setMessage(`${amount} ml added.`),
+                  onError: () => setMessage("Could not add water. Try again."),
+                })
+              }
               className={`min-h-[64px] flex-1 items-center justify-center rounded-md ${
                 amount === 250 ? "bg-primarySoft" : "bg-gray-100"
               }`}
@@ -287,9 +395,25 @@ function WaterHome() {
             label="Add"
             fullWidth={false}
             loading={addWater.isPending}
-            onPress={() => addWater.mutate(Number(manual))}
+            disabled={!manualValid}
+            onPress={() =>
+              addWater.mutate(manualAmount, {
+                onSuccess: () => setMessage(`${manualAmount} ml added.`),
+                onError: () => setMessage("Could not add water. Try again."),
+              })
+            }
           />
         </View>
+        {!manualValid ? (
+          <Text variant="caption" color="error">
+            Enter a whole number between 1 and 5,000 ml.
+          </Text>
+        ) : null}
+        {message ? (
+          <Text variant="caption" color={message.includes("Could not") ? "error" : "primary"}>
+            {message}
+          </Text>
+        ) : null}
       </View>
       <View className="gap-md">
         <Text variant="heading3" color="muted">
@@ -320,7 +444,13 @@ function WaterHome() {
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Delete water entry"
-                onPress={() => deleteWater.mutate(entry.id)}
+                disabled={deleteWater.isPending}
+                onPress={() =>
+                  deleteWater.mutate(entry.id, {
+                    onSuccess: () => setMessage("Water entry deleted."),
+                    onError: () => setMessage("Could not delete water. Try again."),
+                  })
+                }
               >
                 <XCircle size={22} color={colors.gray[500]} />
               </Pressable>
@@ -332,11 +462,59 @@ function WaterHome() {
   );
 }
 
-function ScanBarcodeScreen({ onBack }: { onBack: () => void }) {
+const barcodeTypes: BarcodeType[] = ["ean13", "ean8", "upc_a", "upc_e", "code128"];
+
+function ScanBarcodeScreen({ day, onBack }: { day: string; onBack: () => void }) {
   const [barcode, setBarcode] = useState("");
+  const [format, setFormat] = useState<string | null>(null);
+  const [scanned, setScanned] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [permission, requestPermission] = useCameraPermissions();
   const lookup = useBarcodeLookup(barcode.trim() || null);
   const logFood = useLogFood();
   const food = lookup.data?.food;
+
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      const online = await isNetworkReachable();
+      if (!active || !online || barcode) return;
+      const [queued] = await readQueuedBarcodeScans();
+      if (!active || !queued) return;
+      setBarcode(queued.barcode);
+      setFormat(queued.format);
+      setMessage("Replaying an offline scan.");
+    })();
+    return () => {
+      active = false;
+    };
+  }, [barcode]);
+
+  useEffect(() => {
+    if (food && barcode) {
+      void removeQueuedBarcodeScan(barcode);
+    }
+  }, [barcode, food]);
+
+  const handleScan = (result: BarcodeScanningResult) => {
+    const value = result.raw ?? result.data;
+    if (!value) return;
+    setScanned(true);
+    setBarcode(value);
+    setFormat(result.type);
+    setMessage("Barcode captured. Looking up nutrition...");
+    void (async () => {
+      const online = await isNetworkReachable();
+      if (!online) {
+        await queueBarcodeScan({
+          barcode: value,
+          format: result.type,
+          scannedAt: new Date().toISOString(),
+        });
+        setMessage("You are offline. The decoded barcode was saved for lookup later.");
+      }
+    })();
+  };
 
   return (
     <Screen scroll style={{ gap: 24 }}>
@@ -345,30 +523,87 @@ function ScanBarcodeScreen({ onBack }: { onBack: () => void }) {
         subtitle="Packaged foods - instant nutrition look up."
         onBack={onBack}
       />
-      <View className="h-[200px] justify-between rounded-lg bg-dark p-lg">
-        <View className="flex-row justify-between">
-          <Corner />
-          <Barcode size={28} color={colors.primaryBright} />
-          <Corner right />
+      <View className="h-[220px] overflow-hidden rounded-lg bg-dark">
+        {permission?.granted ? (
+          <CameraView
+            style={{ flex: 1 }}
+            facing="back"
+            barcodeScannerSettings={{ barcodeTypes }}
+            onBarcodeScanned={scanned ? undefined : handleScan}
+          />
+        ) : (
+          <View className="flex-1 items-center justify-center gap-sm p-lg">
+            <Barcode size={32} color={colors.primaryBright} />
+            <Text variant="caption" color="inverse" className="text-center">
+              Camera access is needed to scan packaged foods.
+            </Text>
+            <Button
+              label="Enable camera"
+              fullWidth={false}
+              variant="secondary"
+              onPress={() => void requestPermission()}
+            />
+          </View>
+        )}
+        <View className="absolute inset-0 justify-between p-lg" pointerEvents="none">
+          <View className="flex-row justify-between">
+            <Corner />
+            <Barcode size={28} color={colors.primaryBright} />
+            <Corner right />
+          </View>
+          <View className="h-[1px] bg-primaryBright" />
+          <Text variant="caption" color="inverse" className="text-center">
+            Align barcode with frame
+          </Text>
         </View>
-        <View className="h-[1px] bg-primaryBright" />
-        <Text variant="caption" color="inverse" className="text-center">
-          Align barcode with frame
-        </Text>
       </View>
-      <Text variant="caption" color="dark">
-        {
-          "Offline scans should queue the decoded barcode value and replay lookup when you're back online."
-        }
-      </Text>
-      <Input
-        label="Barcode"
-        value={barcode}
-        onChangeText={setBarcode}
-        keyboardType="number-pad"
-        placeholder="Type barcode to test lookup"
-      />
+      {barcode ? (
+        <Card className="gap-xs bg-primarySoft">
+          <Text variant="caption" color="muted">
+            Captured barcode
+          </Text>
+          <Text variant="body" color="dark">
+            {barcode}
+            {format ? ` · ${format}` : ""}
+          </Text>
+          <Button
+            label="Scan another"
+            variant="secondary"
+            fullWidth={false}
+            onPress={() => {
+              setBarcode("");
+              setFormat(null);
+              setScanned(false);
+              setMessage(null);
+            }}
+          />
+        </Card>
+      ) : null}
+      {__DEV__ ? (
+        <Input
+          label="Developer barcode"
+          value={barcode}
+          onChangeText={(value) => {
+            setBarcode(value);
+            setScanned(Boolean(value));
+          }}
+          keyboardType="number-pad"
+          placeholder="Type barcode to test lookup"
+        />
+      ) : null}
+      {message ? (
+        <Text variant="caption" color={message.includes("offline") ? "muted" : "primary"}>
+          {message}
+        </Text>
+      ) : null}
       {lookup.isFetching ? <Text color="muted">Looking up barcode...</Text> : null}
+      {lookup.isError ? (
+        <SectionError
+          title="Could not look up barcode"
+          message="The decoded barcode is saved locally if you are offline. Try again when your connection returns."
+          onRetry={() => void lookup.refetch()}
+        />
+      ) : null}
       {food ? (
         <Card className="gap-md">
           <FoodResultRow
@@ -376,7 +611,7 @@ function ScanBarcodeScreen({ onBack }: { onBack: () => void }) {
             onLog={() =>
               logFood.mutate({
                 foodItemId: food.id,
-                day: today,
+                day,
                 servings: 1,
                 servingUnit: food.servingLabel,
               })
@@ -390,15 +625,18 @@ function ScanBarcodeScreen({ onBack }: { onBack: () => void }) {
   );
 }
 
-function DescribeMealScreen({ onBack }: { onBack: () => void }) {
-  const [name, setName] = useState("Chicken breast, grilled");
-  const [ingredients, setIngredients] = useState("Yam, melon, palm oil");
+function DescribeMealScreen({ day, onBack }: { day: string; onBack: () => void }) {
+  const [name, setName] = useState("");
+  const [ingredients, setIngredients] = useState("");
   const [method, setMethod] = useState("");
   const [measure, setMeasure] = useState<PortionMeasure>("weight");
   const [quantity, setQuantity] = useState("150");
+  const [message, setMessage] = useState<string | null>(null);
   const estimate = useEstimateFood();
   const logEstimate = useLogEstimate();
   const estimateResult = estimate.data?.estimate;
+  const quantityValue = Number(quantity);
+  const canEstimate = name.trim().length > 0 && Number.isFinite(quantityValue) && quantityValue > 0;
 
   const payload = useMemo(
     () => ({
@@ -406,9 +644,9 @@ function DescribeMealScreen({ onBack }: { onBack: () => void }) {
       ingredients,
       cookingMethod: method || undefined,
       portionMeasure: measure,
-      quantity: Number(quantity) || 1,
+      quantity: quantityValue,
     }),
-    [ingredients, measure, method, name, quantity]
+    [ingredients, measure, method, name, quantityValue]
   );
 
   return (
@@ -418,8 +656,18 @@ function DescribeMealScreen({ onBack }: { onBack: () => void }) {
         subtitle="We'll help you estimate the calories."
         onBack={onBack}
       />
-      <Input label="Name of food" value={name} onChangeText={setName} />
-      <Input label="Main Ingredients" value={ingredients} onChangeText={setIngredients} />
+      <Input
+        label="Name of food"
+        value={name}
+        onChangeText={setName}
+        placeholder="Chicken breast, grilled"
+      />
+      <Input
+        label="Main Ingredients"
+        value={ingredients}
+        onChangeText={setIngredients}
+        placeholder="Yam, melon, palm oil"
+      />
       <Input
         label="Cooking method"
         value={method}
@@ -435,7 +683,7 @@ function DescribeMealScreen({ onBack }: { onBack: () => void }) {
       <View className="flex-row items-center gap-md">
         <StepperButton
           label="-"
-          onPress={() => setQuantity(String(Math.max(Number(quantity) - 1, 1)))}
+          onPress={() => setQuantity(String(Math.max((Number(quantity) || 1) - 1, 1)))}
         />
         <TextInput
           value={quantity}
@@ -446,13 +694,28 @@ function DescribeMealScreen({ onBack }: { onBack: () => void }) {
         <Text variant="body" color="primary">
           {measure === "weight" ? "grams" : measure}
         </Text>
-        <StepperButton label="+" onPress={() => setQuantity(String(Number(quantity || 0) + 1))} />
+        <StepperButton label="+" onPress={() => setQuantity(String((Number(quantity) || 0) + 1))} />
       </View>
+      {!canEstimate ? (
+        <Text variant="caption" color="error">
+          Add a food name and a positive portion quantity.
+        </Text>
+      ) : null}
       <Button
         label="Estimate"
         loading={estimate.isPending}
-        onPress={() => estimate.mutate(payload)}
+        disabled={!canEstimate}
+        onPress={() =>
+          estimate.mutate(payload, {
+            onError: () => setMessage("Could not estimate this meal. Try again."),
+          })
+        }
       />
+      {message ? (
+        <Text variant="caption" color={message.includes("Could not") ? "error" : "primary"}>
+          {message}
+        </Text>
+      ) : null}
       {estimateResult ? (
         <View className="gap-lg">
           <View className="items-center">
@@ -471,12 +734,18 @@ function DescribeMealScreen({ onBack }: { onBack: () => void }) {
             label="Log estimate"
             loading={logEstimate.isPending}
             onPress={() =>
-              logEstimate.mutate({
-                ...payload,
-                day: today,
-                nutrients: estimateResult.nutrients,
-                servingUnit: estimateResult.servingUnit,
-              })
+              logEstimate.mutate(
+                {
+                  ...payload,
+                  day,
+                  nutrients: estimateResult.nutrients,
+                  servingUnit: estimateResult.servingUnit,
+                },
+                {
+                  onSuccess: () => setMessage("Estimate logged."),
+                  onError: () => setMessage("Could not log estimate. Try again."),
+                }
+              )
             }
           />
         </View>
@@ -593,6 +862,101 @@ function MacroCards({
           </Text>
         </View>
       ))}
+    </View>
+  );
+}
+
+function FoodListSection({
+  title,
+  isLoading,
+  isError,
+  onRetry,
+  emptyTitle,
+  emptyBody,
+  children,
+}: {
+  title: string;
+  isLoading: boolean;
+  isError: boolean;
+  onRetry: () => void;
+  emptyTitle: string;
+  emptyBody: string;
+  children: ReactNode;
+}) {
+  return (
+    <View className="gap-md">
+      <Text variant="heading3" color="muted">
+        {title}
+      </Text>
+      {isLoading ? <FoodRowSkeleton count={3} /> : null}
+      {isError ? (
+        <SectionError
+          title={`Could not load ${title.toLowerCase()}`}
+          message="Try again in a moment."
+          onRetry={onRetry}
+        />
+      ) : null}
+      {!isLoading && !isError && children}
+      {!isLoading && !isError && !hasRenderableChildren(children) ? (
+        <Card className="items-center gap-sm">
+          <Text variant="heading3" color="dark">
+            {emptyTitle}
+          </Text>
+          <Text variant="body" color="muted" className="text-center">
+            {emptyBody}
+          </Text>
+        </Card>
+      ) : null}
+    </View>
+  );
+}
+
+function hasRenderableChildren(children: ReactNode): boolean {
+  return Array.isArray(children) ? children.length > 0 : Boolean(children);
+}
+
+function FoodRowSkeleton({ count = 3 }: { count?: number }) {
+  return (
+    <View className="gap-sm">
+      {Array.from({ length: count }).map((_, index) => (
+        <View
+          key={index}
+          className="flex-row items-center justify-between border-b border-gray-200 py-sm"
+        >
+          <View className="flex-1 gap-xs">
+            <SkeletonText className="w-2/3" />
+            <SkeletonText size="caption" className="w-1/3" />
+          </View>
+          <SkeletonBlock className="h-[24px] w-[24px] rounded-pill" />
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function WaterSkeleton() {
+  return (
+    <View className="gap-xl">
+      <View className="flex-row items-center gap-xl">
+        <SkeletonBlock className="h-[100px] w-[100px] rounded-pill" />
+        <View className="flex-1 gap-sm">
+          <SkeletonText size="heading" className="w-1/2" />
+          <SkeletonText className="w-3/4" />
+          <SkeletonText size="caption" className="w-1/2" />
+        </View>
+      </View>
+      <View className="gap-md">
+        <SkeletonText className="w-1/4" />
+        <View className="flex-row gap-md">
+          {[100, 250, 500].map((amount) => (
+            <SkeletonBlock key={amount} className="h-[64px] flex-1" />
+          ))}
+        </View>
+      </View>
+      <View className="gap-md">
+        <SkeletonText className="w-1/3" />
+        <FoodRowSkeleton count={2} />
+      </View>
     </View>
   );
 }

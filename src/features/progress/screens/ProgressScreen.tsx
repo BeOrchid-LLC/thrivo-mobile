@@ -3,14 +3,22 @@ import { Pressable, TextInput, View } from "react-native";
 import Svg, { Circle, Line, Path, Polyline } from "react-native-svg";
 import { ArrowLeft, Minus, Plus, TrendDown, Warning } from "phosphor-react-native";
 import { router } from "expo-router";
-import { Button, Card, Screen, Segmented, Text } from "@/components";
+import {
+  Button,
+  Card,
+  Screen,
+  SectionError,
+  Segmented,
+  SkeletonBlock,
+  SkeletonText,
+  Text,
+} from "@/components";
 import { isApiError } from "@/api/errors";
+import { useCurrentDay } from "@/hooks/useCurrentDay";
 import { colors } from "@/theme";
-import { kgToLb, lbToKg, localDay, roundTo } from "@/utils";
-import type { ChartMetric, ChartPeriod, ChartPoint } from "@/contracts";
+import { kgToLb, lbToKg, roundTo } from "@/utils";
+import type { ChartMetric, ChartPeriod, ChartPoint, ProgressResponse } from "@/contracts";
 import { useAddWeight, useMetricChart, useProgress, useWeightContext } from "../hooks/useProgress";
-
-const today = localDay();
 
 const metricOptions = [
   { label: "Calories", value: "calories" },
@@ -29,22 +37,24 @@ const periodOptions = [
 ] as const satisfies readonly { label: string; value: ChartPeriod }[];
 
 type ViewMode = "home" | "log-weight";
+type ProgressData = ProgressResponse["progress"];
 
 export function ProgressScreen() {
+  const day = useCurrentDay();
   const [mode, setMode] = useState<ViewMode>("home");
 
   return mode === "log-weight" ? (
-    <LogWeightScreen onBack={() => setMode("home")} />
+    <LogWeightScreen day={day} onBack={() => setMode("home")} />
   ) : (
-    <ProgressHome onLogWeight={() => setMode("log-weight")} />
+    <ProgressHome day={day} onLogWeight={() => setMode("log-weight")} />
   );
 }
 
-function ProgressHome({ onLogWeight }: { onLogWeight: () => void }) {
+function ProgressHome({ day, onLogWeight }: { day: string; onLogWeight: () => void }) {
   const [metric, setMetric] = useState<ChartMetric>("weight");
   const [period, setPeriod] = useState<ChartPeriod>("7d");
-  const progress = useProgress(today);
-  const chart = useMetricChart(metric, period, today);
+  const progress = useProgress(day);
+  const chart = useMetricChart(metric, period, day);
   const premiumRequired =
     chart.isError && isApiError(chart.error) && chart.error.code === "PREMIUM_REQUIRED";
   const data = progress.data?.progress;
@@ -54,118 +64,98 @@ function ProgressHome({ onLogWeight }: { onLogWeight: () => void }) {
       <Text variant="heading2" color="dark">
         Progress
       </Text>
-      {progress.isLoading ? <Text color="muted">Loading progress...</Text> : null}
-      {progress.isError ? <Text color="error">Could not load progress.</Text> : null}
       {data ? (
-        <>
-          <View className="flex-row flex-wrap gap-sm">
-            <StatCard
-              label="Current weight"
-              value={formatWeight(data.summary.currentWeightKg)}
-              detail={
-                data.summary.goalGapKg === null
-                  ? "Set a target to track progress"
-                  : `${formatWeight(data.summary.goalGapKg)} toward goal`
-              }
-              tone="green"
-            />
-            <StatCard
-              label="Logging streak"
-              value={`${data.summary.currentStreakDays} days`}
-              detail={`Personal best: ${data.summary.longestStreakDays}`}
-              tone="green"
-            />
-            <StatCard
-              label="This week average"
-              value={data.summary.currentWeekAverageKcal.toLocaleString()}
-              detail="kcal per day"
-            />
-            <StatCard
-              label="Target weight"
-              value={formatWeight(data.summary.targetWeightKg)}
-              detail={
-                data.summary.goalGapKg === null
-                  ? "No target set"
-                  : `${formatWeight(data.summary.goalGapKg)} to go`
-              }
-            />
-          </View>
-
-          <View className="gap-md">
-            <Text variant="heading3" color="dark">
-              {labelForMetric(metric)} over time
-            </Text>
-            <Segmented options={metricOptions} value={metric} onChange={setMetric} />
-            <View className="flex-row flex-wrap gap-sm">
-              {periodOptions.map((option) => (
-                <Pressable
-                  key={option.value}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: option.value === period }}
-                  onPress={() => setPeriod(option.value)}
-                  className={`min-h-[38px] items-center justify-center rounded-sm px-md ${
-                    option.value === period ? "bg-primary" : "bg-gray-100"
-                  }`}
-                >
-                  <Text variant="caption" color={option.value === period ? "inverse" : "muted"}>
-                    {option.label}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-            {premiumRequired ? (
-              <Card className="gap-sm bg-primarySoft">
-                <View className="flex-row items-center gap-sm">
-                  <Warning size={20} color={colors.primary} />
-                  <Text variant="heading3" color="primary">
-                    Unlock longer history
-                  </Text>
-                </View>
-                <Text color="muted">
-                  Upgrade to view activity records beyond the nearest 14 days.
-                </Text>
-              </Card>
-            ) : (
-              <Card className="gap-sm">
-                {chart.isLoading ? (
-                  <Text color="muted">Loading chart...</Text>
-                ) : chart.isError ? (
-                  <Text color="error">Could not load chart.</Text>
-                ) : (
-                  <MetricChart points={chart.data?.chart.points ?? []} />
-                )}
-              </Card>
-            )}
-            <View className="flex-row justify-between">
-              <Text color="muted">
-                {data.projection.projectedMonth
-                  ? `At this rate, goal by ${data.projection.projectedMonth}`
-                  : "Log more weights to project your goal"}
-              </Text>
-              <Text color="muted">
-                {data.projection.weeklyRateKg === null
-                  ? "Not enough data"
-                  : `${formatWeight(data.projection.weeklyRateKg)} / week`}
-              </Text>
-            </View>
-          </View>
-
-          <Button label="Log this week’s weight" onPress={onLogWeight} />
-          <StreakCalendar days={data.calendar.days} />
-          <Button
-            label="Log something you ate"
-            variant="secondary"
-            onPress={() => router.push("/(app)/log")}
-          />
-        </>
+        <SummaryCards data={data} />
+      ) : progress.isLoading ? (
+        <SummarySkeleton />
+      ) : progress.isError ? (
+        <SectionError
+          title="Could not load progress"
+          message="Charts and logging are still available."
+          onRetry={() => void progress.refetch()}
+        />
       ) : null}
+
+      <View className="gap-md">
+        <Text variant="heading3" color="dark">
+          {labelForMetric(metric)} over time
+        </Text>
+        <Segmented options={metricOptions} value={metric} onChange={setMetric} />
+        <View className="flex-row flex-wrap gap-sm">
+          {periodOptions.map((option) => (
+            <Pressable
+              key={option.value}
+              accessibilityRole="button"
+              accessibilityState={{ selected: option.value === period }}
+              onPress={() => setPeriod(option.value)}
+              className={`min-h-[38px] items-center justify-center rounded-sm px-md ${
+                option.value === period ? "bg-primary" : "bg-gray-100"
+              }`}
+            >
+              <Text variant="caption" color={option.value === period ? "inverse" : "muted"}>
+                {option.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+        {premiumRequired ? (
+          <Card className="gap-sm bg-primarySoft">
+            <View className="flex-row items-center gap-sm">
+              <Warning size={20} color={colors.primary} />
+              <Text variant="heading3" color="primary">
+                Unlock longer history
+              </Text>
+            </View>
+            <Text color="muted">Upgrade to view activity records beyond the nearest 14 days.</Text>
+          </Card>
+        ) : (
+          <Card className="gap-sm">
+            {chart.isLoading ? (
+              <ChartSkeleton />
+            ) : chart.isError ? (
+              <SectionError
+                title="Could not load chart"
+                message="Try this metric again."
+                onRetry={() => void chart.refetch()}
+                className="border-0 p-0"
+              />
+            ) : (
+              <MetricChart points={chart.data?.chart.points ?? []} />
+            )}
+          </Card>
+        )}
+        {data ? (
+          <View className="flex-row justify-between">
+            <Text color="muted">
+              {data.projection.projectedMonth
+                ? `At this rate, goal by ${data.projection.projectedMonth}`
+                : "Log more weights to project your goal"}
+            </Text>
+            <Text color="muted">
+              {data.projection.weeklyRateKg === null
+                ? "Not enough data"
+                : `${formatSignedWeightRate(data.projection.weeklyRateKg)} / week`}
+            </Text>
+          </View>
+        ) : (
+          <SkeletonText className="w-2/3" />
+        )}
+      </View>
+
+      <Button label="Log this week’s weight" onPress={onLogWeight} />
+      {data ? <StreakCalendar days={data.calendar.days} /> : <CalendarSkeleton />}
+      <Button
+        label="Log something you ate"
+        variant="secondary"
+        onPress={() => router.push("/(app)/log")}
+      />
     </Screen>
   );
 }
 
-function LogWeightScreen({ onBack }: { onBack: () => void }) {
-  const context = useWeightContext(today);
-  const addWeight = useAddWeight(today);
+function LogWeightScreen({ day, onBack }: { day: string; onBack: () => void }) {
+  const context = useWeightContext(day);
+  const addWeight = useAddWeight(day);
   const currentLb = context.data?.context.currentWeightKg
     ? roundTo(kgToLb(context.data.context.currentWeightKg), 1)
     : 178;
@@ -174,10 +164,7 @@ function LogWeightScreen({ onBack }: { onBack: () => void }) {
 
   const save = () => {
     if (!Number.isFinite(numberValue) || numberValue <= 0) return;
-    addWeight.mutate(
-      { day: today, weightKg: roundTo(lbToKg(numberValue), 1) },
-      { onSuccess: onBack }
-    );
+    addWeight.mutate({ day, weightKg: roundTo(lbToKg(numberValue), 1) }, { onSuccess: onBack });
   };
 
   return (
@@ -218,7 +205,7 @@ function LogWeightScreen({ onBack }: { onBack: () => void }) {
       <Card className="gap-md bg-gray-100">
         <ComparisonRow
           label="Yesterday"
-          detail={yesterdayLabel(today)}
+          detail={yesterdayLabel(day)}
           value={formatWeight(context.data?.context.yesterdayWeightKg)}
         />
         <Divider />
@@ -240,7 +227,7 @@ function LogWeightScreen({ onBack }: { onBack: () => void }) {
         <Text variant="body" color="primary" className="font-semibold">
           {context.data?.context.projection.weeklyRateKg === null
             ? "Start tracking"
-            : `${formatWeight(context.data?.context.projection.weeklyRateKg)}  ${statusLabel(
+            : `${formatSignedWeightRate(context.data?.context.projection.weeklyRateKg)}  ${statusLabel(
                 context.data?.context.projection.status
               )}`}
         </Text>
@@ -248,6 +235,90 @@ function LogWeightScreen({ onBack }: { onBack: () => void }) {
 
       <Button label="Save weight" loading={addWeight.isPending} onPress={save} />
     </Screen>
+  );
+}
+
+function SummaryCards({ data }: { data: ProgressData }) {
+  return (
+    <View className="flex-row flex-wrap gap-sm">
+      <StatCard
+        label="Current weight"
+        value={formatWeight(data.summary.currentWeightKg)}
+        detail={
+          data.summary.goalGapKg === null
+            ? "Set a target to track progress"
+            : `${formatWeight(data.summary.goalGapKg)} toward goal`
+        }
+        tone="green"
+      />
+      <StatCard
+        label="Logging streak"
+        value={`${data.summary.currentStreakDays} days`}
+        detail={`Personal best: ${data.summary.longestStreakDays}`}
+        tone="green"
+      />
+      <StatCard
+        label="This week average"
+        value={data.summary.currentWeekAverageKcal.toLocaleString()}
+        detail="kcal per day"
+      />
+      <StatCard
+        label="Target weight"
+        value={formatWeight(data.summary.targetWeightKg)}
+        detail={
+          data.summary.goalGapKg === null
+            ? "No target set"
+            : `${formatWeight(data.summary.goalGapKg)} to go`
+        }
+      />
+    </View>
+  );
+}
+
+function SummarySkeleton() {
+  return (
+    <View className="flex-row flex-wrap gap-sm">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <View
+          key={index}
+          className="min-h-[96px] flex-1 basis-[46%] gap-sm rounded-md bg-gray-100 p-md"
+        >
+          <SkeletonText size="caption" className="w-1/2" />
+          <SkeletonText size="heading" className="w-2/3" />
+          <SkeletonText className="w-3/4" />
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function ChartSkeleton() {
+  return (
+    <View className="h-[180px] justify-between">
+      <SkeletonText size="caption" className="w-1/6" />
+      <SkeletonBlock className="h-[96px] rounded-md" />
+      <View className="flex-row justify-between">
+        <SkeletonText size="caption" className="w-1/5" />
+        <SkeletonText size="caption" className="w-1/5" />
+        <SkeletonText size="caption" className="w-1/5" />
+      </View>
+    </View>
+  );
+}
+
+function CalendarSkeleton() {
+  return (
+    <Card className="gap-md bg-gray-100">
+      <View className="flex-row justify-between">
+        <SkeletonText size="heading" className="w-1/3" />
+        <SkeletonText className="w-1/4" />
+      </View>
+      <View className="flex-row flex-wrap gap-xs">
+        {Array.from({ length: 35 }).map((_, index) => (
+          <SkeletonBlock key={index} className="h-[40px] w-[40px]" />
+        ))}
+      </View>
+    </Card>
   );
 }
 
@@ -425,6 +496,12 @@ function labelForMetric(metric: ChartMetric) {
 function formatWeight(kg: number | null | undefined) {
   if (kg === null || kg === undefined) return "-- lbs";
   return `${roundTo(kgToLb(Math.abs(kg)), 1)} lbs`;
+}
+
+function formatSignedWeightRate(kg: number | null | undefined) {
+  if (kg === null || kg === undefined) return "-- lbs";
+  const value = roundTo(kgToLb(kg), 1);
+  return `${value > 0 ? "+" : ""}${value} lbs`;
 }
 
 function statusLabel(status: string | undefined) {

@@ -13,10 +13,10 @@ import {
 } from "../index";
 
 const FEATURES = [
-  "Unlimited food logging & barcode scanner",
-  "Meal recommendations tailored to your goal",
-  "Weekly progress reports & trend charts",
-  "Apple Health & Google Fit sync",
+  "Food, water, calories, and weight history beyond 14 days",
+  "Longer trend charts across progress metrics",
+  "Full food log history for reviewing patterns",
+  "Premium insights as they become available",
 ];
 
 function addDays(date: Date, days: number) {
@@ -43,7 +43,7 @@ function formatShortDate(value: Date | string | null | undefined) {
 function planPrice(plan: SubscriptionPlan) {
   return plan === "annual"
     ? { price: "$150", period: "year", save: "Save $29", after: "$150/year" }
-    : { price: "$14.99", period: "month", save: "14-day free trial", after: "$14.99/month" };
+    : { price: "$14.99", period: "month", save: "14-day premium preview", after: "$14.99/month" };
 }
 
 function ModalShell({
@@ -96,7 +96,7 @@ export function SubscriptionPlansScreen() {
   const trialDays = sub?.trialDays ?? 14;
   const trialEnd = useMemo(() => addDays(new Date(), trialDays), [trialDays]);
   const firstChargeDate = formatShortDate(trialEnd);
-  const firstChargeLabel = `${selected.price} on ${firstChargeDate}`;
+  const firstChargeLabel = `Paid plan after ${firstChargeDate}`;
   const hasPremiumAccess = sub?.entitlement === "premium";
   const canStartTrial = !hasPremiumAccess && !sub?.trialUsed;
   const canSubscribe = !hasPremiumAccess && Boolean(sub?.trialUsed);
@@ -120,10 +120,10 @@ export function SubscriptionPlansScreen() {
   };
 
   const primaryLabel = canStartTrial
-    ? "Start free trial — $0 today"
+    ? "Start premium preview"
     : plan === "annual"
-      ? "Subscribe annual"
-      : "Subscribe monthly";
+      ? "Activate annual preview"
+      : "Activate monthly preview";
 
   return (
     <Screen scroll backgroundColor={colors.light} style={{ gap: 18, paddingBottom: 120 }}>
@@ -142,7 +142,7 @@ export function SubscriptionPlansScreen() {
       />
 
       <Text color="muted" className="text-[16px] leading-[24px]">
-        Full access for {trialDays} days, then {selected.after}. Cancel any time.
+        Premium unlocks activity history and trend charts beyond 14 days.
       </Text>
 
       <View
@@ -175,13 +175,13 @@ export function SubscriptionPlansScreen() {
 
         <View className="mt-xl gap-md">
           <PriceRow
-            label="Trial ends"
+            label="Preview ends"
             value={formatShortDate(trialEnd)}
             inverted={plan === "annual"}
           />
-          <PriceRow label="First charge" value={firstChargeLabel} inverted={plan === "annual"} />
+          <PriceRow label="Plan price" value={selected.after} inverted={plan === "annual"} />
           <PriceRow
-            label="Cancel before then"
+            label={firstChargeLabel}
             value="Pay nothing"
             highlight
             inverted={plan === "annual"}
@@ -190,8 +190,10 @@ export function SubscriptionPlansScreen() {
       </View>
 
       <View className="rounded-lg border border-yellow-200 bg-yellow-50 px-lg py-md">
-        <Text className="font-semibold text-yellow-800">How to cancel in 2 taps</Text>
-        <Text className="mt-xs text-yellow-800">Settings → Subscription → Cancel</Text>
+        <Text className="font-semibold text-yellow-800">MVP preview</Text>
+        <Text className="mt-xs text-yellow-800">
+          No payment is collected in the app until store billing is enabled.
+        </Text>
       </View>
 
       <View className="gap-lg">
@@ -217,8 +219,8 @@ export function SubscriptionPlansScreen() {
         <View className="gap-md">
           <Text color="muted" className="text-center">
             {canStartTrial
-              ? `A card is required — you won't be charged until ${formatLongDate(trialEnd)}.`
-              : `Subscribe to unlock full premium access with the ${plan} plan.`}
+              ? `Preview access runs through ${formatLongDate(trialEnd)}.`
+              : `Activate premium access with the ${plan} plan preview.`}
           </Text>
           <Button
             label={primaryLabel}
@@ -227,8 +229,8 @@ export function SubscriptionPlansScreen() {
           />
           <Text color="muted" className="text-center">
             {canStartTrial
-              ? `${selected.after} after ${formatShortDate(trialEnd)}. Cancel in Settings.`
-              : "Cancel any time in Settings."}
+              ? "You can manage access in Settings."
+              : "No in-app payment will be collected in this MVP build."}
           </Text>
         </View>
       )}
