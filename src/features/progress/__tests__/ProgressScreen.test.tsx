@@ -98,6 +98,7 @@ describe("ProgressScreen", () => {
     expect(screen.getByText("Current weight")).toBeTruthy();
     expect(screen.getByText("Logging streak")).toBeTruthy();
     expect(screen.getByText("Weight over time")).toBeTruthy();
+    expect(screen.getByText("-0.9 lbs / week")).toBeTruthy();
   });
 
   it("switches metric tabs and period selections", () => {

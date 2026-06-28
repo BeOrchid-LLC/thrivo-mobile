@@ -1,34 +1,34 @@
 import { router } from "expo-router";
 import { Lock } from "phosphor-react-native";
 import { View } from "react-native";
-import { Button, Card, ErrorState, LoadingState, Text } from "@/components";
+import { Button, Card, SectionError, SkeletonText, Text } from "@/components";
 import type { HistoryDay as HistoryDayModel } from "@/contracts";
 import { colors } from "@/theme";
 import { useFoodLogHistory } from "../hooks/useDashboard";
 
 export function FoodHistoryScreen() {
   const history = useFoodLogHistory();
-
-  if (history.isLoading) {
-    return <LoadingState message="Loading food history..." />;
-  }
-
-  if (history.isError || !history.data) {
-    return (
-      <ErrorState
-        title="Could not load history"
-        message="Your dashboard is still available."
-        onRetry={() => void history.refetch()}
-      />
-    );
-  }
+  const days = history.data?.days ?? [];
 
   return (
     <View className="gap-lg">
       <Text variant="heading2" color="dark">
         Food history
       </Text>
-      {history.data.days.length === 0 ? (
+      {history.isLoading ? <HistorySkeleton /> : null}
+      {history.isError && !history.data ? (
+        <SectionError
+          title="Could not load history"
+          message="Your dashboard is still available."
+          onRetry={() => void history.refetch()}
+        />
+      ) : null}
+      {history.isFetching && history.data ? (
+        <Text variant="caption" color="muted">
+          Refreshing history...
+        </Text>
+      ) : null}
+      {!history.isLoading && !history.isError && days.length === 0 ? (
         <Card className="items-center gap-sm">
           <Text variant="heading3" color="dark">
             Nothing logged yet
@@ -38,7 +38,7 @@ export function FoodHistoryScreen() {
           </Text>
         </Card>
       ) : (
-        history.data.days.map((day) =>
+        days.map((day) =>
           day.isLocked ? (
             <LockedHistoryDay key={day.day} day={day.day} />
           ) : (
@@ -46,6 +46,22 @@ export function FoodHistoryScreen() {
           )
         )
       )}
+    </View>
+  );
+}
+
+function HistorySkeleton() {
+  return (
+    <View className="gap-lg">
+      {Array.from({ length: 3 }).map((_, index) => (
+        <View key={index} className="gap-md">
+          <SkeletonText size="heading" className="w-1/3" />
+          <View className="gap-sm">
+            <SkeletonText className="w-2/3" />
+            <SkeletonText size="caption" className="w-1/4" />
+          </View>
+        </View>
+      ))}
     </View>
   );
 }

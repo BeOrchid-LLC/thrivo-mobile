@@ -41,10 +41,10 @@ function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
   useSessionInit();
   useSessionRefresh();
 
-  // Route notification taps to the check-in screen.
+  // Route notification taps to a usable app screen.
   useEffect(() => {
     return addNotificationResponseListener((data) => {
-      const target = typeof data.screen === "string" ? data.screen : "/(app)/checkin";
+      const target = typeof data.screen === "string" ? data.screen : "/(app)/dashboard";
       router.push(target as Parameters<typeof router.push>[0]);
     });
   }, [router]);

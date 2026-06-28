@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { queryKeys } from "@/api";
+import { invalidateWaterViews, queryKeys } from "@/api";
 import { localDay } from "@/utils";
 import {
   addWater,
@@ -67,7 +67,7 @@ export function useAddWater() {
   return useMutation({
     mutationFn: () => addWater(GLASS_ML),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.metrics.waterByDay(localDay()) });
+      invalidateWaterViews(queryClient, localDay());
     },
   });
 }

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { queryKeys } from "@/api";
+import { invalidateWeightViews, queryKeys } from "@/api";
 import { localDay } from "@/utils";
 import type { AddWeightPayload, ChartMetric, ChartPeriod } from "@/contracts";
 import {
@@ -51,10 +51,5 @@ export function useDeleteWeight(day = localDay()) {
 }
 
 function invalidateProgressQueries(queryClient: ReturnType<typeof useQueryClient>, day: string) {
-  void queryClient.invalidateQueries({ queryKey: queryKeys.metrics.progress(day) });
-  void queryClient.invalidateQueries({ queryKey: queryKeys.metrics.weightContext(day) });
-  void queryClient.invalidateQueries({ queryKey: ["metrics", "chart"] });
-  void queryClient.invalidateQueries({ queryKey: queryKeys.me() });
-  void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.calories(day) });
-  void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.macros(day) });
+  invalidateWeightViews(queryClient, day);
 }

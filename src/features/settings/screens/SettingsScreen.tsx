@@ -11,7 +11,7 @@ import {
   Ticket,
   X,
 } from "phosphor-react-native";
-import { Button, Screen, Text } from "@/components";
+import { Button, Screen, SectionError, SkeletonText, Text } from "@/components";
 import { useLogout } from "@/features/auth/hooks/useAuth";
 import { useMe } from "@/features/profile";
 import { useSubscription } from "@/features/subscription";
@@ -74,7 +74,7 @@ function Row({
   icon: ReactNode;
   iconWide?: boolean;
   title: string;
-  subtitle?: string;
+  subtitle?: ReactNode;
   action?: ReactNode;
   onPress?: () => void;
 }) {
@@ -83,10 +83,12 @@ function Row({
       <View className={`${iconWide ? "w-[64px]" : "w-[32px]"} items-center`}>{icon}</View>
       <View className="flex-1">
         <Text className="font-semibold text-[16px]">{title}</Text>
-        {subtitle ? (
+        {typeof subtitle === "string" ? (
           <Text variant="caption" color="muted" className="mt-xxs text-[13px]">
             {subtitle}
           </Text>
+        ) : subtitle ? (
+          subtitle
         ) : null}
       </View>
       {action}
@@ -128,6 +130,7 @@ export function SettingsScreen() {
     if (renewsAt) return `Active - Renews ${renewsAt}`;
     return "Active";
   }, [renewsAt, sub]);
+  const settingsLoading = settings.isLoading || !userSettings;
 
   return (
     <Screen scroll backgroundColor={colors.white} style={{ gap: 26, paddingBottom: 120 }}>
@@ -142,7 +145,13 @@ export function SettingsScreen() {
             </View>
           }
           title={user?.name || "Your profile"}
-          subtitle={`${user?.email ?? "Email"}, weight, goal`}
+          subtitle={
+            profile.isLoading ? (
+              <SkeletonText size="caption" className="mt-xxs w-2/3" />
+            ) : (
+              `${user?.email ?? "Email"}, weight, goal`
+            )
+          }
           action={
             <View className="flex-row items-center gap-xs">
               <Text color="muted">Edit</Text>
@@ -154,19 +163,46 @@ export function SettingsScreen() {
         <Row
           icon={<Ruler size={24} color={colors.dark} />}
           title="Units"
-          subtitle={userSettings?.unitSystem === "imperial" ? "lb / in" : "kg / cm"}
+          subtitle={
+            settingsLoading ? (
+              <SkeletonText size="caption" className="mt-xxs w-1/3" />
+            ) : userSettings.unitSystem === "imperial" ? (
+              "lb / in"
+            ) : (
+              "kg / cm"
+            )
+          }
           action={
             <View className="flex-row items-center gap-xs">
               <Text color="muted">Edit</Text>
               <CaretRight size={18} color={colors.gray[500]} />
             </View>
           }
-          onPress={() =>
-            updateSettings.mutate({
-              unitSystem: userSettings?.unitSystem === "imperial" ? "metric" : "imperial",
-            })
+          onPress={
+            settingsLoading
+              ? undefined
+              : () =>
+                  updateSettings.mutate({
+                    unitSystem: userSettings.unitSystem === "imperial" ? "metric" : "imperial",
+                  })
           }
         />
+        {profile.isError ? (
+          <SectionError
+            title="Could not load profile"
+            message="Profile editing is still available once this refreshes."
+            onRetry={() => void profile.refetch()}
+            className="m-lg"
+          />
+        ) : null}
+        {settings.isError ? (
+          <SectionError
+            title="Could not load settings"
+            message="Try again before changing preferences."
+            onRetry={() => void settings.refetch()}
+            className="m-lg"
+          />
+        ) : null}
       </Section>
 
       <Section title="Notifications">
@@ -176,6 +212,7 @@ export function SettingsScreen() {
           action={
             <Switch
               value={Boolean(userSettings?.dailyFoodLogReminderEnabled)}
+              disabled={settingsLoading || updateSettings.isPending}
               onValueChange={(dailyFoodLogReminderEnabled) =>
                 updateSettings.mutate({ dailyFoodLogReminderEnabled })
               }
@@ -186,7 +223,13 @@ export function SettingsScreen() {
         <Row
           icon={<Bell size={22} color={colors.dark} />}
           title="Reminder time"
-          subtitle={formatTime(userSettings?.dailyFoodLogReminderTime)}
+          subtitle={
+            settingsLoading ? (
+              <SkeletonText size="caption" className="mt-xxs w-1/3" />
+            ) : (
+              formatTime(userSettings.dailyFoodLogReminderTime)
+            )
+          }
           action={
             <View className="flex-row items-center gap-xs">
               <Text color="muted">Change</Text>
@@ -207,6 +250,7 @@ export function SettingsScreen() {
           action={
             <Switch
               value={Boolean(userSettings?.weightCheckReminderEnabled)}
+              disabled={settingsLoading || updateSettings.isPending}
               onValueChange={(weightCheckReminderEnabled) =>
                 updateSettings.mutate({ weightCheckReminderEnabled })
               }
@@ -217,7 +261,13 @@ export function SettingsScreen() {
         <Row
           icon={<Bell size={22} color={colors.dark} />}
           title="Reminder time"
-          subtitle={`Weekly, Friday ${formatTime(userSettings?.weightCheckReminderTime)}`}
+          subtitle={
+            settingsLoading ? (
+              <SkeletonText size="caption" className="mt-xxs w-1/2" />
+            ) : (
+              `Weekly, Friday ${formatTime(userSettings.weightCheckReminderTime)}`
+            )
+          }
           action={
             <View className="flex-row items-center gap-xs">
               <Text color="muted">Change</Text>
@@ -238,6 +288,7 @@ export function SettingsScreen() {
           action={
             <Switch
               value={Boolean(userSettings?.hydrationReminderEnabled)}
+              disabled={settingsLoading || updateSettings.isPending}
               onValueChange={(hydrationReminderEnabled) =>
                 updateSettings.mutate({ hydrationReminderEnabled })
               }
@@ -248,7 +299,13 @@ export function SettingsScreen() {
         <Row
           icon={<Bell size={22} color={colors.dark} />}
           title="Reminder time"
-          subtitle={`Every ${userSettings?.hydrationReminderIntervalMinutes ?? 40} mins`}
+          subtitle={
+            settingsLoading ? (
+              <SkeletonText size="caption" className="mt-xxs w-1/2" />
+            ) : (
+              `Every ${userSettings.hydrationReminderIntervalMinutes ?? 40} mins`
+            )
+          }
           action={
             <View className="flex-row items-center gap-xs">
               <Text color="muted">Change</Text>
@@ -269,7 +326,13 @@ export function SettingsScreen() {
         <Row
           icon={<Ticket size={23} color={colors.dark} />}
           title={subscriptionTitle(sub?.plan)}
-          subtitle={subscriptionSubtitle}
+          subtitle={
+            subscription.isLoading ? (
+              <SkeletonText size="caption" className="mt-xxs w-1/2" />
+            ) : (
+              subscriptionSubtitle
+            )
+          }
           action={
             <Text color={sub?.entitlement === "premium" ? "success" : "primary"}>
               {sub?.entitlement === "premium" ? "Active" : "Plans"}
@@ -277,6 +340,14 @@ export function SettingsScreen() {
           }
           onPress={() => router.push("/(app)/settings/subscription")}
         />
+        {subscription.isError ? (
+          <SectionError
+            title="Could not load subscription"
+            message="Plans are still available, but current access may be stale."
+            onRetry={() => void subscription.refetch()}
+            className="m-lg"
+          />
+        ) : null}
         {sub?.entitlement === "premium" && sub.priceLabel && renewsAt ? (
           <View className="px-lg py-lg">
             <View className="flex-row items-center justify-between rounded-md bg-primarySoft px-lg py-md">
