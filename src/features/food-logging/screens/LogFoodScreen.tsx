@@ -204,10 +204,10 @@ function WaterHome() {
     return (
       <Card className="gap-md">
         <Text variant="heading3" color="dark">
-          Water is a premium metric
+          Could not load water
         </Text>
         <Text variant="body" color="muted">
-          Upgrade to track hydration against your daily target.
+          Your hydration log is unavailable right now. Pull back in a moment and try again.
         </Text>
       </Card>
     );

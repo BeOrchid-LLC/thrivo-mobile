@@ -240,12 +240,24 @@ export const ENDPOINTS = {
     response: c.dashboardStreakResponse,
   },
 
-  // --- Metrics (premium) ---
-  WEIGHT_LIST: {
-    path: "/metrics/weight",
+  // --- Metrics ---
+  PROGRESS_GET: {
+    path: "/metrics/progress",
     method: "GET",
     auth: true,
-    response: c.weightListResponse,
+    response: c.progressResponse,
+  },
+  METRICS_CHART: {
+    path: "/metrics/chart",
+    method: "GET",
+    auth: true,
+    response: c.chartResponse,
+  },
+  WEIGHT_CONTEXT: {
+    path: "/metrics/weight/context",
+    method: "GET",
+    auth: true,
+    response: c.weightContextResponse,
   },
   WEIGHT_ADD: {
     path: "/metrics/weight",

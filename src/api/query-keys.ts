@@ -25,7 +25,10 @@ export const queryKeys = {
   },
 
   metrics: {
-    weight: () => ["metrics", "weight"] as const,
+    progress: (day: string) => ["metrics", "progress", day] as const,
+    chart: (metric: string, period: string, day: string) =>
+      ["metrics", "chart", metric, period, day] as const,
+    weightContext: (day: string) => ["metrics", "weight", "context", day] as const,
     waterByDay: (day: string) => ["metrics", "water", day] as const,
   },
 
