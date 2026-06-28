@@ -1,6 +1,5 @@
-import { PlaceholderScreen } from "@/components";
+import { ProgressScreen } from "@/features/progress";
 
-/** Weight + water (premium). */
 export default function Metrics() {
-  return <PlaceholderScreen title="Metrics" subtitle="Weight + water" premium />;
+  return <ProgressScreen />;
 }
