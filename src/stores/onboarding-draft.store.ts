@@ -8,6 +8,12 @@ import type { ActivityLevel, Goal, Sex, UnitSystem } from "@/contracts";
  * answers from the reusable onboarding flow in local storage so back/forward
  * navigation, cold starts, and later lifecycle revisits do not lose progress.
  * Server remains the source of truth once skip/complete/start trial submits.
+ *
+ * PII policy (CLAUDE.md — AsyncStorage is for NON-sensitive data only): the
+ * health-adjacent body metrics (weight/height/age/sex) live in memory for the
+ * session but are **never written to disk**. They survive in-flow navigation but
+ * not a cold start mid-onboarding — an accepted trade-off vs. persisting health
+ * PII in plaintext. See `PERSISTED_FIELDS`.
  */
 export interface OnboardingDraft {
   firstName?: string;
@@ -23,6 +29,32 @@ export interface OnboardingDraft {
   notifyTimes?: string[];
   timezone?: string;
   onboardingStep?: number;
+}
+
+/**
+ * Fields safe to persist to AsyncStorage — navigation/progress + non-sensitive
+ * preferences. Body metrics are deliberately excluded (health PII). Update this
+ * list, not `partialize`, when adding a draft field.
+ */
+const PERSISTED_FIELDS: (keyof OnboardingDraft)[] = [
+  "firstName",
+  "goal",
+  "unitSystem",
+  "activityLevel",
+  "notifyTimes",
+  "timezone",
+  "onboardingStep",
+];
+
+function persistableDraft(draft: OnboardingDraft): Partial<OnboardingDraft> {
+  const out: Partial<OnboardingDraft> = {};
+  for (const key of PERSISTED_FIELDS) {
+    if (draft[key] !== undefined) {
+      // Per-key copy keeps the union types intact without a blanket cast.
+      (out as Record<string, unknown>)[key] = draft[key];
+    }
+  }
+  return out;
 }
 
 interface OnboardingDraftState {
@@ -46,7 +78,8 @@ export const useOnboardingDraftStore = create<OnboardingDraftState>()(
     {
       name: "thrivo.onboarding-draft",
       storage: createJSONStorage(() => AsyncStorage),
-      partialize: (state) => ({ draft: state.draft }),
+      // Only non-sensitive fields reach disk — body metrics stay in memory.
+      partialize: (state) => ({ draft: persistableDraft(state.draft) }),
     }
   )
 );
