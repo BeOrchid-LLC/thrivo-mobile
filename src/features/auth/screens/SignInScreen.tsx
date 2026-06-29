@@ -2,7 +2,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Platform, Pressable, View } from "react-native";
-import { Button, Input, Screen, Text } from "@/components";
+import { Button, FormError, Input, Screen, Text } from "@/components";
 import { otpRequestPayload, type OtpRequestPayload } from "@/contracts";
 import { SocialAuthButtons, type SocialAuthProvider } from "../components/SocialAuthButtons";
 import { useAppleSignIn, useGoogleSignIn, useRequestOtp } from "../hooks/useAuth";
@@ -66,11 +66,7 @@ export function SignInScreen() {
           Welcome back. We&apos;ll email you a secure 6-digit code that expires in 5 minutes.
         </Text>
 
-        {callbackError ? (
-          <Text variant="caption" color="error" selectable className="text-center">
-            {callbackError}
-          </Text>
-        ) : null}
+        <FormError message={callbackError} center />
 
         <Controller
           control={control}
@@ -90,11 +86,7 @@ export function SignInScreen() {
           )}
         />
 
-        {requestCode.error ? (
-          <Text variant="caption" color="error" selectable>
-            {requestCode.error.message}
-          </Text>
-        ) : null}
+        <FormError message={requestCode.error?.message} />
 
         <Button label="Send code" loading={requestCode.isPending} onPress={send} />
 
@@ -111,11 +103,7 @@ export function SignInScreen() {
               loadingProvider={loadingProvider}
             />
 
-            {socialError ? (
-              <Text variant="caption" color="error" selectable className="text-center">
-                {socialError.message}
-              </Text>
-            ) : null}
+            <FormError message={socialError?.message} center />
           </>
         ) : null}
 

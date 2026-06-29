@@ -3,7 +3,7 @@ import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Pressable, View } from "react-native";
 import { z } from "zod";
-import { BackButton, Button, Input, MailIcon, Screen, Text, UserIcon } from "@/components";
+import { BackButton, Button, FormError, Input, MailIcon, Screen, Text, UserIcon } from "@/components";
 import { colors } from "@/theme";
 import { emailSchema } from "@/contracts";
 import { useOnboardingDraftActions } from "@/stores";
@@ -92,11 +92,7 @@ export function OtpRequestScreen() {
             No password needed. Your code expires in 5 minutes.
           </Text>
 
-          {request.error ? (
-            <Text variant="caption" color="error" selectable>
-              {request.error.message}
-            </Text>
-          ) : null}
+          <FormError message={request.error?.message} />
 
           <Button label="Send code" loading={request.isPending} onPress={send} />
         </View>
