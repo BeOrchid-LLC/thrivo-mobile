@@ -1,11 +1,15 @@
-import { useMemo, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Linking, Pressable, Switch, View } from "react-native";
+import DateTimePicker, {
+  type DateTimePickerEvent,
+} from "@react-native-community/datetimepicker";
 import { router } from "expo-router";
 import {
   Bell,
   CaretRight,
   Clock,
   FileText,
+  FingerprintSimple,
   Ruler,
   ShieldCheck,
   Ticket,
@@ -16,6 +20,8 @@ import { LEGAL_LINKS } from "@/config/links";
 import { useLogout } from "@/features/auth/hooks/useAuth";
 import { useMe } from "@/features/profile";
 import { useSubscription } from "@/features/subscription";
+import { authenticateBiometric, isBiometricAvailable } from "@/lib";
+import { useBiometricAuthEnabled, usePreferencesActions } from "@/stores";
 import { colors } from "@/theme";
 import { useSettings } from "../hooks/useSettings";
 import { useUpdateSettings } from "../hooks/useUpdateSettings";
@@ -38,11 +44,18 @@ function nextHydrationInterval(current: number) {
   return options[(index + 1) % options.length] ?? 40;
 }
 
-function nextReminderTime(current: string) {
-  const options = ["08:00", "09:00", "12:00", "18:00", "20:00"];
-  const normalized = current.slice(0, 5);
-  const index = options.indexOf(normalized);
-  return options[(index + 1) % options.length] ?? "08:00";
+/** "HH:mm[:ss]" → a Date today at that clock time (for the native picker). */
+function timeToDate(value?: string) {
+  const [h = "8", m = "0"] = (value ?? "08:00").split(":");
+  const date = new Date();
+  date.setHours(Number(h), Number(m), 0, 0);
+  return date;
+}
+
+/** Date → "HH:mm" for the settings payload. */
+function dateToTime(date: Date) {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 function formatTime(value?: string) {
@@ -114,10 +127,47 @@ export function SettingsScreen() {
   const subscription = useSubscription();
   const logout = useLogout();
 
+  const biometricEnabled = useBiometricAuthEnabled();
+  const { setBiometricAuthEnabled } = usePreferencesActions();
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricBusy, setBiometricBusy] = useState(false);
+
+  // Which reminder-time field the native time picker is currently editing.
+  const [editingTime, setEditingTime] = useState<
+    "dailyFoodLogReminderTime" | "weightCheckReminderTime" | null
+  >(null);
+
+  useEffect(() => {
+    void isBiometricAvailable().then(setBiometricAvailable);
+  }, []);
+
+  // Enabling requires proving a successful unlock first; disabling is immediate.
+  const onToggleBiometric = async (next: boolean) => {
+    if (!next) {
+      setBiometricAuthEnabled(false);
+      return;
+    }
+    setBiometricBusy(true);
+    try {
+      if (await authenticateBiometric("Enable biometric unlock")) {
+        setBiometricAuthEnabled(true);
+      }
+    } finally {
+      setBiometricBusy(false);
+    }
+  };
+
   const user = profile.data;
   const userSettings = settings.data;
   const sub = subscription.data?.subscription;
   const renewsAt = shortDate(sub?.renewsAt ?? sub?.accessEndsAt);
+
+  const onTimePicked = (event: DateTimePickerEvent, date?: Date) => {
+    const field = editingTime;
+    setEditingTime(null); // Android dialog is one-shot; iOS spinner closes too.
+    if (event.type !== "set" || !date || !field) return;
+    updateSettings.mutate({ [field]: dateToTime(date) });
+  };
 
   const subscriptionSubtitle = useMemo(() => {
     if (!sub || sub.status === "none" || sub.status === "expired") return "Choose a plan";
@@ -207,7 +257,7 @@ export function SettingsScreen() {
           action={
             <Switch
               value={Boolean(userSettings?.dailyFoodLogReminderEnabled)}
-              disabled={settingsLoading || updateSettings.isPending}
+              disabled={settingsLoading}
               onValueChange={(dailyFoodLogReminderEnabled) =>
                 updateSettings.mutate({ dailyFoodLogReminderEnabled })
               }
@@ -231,12 +281,8 @@ export function SettingsScreen() {
               <CaretRight size={18} color={colors.gray[500]} />
             </View>
           }
-          onPress={() =>
-            updateSettings.mutate({
-              dailyFoodLogReminderTime: nextReminderTime(
-                userSettings?.dailyFoodLogReminderTime ?? "08:00"
-              ),
-            })
+          onPress={
+            settingsLoading ? undefined : () => setEditingTime("dailyFoodLogReminderTime")
           }
         />
         <Row
@@ -245,7 +291,7 @@ export function SettingsScreen() {
           action={
             <Switch
               value={Boolean(userSettings?.weightCheckReminderEnabled)}
-              disabled={settingsLoading || updateSettings.isPending}
+              disabled={settingsLoading}
               onValueChange={(weightCheckReminderEnabled) =>
                 updateSettings.mutate({ weightCheckReminderEnabled })
               }
@@ -269,12 +315,8 @@ export function SettingsScreen() {
               <CaretRight size={18} color={colors.gray[500]} />
             </View>
           }
-          onPress={() =>
-            updateSettings.mutate({
-              weightCheckReminderTime: nextReminderTime(
-                userSettings?.weightCheckReminderTime ?? "09:00"
-              ),
-            })
+          onPress={
+            settingsLoading ? undefined : () => setEditingTime("weightCheckReminderTime")
           }
         />
         <Row
@@ -283,7 +325,7 @@ export function SettingsScreen() {
           action={
             <Switch
               value={Boolean(userSettings?.hydrationReminderEnabled)}
-              disabled={settingsLoading || updateSettings.isPending}
+              disabled={settingsLoading}
               onValueChange={(hydrationReminderEnabled) =>
                 updateSettings.mutate({ hydrationReminderEnabled })
               }
@@ -364,6 +406,24 @@ export function SettingsScreen() {
         ) : null}
       </Section>
 
+      {biometricAvailable ? (
+        <Section title="Security">
+          <Row
+            icon={<FingerprintSimple size={24} color={colors.dark} />}
+            title="Biometric unlock"
+            subtitle="Require Face ID, Touch ID, or your passcode to open Thrivo. Stays on this device."
+            action={
+              <Switch
+                value={biometricEnabled}
+                disabled={biometricBusy}
+                onValueChange={(next) => void onToggleBiometric(next)}
+                trackColor={{ true: colors.primaryBright, false: colors.gray[300] }}
+              />
+            }
+          />
+        </Section>
+      ) : null}
+
       <Section title="Legal">
         <Row
           icon={<ShieldCheck size={23} color={colors.dark} />}
@@ -392,6 +452,15 @@ export function SettingsScreen() {
         onPress={() => logout.mutate()}
         className="bg-primarySoft"
       />
+
+      {editingTime ? (
+        <DateTimePicker
+          mode="time"
+          display="spinner"
+          value={timeToDate(userSettings?.[editingTime])}
+          onChange={onTimePicked}
+        />
+      ) : null}
     </Screen>
   );
 }
