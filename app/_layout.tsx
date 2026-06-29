@@ -14,10 +14,21 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { queryClient, persistOptions, registerOfflineMutations } from "@/api";
 import { BrandSplash, ErrorState, Screen } from "@/components";
-import { wireApiSeams, addNotificationResponseListener, initOnlineManager } from "@/lib";
+import {
+  wireApiSeams,
+  addNotificationResponseListener,
+  initOnlineManager,
+  withMonitoring,
+  monitoring,
+  analytics,
+} from "@/lib";
 import { useSessionInit, useSessionRefresh } from "@/hooks";
 import { useAuthStatus, useIsOnboarded, useIsOnboardingSkipped, useSessionActions } from "@/stores";
 
+// Start crash reporting + analytics before anything else so an early boot error
+// is still captured. No-ops in dev when their env vars are unset (fail fast in prod).
+monitoring.init();
+analytics.init();
 // Wire the API client's token/unauthenticated seams once, at module load.
 wireApiSeams();
 // Bridge device connectivity into React Query and register the resumable offline
@@ -129,7 +140,7 @@ function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
   return <Stack screenOptions={{ headerShown: false }} />;
 }
 
-export default function RootLayout() {
+function RootLayout() {
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
     Inter_500Medium,
@@ -155,3 +166,7 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 }
+
+// Sentry wraps the root so render errors + native crashes are captured (no-op
+// passthrough when no DSN is configured).
+export default withMonitoring(RootLayout);

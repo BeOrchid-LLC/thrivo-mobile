@@ -17,7 +17,7 @@ export {
   type QueuedBarcodeScan,
 } from "./barcode-queue";
 export { registerForPushNotifications, addNotificationResponseListener } from "./notifications";
-export { monitoring, type Monitoring } from "./monitoring";
+export { monitoring, withMonitoring, type Monitoring } from "./monitoring";
 export { analytics, type Analytics, type AnalyticsEvent } from "./analytics";
 export {
   subscription,
