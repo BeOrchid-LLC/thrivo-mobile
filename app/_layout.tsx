@@ -12,14 +12,29 @@ import {
 } from "@expo-google-fonts/inter";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
-import { queryClient, persistOptions } from "@/api";
+import { queryClient, persistOptions, registerOfflineMutations } from "@/api";
 import { BrandSplash, ErrorState, Screen } from "@/components";
-import { wireApiSeams, addNotificationResponseListener } from "@/lib";
+import {
+  wireApiSeams,
+  addNotificationResponseListener,
+  initOnlineManager,
+  withMonitoring,
+  monitoring,
+  analytics,
+} from "@/lib";
 import { useSessionInit, useSessionRefresh } from "@/hooks";
 import { useAuthStatus, useIsOnboarded, useIsOnboardingSkipped, useSessionActions } from "@/stores";
 
+// Start crash reporting + analytics before anything else so an early boot error
+// is still captured. No-ops in dev when their env vars are unset (fail fast in prod).
+monitoring.init();
+analytics.init();
 // Wire the API client's token/unauthenticated seams once, at module load.
 wireApiSeams();
+// Bridge device connectivity into React Query and register the resumable offline
+// writes, so food/water/weight logging works with no network and syncs on reconnect.
+initOnlineManager();
+registerOfflineMutations(queryClient);
 void SplashScreen.preventAutoHideAsync();
 
 /**
@@ -41,10 +56,18 @@ function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
   useSessionInit();
   useSessionRefresh();
 
-  // Route notification taps to the check-in screen.
+  // Route notification taps to a usable app screen. The backend sends a stable
+  // screen *key* (e.g. "checkin") so its payload never couples to Expo Router's
+  // internal route paths; we map known keys here and fall back to the dashboard.
   useEffect(() => {
+    const screenRoutes: Record<string, string> = {
+      checkin: "/(app)/checkin",
+      dashboard: "/(app)/dashboard",
+      log: "/(app)/log",
+    };
     return addNotificationResponseListener((data) => {
-      const target = typeof data.screen === "string" ? data.screen : "/(app)/checkin";
+      const key = typeof data.screen === "string" ? data.screen : "";
+      const target = screenRoutes[key] ?? "/(app)/dashboard";
       router.push(target as Parameters<typeof router.push>[0]);
     });
   }, [router]);
@@ -117,7 +140,7 @@ function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
   return <Stack screenOptions={{ headerShown: false }} />;
 }
 
-export default function RootLayout() {
+function RootLayout() {
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
     Inter_500Medium,
@@ -128,10 +151,22 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <PersistQueryClientProvider client={queryClient} persistOptions={persistOptions}>
+        <PersistQueryClientProvider
+          client={queryClient}
+          persistOptions={persistOptions}
+          onSuccess={() => {
+            // Cache restored from disk → flush any offline writes that were
+            // queued before the last app kill.
+            void queryClient.resumePausedMutations();
+          }}
+        >
           <RootNavigator fontsLoaded={fontsLoaded} />
         </PersistQueryClientProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }
+
+// Sentry wraps the root so render errors + native crashes are captured (no-op
+// passthrough when no DSN is configured).
+export default withMonitoring(RootLayout);

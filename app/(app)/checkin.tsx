@@ -1,6 +1,5 @@
-import { PlaceholderScreen } from "@/components";
+import { CheckinScreen } from "@/features/checkin";
 
-/** Mood check-in → "Thrivo Tip" (premium). */
 export default function Checkin() {
-  return <PlaceholderScreen title="Daily check-in" subtitle="Mood → tip" premium />;
+  return <CheckinScreen />;
 }

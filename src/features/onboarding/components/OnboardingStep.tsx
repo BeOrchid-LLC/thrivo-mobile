@@ -63,7 +63,7 @@ export function OnboardingStep({
             </View>
 
             {subtitle ? (
-              <Text className="mt-sm font-regular text-[15px] leading-[22px] text-[#737373]">
+              <Text className="mt-sm font-regular text-[15px] leading-[22px] text-stepText">
                 {subtitle}
               </Text>
             ) : null}

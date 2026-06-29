@@ -12,6 +12,7 @@ import {
 import { OnboardingStep } from "@/features/onboarding/components/OnboardingStep";
 import { InsightPill } from "@/features/onboarding/components/InsightPill";
 import { useSubmitOnboarding } from "@/features/onboarding/hooks/useCompleteOnboarding";
+import { isValidWeightKg } from "@/features/onboarding/utils/validation";
 
 type Unit = "kg" | "lb";
 
@@ -35,7 +36,11 @@ export default function WeightStep() {
 
   const currentNum = Number.parseFloat(current);
   const targetNum = Number.parseFloat(target);
-  const valid = currentNum > 0 && (!needsTarget || targetNum > 0);
+  // Validate the canonical kg value against the published contract schema.
+  const toKgValue = (n: number) => (unit === "kg" ? n : lbToKg(n));
+  const valid =
+    isValidWeightKg(toKgValue(currentNum)) &&
+    (!needsTarget || isValidWeightKg(toKgValue(targetNum)));
 
   const unitLabel = unit === "kg" ? "kg" : "lbs";
 

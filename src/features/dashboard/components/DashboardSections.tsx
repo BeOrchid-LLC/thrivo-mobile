@@ -11,7 +11,6 @@ import {
   Text,
 } from "@/components";
 import { colors } from "@/theme";
-import type { MealType } from "@/contracts";
 import { MacroBars } from "./MacroBars";
 import { MealLog } from "./MealLog";
 import { StreakBanner } from "./StreakBanner";
@@ -27,7 +26,7 @@ import {
 
 const GLASS_ML = 250;
 
-const goToLog = (_meal?: MealType) => router.push("/(app)/log");
+const goToLog = () => router.push("/(app)/log");
 const goToHistory = () => router.push("/(app)/history");
 
 export function CaloriesSummarySection() {
@@ -246,10 +245,10 @@ export function TodayMealLogSection() {
     );
   }
 
-  const groups = foodLog.data?.groups ?? [];
+  const entries = foodLog.data?.entries ?? [];
 
-  return groups.length > 0 ? (
-    <MealLog groups={groups} onLogFood={goToLog} onViewAll={goToHistory} />
+  return entries.length > 0 ? (
+    <MealLog entries={entries} onLogFood={goToLog} onViewAll={goToHistory} />
   ) : (
     <Card className="items-center gap-md">
       <View className="h-[52px] w-[52px] items-center justify-center rounded-pill bg-primarySoft">

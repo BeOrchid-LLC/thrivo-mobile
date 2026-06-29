@@ -17,17 +17,26 @@ export const queryKeys = {
   foods: {
     search: (q: string) => ["foods", "search", q] as const,
     lookup: (barcode: string) => ["foods", "lookup", barcode] as const,
+    detail: (id: string) => ["foods", "detail", id] as const,
+    recent: () => ["foods", "recent"] as const,
     favorites: () => ["foods", "favorites"] as const,
     logHistory: () => ["foods", "log", "history"] as const,
     logDay: (day: string) => ["foods", "log", "day", day] as const,
   },
 
   metrics: {
-    weight: () => ["metrics", "weight"] as const,
+    all: () => ["metrics"] as const,
+    chartRoot: () => ["metrics", "chart"] as const,
+    progress: (day: string) => ["metrics", "progress", day] as const,
+    chart: (metric: string, period: string, day: string) =>
+      ["metrics", "chart", metric, period, day] as const,
+    weightContext: (day: string) => ["metrics", "weight", "context", day] as const,
     waterByDay: (day: string) => ["metrics", "water", day] as const,
   },
 
   checkins: {
+    all: () => ["checkins"] as const,
+    list: () => ["checkins", "list"] as const,
     byDay: (day: string) => ["checkins", day] as const,
   },
 

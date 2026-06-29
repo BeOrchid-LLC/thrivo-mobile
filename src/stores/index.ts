@@ -9,7 +9,7 @@ export {
   useSessionActions,
   type AuthStatus,
 } from "./session.store";
-export { useUiStore, useActiveMeal, useActiveSheet, useUiActions } from "./ui.store";
+export { useUiStore, useActiveSheet, useUiActions } from "./ui.store";
 export {
   useOnboardingDraftStore,
   useOnboardingDraft,
