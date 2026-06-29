@@ -1,5 +1,5 @@
-import { Redirect } from "expo-router";
+import { CheckinScreen } from "@/features/checkin";
 
 export default function Checkin() {
-  return <Redirect href="/(app)/dashboard" />;
+  return <CheckinScreen />;
 }
