@@ -13,6 +13,7 @@ import {
 import { OnboardingStep } from "@/features/onboarding/components/OnboardingStep";
 import { NoteBox } from "@/features/onboarding/components/NoteBox";
 import { useSubmitOnboarding } from "@/features/onboarding/hooks/useCompleteOnboarding";
+import { isValidAgeYears, isValidHeightCm } from "@/features/onboarding/utils/validation";
 
 type HeightUnit = "metric" | "imperial";
 const CM_PER_IN = 2.54;
@@ -49,7 +50,8 @@ export default function BodyStep() {
         ? ftInToCm(Number.parseFloat(ft), Number.parseFloat(inch) || 0)
         : Number.NaN;
   const ageNum = Number.parseInt(age, 10);
-  const valid = heightCm > 0 && ageNum >= 13 && sex !== undefined;
+  // Reuse the published contract schemas for the numeric boundary.
+  const valid = isValidHeightCm(heightCm) && isValidAgeYears(ageNum) && sex !== undefined;
 
   // Re-express the entered height when the unit changes so it stays meaningful.
   const switchHeightUnit = (next: HeightUnit) => {
