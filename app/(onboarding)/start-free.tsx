@@ -14,10 +14,10 @@ import { MONTHLY_PRICE_DISPLAY, TRIAL_DAYS } from "@/config/pricing";
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 const TRIAL_FEATURES = [
-  "Unlimited food logging & barcode scanner",
-  "Meal recommendations tailored to your goal",
-  "Weekly progress reports & trend charts",
-  "Apple Health & Google Fit sync",
+  "Food, water, calories, and weight history beyond 14 days",
+  "Longer trend charts across progress metrics",
+  "Full food log history for reviewing patterns",
+  "Premium insights as they become available",
 ];
 
 export default function StartFreeStep() {
@@ -27,7 +27,6 @@ export default function StartFreeStep() {
 
   const [y, m, d] = addDays(localDay(), TRIAL_DAYS).split("-").map(Number);
   const trialEndLong = `${d} ${MONTHS[m - 1]} ${y}`;
-  const trialEndShort = `${d} ${MONTHS[m - 1]}`;
 
   const startTrial = async () => {
     setError(null);
@@ -48,13 +47,13 @@ export default function StartFreeStep() {
   return (
     <OnboardingStep
       step={6}
-      title="Start your free trial"
-      subtitle={`Full access for 7 days, then ${MONTHLY_PRICE_DISPLAY}/month. Cancel anytime.`}
+      title="Start your premium preview"
+      subtitle={`Try longer history and trend access for 7 days. Paid plans are ${MONTHLY_PRICE_DISPLAY}/month when enabled.`}
       footer={
         <>
-          <Button label="Start free trial — $0 today" loading={isPending} onPress={startTrial} />
+          <Button label="Start premium preview" loading={isPending} onPress={startTrial} />
           <Text variant="caption" color="muted" className="text-center font-regular">
-            {MONTHLY_PRICE_DISPLAY}/month after {trialEndLong}. Cancel in Settings.
+            Preview access runs through {trialEndLong}. You can manage access in Settings.
           </Text>
           <Button label="Skip for now" variant="ghost" disabled={isPending} onPress={skip} />
           {error ? (
@@ -83,18 +82,18 @@ export default function StartFreeStep() {
             <Text className="mb-[3px] ml-xs text-[16px] leading-[24px] text-light/70">/ month</Text>
           </View>
           <Text className="mt-xs font-bold text-[16px] leading-[24px] text-accent">
-            7-day free trial
+            7-day premium preview
           </Text>
 
           <View className="mt-md gap-sm">
             <PriceRow label="Trial ends" value={trialEndLong} />
-            <PriceRow label="First charge" value={`${MONTHLY_PRICE_DISPLAY} on ${trialEndShort}`} />
-            <PriceRow label="Cancel before then" value="Pay nothing" accent />
+            <PriceRow label="Plan price" value={`${MONTHLY_PRICE_DISPLAY}/month`} />
+            <PriceRow label="Preview cost" value="Pay nothing" accent />
           </View>
         </LinearGradient>
       </View>
 
-      <NoteBox title="How to cancel in 2 taps">Settings → Subscription → Cancel</NoteBox>
+      <NoteBox title="How to manage access">Settings → Subscription</NoteBox>
 
       <View className="gap-md">
         {TRIAL_FEATURES.map((feature) => (
@@ -110,7 +109,7 @@ export default function StartFreeStep() {
       </View>
 
       <Text variant="caption" color="muted" className="font-regular">
-        A card is required — you won&apos;t be charged until {trialEndLong}.
+        No payment is collected in the app during this MVP preview.
       </Text>
     </OnboardingStep>
   );

@@ -1,29 +1,28 @@
-import { useMemo, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Linking, Pressable, Switch, View } from "react-native";
+import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { router } from "expo-router";
 import {
   Bell,
   CaretRight,
   Clock,
   FileText,
+  FingerprintSimple,
   Ruler,
   ShieldCheck,
   Ticket,
   X,
 } from "phosphor-react-native";
-import { Button, Screen, Text } from "@/components";
+import { Button, Screen, SectionError, SkeletonText, Text } from "@/components";
+import { LEGAL_LINKS } from "@/config/links";
 import { useLogout } from "@/features/auth/hooks/useAuth";
 import { useMe } from "@/features/profile";
 import { useSubscription } from "@/features/subscription";
+import { authenticateBiometric, isBiometricAvailable } from "@/lib";
+import { useBiometricAuthEnabled, usePreferencesActions } from "@/stores";
 import { colors } from "@/theme";
 import { useSettings } from "../hooks/useSettings";
 import { useUpdateSettings } from "../hooks/useUpdateSettings";
-
-const LEGAL_LINKS = {
-  privacy: "https://www.traxq.com/privacy",
-  terms: "https://www.traxq.com/terms",
-  cancellation: "https://www.traxq.com/terms",
-};
 
 function initials(name?: string | null) {
   const parts = (name || "Thrivo User").trim().split(/\s+/);
@@ -43,11 +42,18 @@ function nextHydrationInterval(current: number) {
   return options[(index + 1) % options.length] ?? 40;
 }
 
-function nextReminderTime(current: string) {
-  const options = ["08:00", "09:00", "12:00", "18:00", "20:00"];
-  const normalized = current.slice(0, 5);
-  const index = options.indexOf(normalized);
-  return options[(index + 1) % options.length] ?? "08:00";
+/** "HH:mm[:ss]" → a Date today at that clock time (for the native picker). */
+function timeToDate(value?: string) {
+  const [h = "8", m = "0"] = (value ?? "08:00").split(":");
+  const date = new Date();
+  date.setHours(Number(h), Number(m), 0, 0);
+  return date;
+}
+
+/** Date → "HH:mm" for the settings payload. */
+function dateToTime(date: Date) {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 function formatTime(value?: string) {
@@ -74,7 +80,7 @@ function Row({
   icon: ReactNode;
   iconWide?: boolean;
   title: string;
-  subtitle?: string;
+  subtitle?: ReactNode;
   action?: ReactNode;
   onPress?: () => void;
 }) {
@@ -83,10 +89,12 @@ function Row({
       <View className={`${iconWide ? "w-[64px]" : "w-[32px]"} items-center`}>{icon}</View>
       <View className="flex-1">
         <Text className="font-semibold text-[16px]">{title}</Text>
-        {subtitle ? (
+        {typeof subtitle === "string" ? (
           <Text variant="caption" color="muted" className="mt-xxs text-[13px]">
             {subtitle}
           </Text>
+        ) : subtitle ? (
+          subtitle
         ) : null}
       </View>
       {action}
@@ -117,10 +125,47 @@ export function SettingsScreen() {
   const subscription = useSubscription();
   const logout = useLogout();
 
+  const biometricEnabled = useBiometricAuthEnabled();
+  const { setBiometricAuthEnabled } = usePreferencesActions();
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricBusy, setBiometricBusy] = useState(false);
+
+  // Which reminder-time field the native time picker is currently editing.
+  const [editingTime, setEditingTime] = useState<
+    "dailyFoodLogReminderTime" | "weightCheckReminderTime" | null
+  >(null);
+
+  useEffect(() => {
+    void isBiometricAvailable().then(setBiometricAvailable);
+  }, []);
+
+  // Enabling requires proving a successful unlock first; disabling is immediate.
+  const onToggleBiometric = async (next: boolean) => {
+    if (!next) {
+      setBiometricAuthEnabled(false);
+      return;
+    }
+    setBiometricBusy(true);
+    try {
+      if (await authenticateBiometric("Enable biometric unlock")) {
+        setBiometricAuthEnabled(true);
+      }
+    } finally {
+      setBiometricBusy(false);
+    }
+  };
+
   const user = profile.data;
   const userSettings = settings.data;
   const sub = subscription.data?.subscription;
   const renewsAt = shortDate(sub?.renewsAt ?? sub?.accessEndsAt);
+
+  const onTimePicked = (event: DateTimePickerEvent, date?: Date) => {
+    const field = editingTime;
+    setEditingTime(null); // Android dialog is one-shot; iOS spinner closes too.
+    if (event.type !== "set" || !date || !field) return;
+    updateSettings.mutate({ [field]: dateToTime(date) });
+  };
 
   const subscriptionSubtitle = useMemo(() => {
     if (!sub || sub.status === "none" || sub.status === "expired") return "Choose a plan";
@@ -128,6 +173,7 @@ export function SettingsScreen() {
     if (renewsAt) return `Active - Renews ${renewsAt}`;
     return "Active";
   }, [renewsAt, sub]);
+  const settingsLoading = settings.isLoading || !userSettings;
 
   return (
     <Screen scroll backgroundColor={colors.white} style={{ gap: 26, paddingBottom: 120 }}>
@@ -142,7 +188,13 @@ export function SettingsScreen() {
             </View>
           }
           title={user?.name || "Your profile"}
-          subtitle={`${user?.email ?? "Email"}, weight, goal`}
+          subtitle={
+            profile.isLoading ? (
+              <SkeletonText size="caption" className="mt-xxs w-2/3" />
+            ) : (
+              `${user?.email ?? "Email"}, weight, goal`
+            )
+          }
           action={
             <View className="flex-row items-center gap-xs">
               <Text color="muted">Edit</Text>
@@ -154,19 +206,46 @@ export function SettingsScreen() {
         <Row
           icon={<Ruler size={24} color={colors.dark} />}
           title="Units"
-          subtitle={userSettings?.unitSystem === "imperial" ? "lb / in" : "kg / cm"}
+          subtitle={
+            settingsLoading ? (
+              <SkeletonText size="caption" className="mt-xxs w-1/3" />
+            ) : userSettings.unitSystem === "imperial" ? (
+              "lb / in"
+            ) : (
+              "kg / cm"
+            )
+          }
           action={
             <View className="flex-row items-center gap-xs">
               <Text color="muted">Edit</Text>
               <CaretRight size={18} color={colors.gray[500]} />
             </View>
           }
-          onPress={() =>
-            updateSettings.mutate({
-              unitSystem: userSettings?.unitSystem === "imperial" ? "metric" : "imperial",
-            })
+          onPress={
+            settingsLoading
+              ? undefined
+              : () =>
+                  updateSettings.mutate({
+                    unitSystem: userSettings.unitSystem === "imperial" ? "metric" : "imperial",
+                  })
           }
         />
+        {profile.isError ? (
+          <SectionError
+            title="Could not load profile"
+            message="Profile editing is still available once this refreshes."
+            onRetry={() => void profile.refetch()}
+            className="m-lg"
+          />
+        ) : null}
+        {settings.isError ? (
+          <SectionError
+            title="Could not load settings"
+            message="Try again before changing preferences."
+            onRetry={() => void settings.refetch()}
+            className="m-lg"
+          />
+        ) : null}
       </Section>
 
       <Section title="Notifications">
@@ -176,6 +255,7 @@ export function SettingsScreen() {
           action={
             <Switch
               value={Boolean(userSettings?.dailyFoodLogReminderEnabled)}
+              disabled={settingsLoading}
               onValueChange={(dailyFoodLogReminderEnabled) =>
                 updateSettings.mutate({ dailyFoodLogReminderEnabled })
               }
@@ -186,20 +266,20 @@ export function SettingsScreen() {
         <Row
           icon={<Bell size={22} color={colors.dark} />}
           title="Reminder time"
-          subtitle={formatTime(userSettings?.dailyFoodLogReminderTime)}
+          subtitle={
+            settingsLoading ? (
+              <SkeletonText size="caption" className="mt-xxs w-1/3" />
+            ) : (
+              formatTime(userSettings.dailyFoodLogReminderTime)
+            )
+          }
           action={
             <View className="flex-row items-center gap-xs">
               <Text color="muted">Change</Text>
               <CaretRight size={18} color={colors.gray[500]} />
             </View>
           }
-          onPress={() =>
-            updateSettings.mutate({
-              dailyFoodLogReminderTime: nextReminderTime(
-                userSettings?.dailyFoodLogReminderTime ?? "08:00"
-              ),
-            })
-          }
+          onPress={settingsLoading ? undefined : () => setEditingTime("dailyFoodLogReminderTime")}
         />
         <Row
           icon={<Clock size={24} color={colors.dark} />}
@@ -207,6 +287,7 @@ export function SettingsScreen() {
           action={
             <Switch
               value={Boolean(userSettings?.weightCheckReminderEnabled)}
+              disabled={settingsLoading}
               onValueChange={(weightCheckReminderEnabled) =>
                 updateSettings.mutate({ weightCheckReminderEnabled })
               }
@@ -217,20 +298,20 @@ export function SettingsScreen() {
         <Row
           icon={<Bell size={22} color={colors.dark} />}
           title="Reminder time"
-          subtitle={`Weekly, Friday ${formatTime(userSettings?.weightCheckReminderTime)}`}
+          subtitle={
+            settingsLoading ? (
+              <SkeletonText size="caption" className="mt-xxs w-1/2" />
+            ) : (
+              `Weekly, Friday ${formatTime(userSettings.weightCheckReminderTime)}`
+            )
+          }
           action={
             <View className="flex-row items-center gap-xs">
               <Text color="muted">Change</Text>
               <CaretRight size={18} color={colors.gray[500]} />
             </View>
           }
-          onPress={() =>
-            updateSettings.mutate({
-              weightCheckReminderTime: nextReminderTime(
-                userSettings?.weightCheckReminderTime ?? "09:00"
-              ),
-            })
-          }
+          onPress={settingsLoading ? undefined : () => setEditingTime("weightCheckReminderTime")}
         />
         <Row
           icon={<Clock size={24} color={colors.dark} />}
@@ -238,6 +319,7 @@ export function SettingsScreen() {
           action={
             <Switch
               value={Boolean(userSettings?.hydrationReminderEnabled)}
+              disabled={settingsLoading}
               onValueChange={(hydrationReminderEnabled) =>
                 updateSettings.mutate({ hydrationReminderEnabled })
               }
@@ -248,7 +330,13 @@ export function SettingsScreen() {
         <Row
           icon={<Bell size={22} color={colors.dark} />}
           title="Reminder time"
-          subtitle={`Every ${userSettings?.hydrationReminderIntervalMinutes ?? 40} mins`}
+          subtitle={
+            settingsLoading ? (
+              <SkeletonText size="caption" className="mt-xxs w-1/2" />
+            ) : (
+              `Every ${userSettings.hydrationReminderIntervalMinutes ?? 40} mins`
+            )
+          }
           action={
             <View className="flex-row items-center gap-xs">
               <Text color="muted">Change</Text>
@@ -269,7 +357,13 @@ export function SettingsScreen() {
         <Row
           icon={<Ticket size={23} color={colors.dark} />}
           title={subscriptionTitle(sub?.plan)}
-          subtitle={subscriptionSubtitle}
+          subtitle={
+            subscription.isLoading ? (
+              <SkeletonText size="caption" className="mt-xxs w-1/2" />
+            ) : (
+              subscriptionSubtitle
+            )
+          }
           action={
             <Text color={sub?.entitlement === "premium" ? "success" : "primary"}>
               {sub?.entitlement === "premium" ? "Active" : "Plans"}
@@ -277,6 +371,14 @@ export function SettingsScreen() {
           }
           onPress={() => router.push("/(app)/settings/subscription")}
         />
+        {subscription.isError ? (
+          <SectionError
+            title="Could not load subscription"
+            message="Plans are still available, but current access may be stale."
+            onRetry={() => void subscription.refetch()}
+            className="m-lg"
+          />
+        ) : null}
         {sub?.entitlement === "premium" && sub.priceLabel && renewsAt ? (
           <View className="px-lg py-lg">
             <View className="flex-row items-center justify-between rounded-md bg-primarySoft px-lg py-md">
@@ -297,6 +399,24 @@ export function SettingsScreen() {
           </View>
         ) : null}
       </Section>
+
+      {biometricAvailable ? (
+        <Section title="Security">
+          <Row
+            icon={<FingerprintSimple size={24} color={colors.dark} />}
+            title="Biometric unlock"
+            subtitle="Require Face ID, Touch ID, or your passcode to open Thrivo. Stays on this device."
+            action={
+              <Switch
+                value={biometricEnabled}
+                disabled={biometricBusy}
+                onValueChange={(next) => void onToggleBiometric(next)}
+                trackColor={{ true: colors.primaryBright, false: colors.gray[300] }}
+              />
+            }
+          />
+        </Section>
+      ) : null}
 
       <Section title="Legal">
         <Row
@@ -326,6 +446,15 @@ export function SettingsScreen() {
         onPress={() => logout.mutate()}
         className="bg-primarySoft"
       />
+
+      {editingTime ? (
+        <DateTimePicker
+          mode="time"
+          display="spinner"
+          value={timeToDate(userSettings?.[editingTime])}
+          onChange={onTimePicked}
+        />
+      ) : null}
     </Screen>
   );
 }

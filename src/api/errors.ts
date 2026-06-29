@@ -8,6 +8,7 @@ import { errorEnvelope } from "@/contracts";
 export type ApiErrorCode =
   | "UNAUTHENTICATED"
   | "FORBIDDEN"
+  | "PREMIUM_REQUIRED"
   | "NOT_FOUND"
   | "VALIDATION"
   | "CONFLICT"
@@ -63,6 +64,7 @@ export class ApiError extends Error {
 const KNOWN_BACKEND_CODES = new Set<string>([
   "UNAUTHENTICATED",
   "FORBIDDEN",
+  "PREMIUM_REQUIRED",
   "NOT_FOUND",
   "VALIDATION",
   "CONFLICT",

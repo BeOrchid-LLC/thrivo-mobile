@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { idSchema, isoDateSchema, localDaySchema } from "./common";
 
-export const moodSchema = z.enum(["great", "good", "okay", "low", "bad"]);
+// Values match the backend `mood` enum exactly (the UI labels them, e.g. "Okay").
+export const moodSchema = z.enum(["great", "good", "ok", "low", "bad"]);
 export type Mood = z.infer<typeof moodSchema>;
 
 export const checkinSchema = z.object({

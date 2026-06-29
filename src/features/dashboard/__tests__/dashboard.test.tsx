@@ -1,7 +1,13 @@
 import { fireEvent, render } from "@testing-library/react-native";
 import { router } from "expo-router";
 import Dashboard from "../../../../app/(app)/dashboard";
-import type { DashboardCalories, MacroSummary, MealGroup, StreakSummary, Water } from "@/contracts";
+import type {
+  DashboardCalories,
+  FoodLogEntry,
+  MacroSummary,
+  StreakSummary,
+  Water,
+} from "@/contracts";
 
 const mockUseMe = jest.fn();
 const mockUseDashboardCalories = jest.fn();
@@ -49,28 +55,28 @@ const emptyWater: Water = {
   day: "2026-06-22",
   totalMl: 0,
   targetMl: 2000,
+  remainingMl: 2000,
+  progressPercent: 0,
   glassMl: 250,
   glasses: 0,
   targetGlasses: 8,
+  entries: [],
+  alert: null,
 };
 
-const lunchGroup: MealGroup = {
-  meal: "lunch",
-  label: "Lunch",
-  calories: 120,
-  entries: [
-    {
-      id: "entry-1",
-      foodItemId: "food-1",
-      name: "Greek yogurt",
-      meal: "lunch",
-      day: "2026-06-22",
-      servings: 1,
-      servingUnit: null,
-      nutrients: { calories: 120, proteinG: 18, carbsG: 8, fatG: 2 },
-      loggedAt: "2026-06-22T12:00:00.000Z",
-    },
-  ],
+const loggedEntry: FoodLogEntry = {
+  id: "entry-1",
+  foodItemId: "food-1",
+  name: "Greek yogurt",
+  day: "2026-06-22",
+  servings: 1,
+  servingUnit: null,
+  source: "search",
+  barcode: null,
+  isEstimated: false,
+  nutrients: { calories: 120, proteinG: 18, carbsG: 8, fatG: 2 },
+  consumedAt: "2026-06-22T12:00:00.000Z",
+  loggedAt: "2026-06-22T12:00:00.000Z",
 };
 
 const loadingQuery = {
@@ -104,7 +110,7 @@ describe("Dashboard graceful degradation", () => {
     mockUseDashboardStreak.mockReturnValue(successQuery(emptyStreak));
     mockUseDashboardWater.mockReturnValue(successQuery(emptyWater));
     mockUseDashboardMealLog.mockReturnValue(
-      successQuery({ day: "2026-06-22", groups: [], isEmptyDay: true })
+      successQuery({ day: "2026-06-22", entries: [], isEmptyDay: true })
     );
     mockUseAddWater.mockReturnValue({ mutate: jest.fn(), isPending: false, error: null });
   });
@@ -174,7 +180,7 @@ describe("Dashboard graceful degradation", () => {
 
   it("renders logged meals when the meal-log section has data", () => {
     mockUseDashboardMealLog.mockReturnValue(
-      successQuery({ day: "2026-06-22", groups: [lunchGroup], isEmptyDay: false })
+      successQuery({ day: "2026-06-22", entries: [loggedEntry], isEmptyDay: false })
     );
 
     const screen = render(<Dashboard />);

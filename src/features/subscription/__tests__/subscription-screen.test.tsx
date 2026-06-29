@@ -42,22 +42,25 @@ describe("SubscriptionPlansScreen", () => {
     });
   });
 
-  it("starts a free trial for users who have not used one", () => {
+  it("starts a premium preview for users who have not used one", () => {
     const screen = render(<SubscriptionPlansScreen />);
 
-    fireEvent.press(screen.getByText("Start free trial — $0 today"));
+    expect(
+      screen.getByText("Premium unlocks activity history and trend charts beyond 14 days.")
+    ).toBeTruthy();
+    fireEvent.press(screen.getByText("Start premium preview"));
 
     expect(mockStartTrialMutate).toHaveBeenCalledWith({ plan: "monthly" });
   });
 
-  it("shows subscribe copy for users who already used a trial", () => {
+  it("shows activation copy for users who already used a trial", () => {
     mockUseSubscription.mockReturnValue({
       data: { subscription: { ...baseSubscription, trialUsed: true, status: "expired" } },
       isLoading: false,
     });
     const screen = render(<SubscriptionPlansScreen />);
 
-    fireEvent.press(screen.getByText("Subscribe monthly"));
+    fireEvent.press(screen.getByText("Activate monthly preview"));
 
     expect(mockPurchaseMutate).toHaveBeenCalledWith({ plan: "monthly" });
   });

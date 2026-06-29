@@ -1,6 +1,5 @@
-import { PlaceholderScreen } from "@/components";
+import { LogFoodScreen } from "@/features/food-logging/screens/LogFoodScreen";
 
-/** Barcode/scan + search + confirm (free). */
 export default function Log() {
-  return <PlaceholderScreen title="Log food" subtitle="Scan · search · confirm" />;
+  return <LogFoodScreen />;
 }
