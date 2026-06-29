@@ -1,6 +1,7 @@
 import { Tabs } from "expo-router";
 import type { Icon } from "phosphor-react-native";
 import { ChartLine, ForkKnife, Gear, House } from "phosphor-react-native";
+import { BiometricGate } from "@/features/security";
 import { colors } from "@/theme";
 
 /** Phosphor tab icon, filled when the tab is active (Figma tab bar). */
@@ -25,7 +26,8 @@ const tabIcon = (PhosphorIcon: Icon) => {
  */
 export default function AppLayout() {
   return (
-    <Tabs
+    <BiometricGate>
+      <Tabs
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
@@ -67,6 +69,7 @@ export default function AppLayout() {
       <Tabs.Screen name="foods" options={{ href: null }} />
       <Tabs.Screen name="history" options={{ href: null }} />
       <Tabs.Screen name="checkin" options={{ href: null }} />
-    </Tabs>
+      </Tabs>
+    </BiometricGate>
   );
 }

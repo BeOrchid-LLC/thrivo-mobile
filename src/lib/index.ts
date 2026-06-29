@@ -28,3 +28,4 @@ export {
 export { wireApiSeams } from "./bootstrap";
 export { initOnlineManager } from "./online-manager";
 export { newIdempotencyKey } from "./idempotency";
+export { isBiometricAvailable, authenticateBiometric } from "./biometric";
