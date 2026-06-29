@@ -31,3 +31,12 @@ export {
   invalidateWaterViews,
   invalidateWeightViews,
 } from "./invalidation";
+export {
+  registerOfflineMutations,
+  useOfflineWrite,
+  offlineMutationKeys,
+  type LogFoodVars,
+  type LogEstimateVars,
+  type AddWaterVars,
+  type AddWeightVars,
+} from "./offline-mutations";

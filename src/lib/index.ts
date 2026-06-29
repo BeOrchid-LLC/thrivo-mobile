@@ -26,3 +26,5 @@ export {
   type PurchaseResult,
 } from "./subscription";
 export { wireApiSeams } from "./bootstrap";
+export { initOnlineManager } from "./online-manager";
+export { newIdempotencyKey } from "./idempotency";

@@ -1,14 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { invalidateWeightViews, queryKeys } from "@/api";
+import {
+  invalidateWeightViews,
+  offlineMutationKeys,
+  queryKeys,
+  useOfflineWrite,
+  type AddWeightVars,
+} from "@/api";
 import { localDay } from "@/utils";
 import type { AddWeightPayload, ChartMetric, ChartPeriod } from "@/contracts";
-import {
-  addWeight,
-  deleteWeight,
-  getMetricChart,
-  getProgress,
-  getWeightContext,
-} from "../api/progress.api";
+import { deleteWeight, getMetricChart, getProgress, getWeightContext } from "../api/progress.api";
 
 export function useProgress(day = localDay()) {
   return useQuery({
@@ -35,11 +35,11 @@ export function useWeightContext(day = localDay()) {
 }
 
 export function useAddWeight(day = localDay()) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (payload: AddWeightPayload) => addWeight(payload),
-    onSuccess: () => invalidateProgressQueries(queryClient, day),
-  });
+  // Offline-first: queues + syncs on reconnect, idempotency-keyed.
+  return useOfflineWrite<AddWeightPayload, AddWeightVars>(
+    offlineMutationKeys.addWeight,
+    (payload, idempotencyKey) => ({ payload, day, idempotencyKey })
+  );
 }
 
 export function useDeleteWeight(day = localDay()) {

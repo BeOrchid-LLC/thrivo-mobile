@@ -17,6 +17,9 @@ interface BaseOptions {
   /** Appended as a querystring; null/undefined values are dropped. */
   query?: Record<string, QueryValue>;
   signal?: AbortSignal;
+  /** Sent as the `Idempotency-Key` header so the backend dedupes safe retries
+   *  and offline replays — one row per key. Minted once at enqueue time. */
+  idempotencyKey?: string;
 }
 
 /** Options shape: `payload` is required iff the endpoint declares one. */
@@ -68,6 +71,7 @@ export async function callApi<K extends EndpointKey>(
     const headers: Record<string, string> = { Accept: "application/json" };
     if (options.payload !== undefined) headers["Content-Type"] = "application/json";
     if (config.auth && token) headers.Authorization = `Bearer ${token}`;
+    if (options.idempotencyKey) headers["Idempotency-Key"] = options.idempotencyKey;
     return fetch(url, { method: config.method, headers, body, signal: options.signal });
   };
 
