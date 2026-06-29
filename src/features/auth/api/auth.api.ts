@@ -64,6 +64,14 @@ export const requestOtp = (payload: OtpRequestPayload) =>
 export const verifyOtp = (payload: OtpVerifyPayload) =>
   authPost("/otp/verify", { email: payload.email, code: payload.code }, tokenPairSchema);
 
+/**
+ * Exchange a native Apple identity token for the app's token pair. `name` is only
+ * available on Apple's first authorization; the backend uses it to seed the
+ * profile and ignores it thereafter.
+ */
+export const appleSignIn = (idToken: string, name?: string) =>
+  authPost("/oauth/apple", { identityToken: idToken, name }, tokenPairSchema);
+
 /** Revoke the refresh session server-side. Tolerates an unknown token (204). */
 export const logoutSession = async (refreshToken: string): Promise<void> => {
   try {
