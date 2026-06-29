@@ -28,47 +28,47 @@ export default function AppLayout() {
   return (
     <BiometricGate>
       <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.gray[500],
-      }}
-    >
-      <Tabs.Screen
-        name="dashboard"
-        options={{
-          title: "Dashboard",
-          tabBarIcon: tabIcon(House),
-          tabBarAccessibilityLabel: "Dashboard",
+        screenOptions={{
+          headerShown: false,
+          tabBarActiveTintColor: colors.primary,
+          tabBarInactiveTintColor: colors.gray[500],
         }}
-      />
-      <Tabs.Screen
-        name="log"
-        options={{
-          title: "Log Food",
-          tabBarIcon: tabIcon(ForkKnife),
-          tabBarAccessibilityLabel: "Log food",
-        }}
-      />
-      <Tabs.Screen
-        name="metrics"
-        options={{
-          title: "Progress",
-          tabBarIcon: tabIcon(ChartLine),
-          tabBarAccessibilityLabel: "Progress",
-        }}
-      />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          title: "Settings",
-          tabBarIcon: tabIcon(Gear),
-          tabBarAccessibilityLabel: "Settings",
-        }}
-      />
-      <Tabs.Screen name="foods" options={{ href: null }} />
-      <Tabs.Screen name="history" options={{ href: null }} />
-      <Tabs.Screen name="checkin" options={{ href: null }} />
+      >
+        <Tabs.Screen
+          name="dashboard"
+          options={{
+            title: "Dashboard",
+            tabBarIcon: tabIcon(House),
+            tabBarAccessibilityLabel: "Dashboard",
+          }}
+        />
+        <Tabs.Screen
+          name="log"
+          options={{
+            title: "Log Food",
+            tabBarIcon: tabIcon(ForkKnife),
+            tabBarAccessibilityLabel: "Log food",
+          }}
+        />
+        <Tabs.Screen
+          name="metrics"
+          options={{
+            title: "Progress",
+            tabBarIcon: tabIcon(ChartLine),
+            tabBarAccessibilityLabel: "Progress",
+          }}
+        />
+        <Tabs.Screen
+          name="settings"
+          options={{
+            title: "Settings",
+            tabBarIcon: tabIcon(Gear),
+            tabBarAccessibilityLabel: "Settings",
+          }}
+        />
+        <Tabs.Screen name="foods" options={{ href: null }} />
+        <Tabs.Screen name="history" options={{ href: null }} />
+        <Tabs.Screen name="checkin" options={{ href: null }} />
       </Tabs>
     </BiometricGate>
   );
