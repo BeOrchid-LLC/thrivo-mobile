@@ -45,10 +45,18 @@ function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
   useSessionInit();
   useSessionRefresh();
 
-  // Route notification taps to a usable app screen.
+  // Route notification taps to a usable app screen. The backend sends a stable
+  // screen *key* (e.g. "checkin") so its payload never couples to Expo Router's
+  // internal route paths; we map known keys here and fall back to the dashboard.
   useEffect(() => {
+    const screenRoutes: Record<string, string> = {
+      checkin: "/(app)/checkin",
+      dashboard: "/(app)/dashboard",
+      log: "/(app)/log",
+    };
     return addNotificationResponseListener((data) => {
-      const target = typeof data.screen === "string" ? data.screen : "/(app)/dashboard";
+      const key = typeof data.screen === "string" ? data.screen : "";
+      const target = screenRoutes[key] ?? "/(app)/dashboard";
       router.push(target as Parameters<typeof router.push>[0]);
     });
   }, [router]);

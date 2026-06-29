@@ -35,6 +35,8 @@ export const queryKeys = {
   },
 
   checkins: {
+    all: () => ["checkins"] as const,
+    list: () => ["checkins", "list"] as const,
     byDay: (day: string) => ["checkins", day] as const,
   },
 
