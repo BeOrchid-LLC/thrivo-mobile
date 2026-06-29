@@ -1,15 +1,17 @@
+import { Platform } from "react-native";
 import * as WebBrowser from "expo-web-browser";
 import * as Linking from "expo-linking";
+import * as AppleAuthentication from "expo-apple-authentication";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { QueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/api";
 import { ApiError, isApiError } from "@/api/errors";
 import { env } from "@/config/env";
 import type { OtpRequestPayload, OtpVerifyPayload, User } from "@/contracts";
-import { setTokens, clearTokens, getRefreshToken, analytics } from "@/lib";
+import { setTokens, clearTokens, getRefreshToken, analytics, monitoring } from "@/lib";
 import { getMe } from "@/features/profile";
 import { useSessionActions } from "@/stores";
-import { requestOtp, verifyOtp, logoutSession, googleStartUrl } from "../api/auth.api";
+import { requestOtp, verifyOtp, logoutSession, googleStartUrl, appleSignIn } from "../api/auth.api";
 
 // The OAuth callback redirects here with the issued tokens; openAuthSessionAsync
 // watches for this exact return URL (matches the backend APP_AUTH_REDIRECT_URL).
@@ -38,6 +40,7 @@ async function applyTokens(
       isOnboardingSkipped: user.isOnboardingSkipped,
     });
     analytics.identify(user.id);
+    monitoring.setUser({ id: user.id });
     return user;
   } catch (error) {
     if (isApiError(error) && error.isAuthError) {
@@ -122,21 +125,70 @@ export function useGoogleSignIn() {
 }
 
 /**
- * Apple sign-in is deferred (ADR — Android dev build first). `isConfigured`
- * mirrors the Google pattern so the welcome screen can hide the button
- * entirely rather than showing it as broken.
+ * Native Sign in with Apple (iOS only). Obtains the signed identity token via
+ * `expo-apple-authentication`, posts it to the backend (which verifies it against
+ * Apple's JWKS and provisions/links the account), then funnels the returned token
+ * pair through `applyTokens`. Apple supplies the full name only on first
+ * authorization, so we forward it when present. `isConfigured` is iOS-gated so the
+ * welcome screen hides the button on Android rather than showing it broken.
  */
 export function useAppleSignIn() {
+  const { setSession } = useSessionActions();
+  const queryClient = useQueryClient();
+  const isConfigured = Platform.OS === "ios";
+
   const mutation = useMutation({
     mutationFn: async (): Promise<User> => {
-      throw new ApiError({
-        code: "UNKNOWN",
-        message: "Sign in with Apple is not yet available.",
-        status: 0,
-      });
+      if (!isConfigured) {
+        throw new ApiError({
+          code: "UNKNOWN",
+          message: "Sign in with Apple is only available on iOS.",
+          status: 0,
+        });
+      }
+
+      let credential: AppleAuthentication.AppleAuthenticationCredential;
+      try {
+        credential = await AppleAuthentication.signInAsync({
+          requestedScopes: [
+            AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+            AppleAuthentication.AppleAuthenticationScope.EMAIL,
+          ],
+        });
+      } catch (error) {
+        // The user dismissing the sheet surfaces as a cancel code — not loud.
+        const code = (error as { code?: string })?.code;
+        throw new ApiError({
+          code: "UNKNOWN",
+          message:
+            code === "ERR_REQUEST_CANCELED"
+              ? "Apple sign-in was cancelled."
+              : "Apple sign-in failed. Please try again.",
+          status: 0,
+        });
+      }
+
+      const idToken = credential.identityToken;
+      if (!idToken) {
+        throw new ApiError({
+          code: "UNKNOWN",
+          message: "Apple sign-in did not complete.",
+          status: 0,
+        });
+      }
+
+      // Apple only returns the name on first authorization; omit it otherwise.
+      const fullName = credential.fullName;
+      const name = fullName
+        ? [fullName.givenName, fullName.familyName].filter(Boolean).join(" ").trim() || undefined
+        : undefined;
+
+      const tokens = await appleSignIn(idToken, name);
+      return applyTokens(tokens.accessToken, tokens.refreshToken, setSession, queryClient);
     },
   });
-  return { ...mutation, isConfigured: false };
+
+  return { ...mutation, isConfigured };
 }
 
 /** Sign out: revoke the server session, then clear local token + caches regardless. */
@@ -152,6 +204,7 @@ export function useLogout() {
       await clearTokens();
       clearSession();
       analytics.reset();
+      monitoring.setUser(null);
       queryClient.clear();
     },
   });
