@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Linking, Pressable, Switch, View } from "react-native";
-import DateTimePicker, {
-  type DateTimePickerEvent,
-} from "@react-native-community/datetimepicker";
+import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { router } from "expo-router";
 import {
   Bell,
@@ -281,9 +279,7 @@ export function SettingsScreen() {
               <CaretRight size={18} color={colors.gray[500]} />
             </View>
           }
-          onPress={
-            settingsLoading ? undefined : () => setEditingTime("dailyFoodLogReminderTime")
-          }
+          onPress={settingsLoading ? undefined : () => setEditingTime("dailyFoodLogReminderTime")}
         />
         <Row
           icon={<Clock size={24} color={colors.dark} />}
@@ -315,9 +311,7 @@ export function SettingsScreen() {
               <CaretRight size={18} color={colors.gray[500]} />
             </View>
           }
-          onPress={
-            settingsLoading ? undefined : () => setEditingTime("weightCheckReminderTime")
-          }
+          onPress={settingsLoading ? undefined : () => setEditingTime("weightCheckReminderTime")}
         />
         <Row
           icon={<Clock size={24} color={colors.dark} />}

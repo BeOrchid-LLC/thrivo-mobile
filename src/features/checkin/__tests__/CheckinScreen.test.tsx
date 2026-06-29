@@ -29,7 +29,12 @@ const idleCreate = (mutate: jest.Mock, overrides: Record<string, unknown> = {}) 
 
 beforeEach(() => {
   jest.clearAllMocks();
-  mockUseCheckins.mockReturnValue({ data: [], isLoading: false, isError: false, refetch: jest.fn() });
+  mockUseCheckins.mockReturnValue({
+    data: [],
+    isLoading: false,
+    isError: false,
+    refetch: jest.fn(),
+  });
 });
 
 describe("CheckinScreen", () => {

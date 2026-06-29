@@ -3,7 +3,16 @@ import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Pressable, View } from "react-native";
 import { z } from "zod";
-import { BackButton, Button, FormError, Input, MailIcon, Screen, Text, UserIcon } from "@/components";
+import {
+  BackButton,
+  Button,
+  FormError,
+  Input,
+  MailIcon,
+  Screen,
+  Text,
+  UserIcon,
+} from "@/components";
 import { colors } from "@/theme";
 import { emailSchema } from "@/contracts";
 import { useOnboardingDraftActions } from "@/stores";

@@ -1,15 +1,7 @@
 import { useState } from "react";
 import { Pressable, View } from "react-native";
 import { useRouter } from "expo-router";
-import {
-  Button,
-  Card,
-  Input,
-  Screen,
-  SectionError,
-  SkeletonText,
-  Text,
-} from "@/components";
+import { Button, Card, Input, Screen, SectionError, SkeletonText, Text } from "@/components";
 import { useCurrentDay } from "@/hooks/useCurrentDay";
 import type { Mood } from "@/contracts";
 import { useCheckins, useCreateCheckin } from "../hooks/useCheckin";

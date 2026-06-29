@@ -30,7 +30,10 @@ describe("monitoring (Sentry sink)", () => {
     monitoring.init();
     expect(Sentry.init).toHaveBeenCalledTimes(1);
     expect(Sentry.init).toHaveBeenCalledWith(
-      expect.objectContaining({ dsn: "https://public@o0.ingest.sentry.io/1", sendDefaultPii: false })
+      expect.objectContaining({
+        dsn: "https://public@o0.ingest.sentry.io/1",
+        sendDefaultPii: false,
+      })
     );
   });
 });
