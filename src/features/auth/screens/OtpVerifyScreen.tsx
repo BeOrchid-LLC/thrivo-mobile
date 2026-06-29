@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { Platform, TextInput, View } from "react-native";
-import { BackButton, Button, Screen, Text } from "@/components";
+import { BackButton, Button, FormError, Screen, Text } from "@/components";
 import { colors } from "@/theme";
 import { useRequestOtp, useVerifyOtp } from "../hooks/useAuth";
 
@@ -137,11 +137,7 @@ export function OtpVerifyScreen() {
               </Text>
             ) : null}
 
-            {verify.error ? (
-              <Text variant="caption" color="error" selectable className="text-center">
-                {verify.error.message}
-              </Text>
-            ) : null}
+            <FormError message={verify.error?.message} center />
           </View>
 
           <View className="gap-sm">

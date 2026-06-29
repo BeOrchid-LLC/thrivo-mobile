@@ -14,6 +14,8 @@ export { ErrorState } from "./ErrorState";
 export type { ErrorStateProps } from "./ErrorState";
 export { SectionError } from "./SectionError";
 export type { SectionErrorProps } from "./SectionError";
+export { FormError } from "./FormError";
+export type { FormErrorProps } from "./FormError";
 export { SkeletonBlock, SkeletonText } from "./Skeleton";
 export type { SkeletonBlockProps, SkeletonTextProps } from "./Skeleton";
 export { PlaceholderScreen } from "./PlaceholderScreen";
