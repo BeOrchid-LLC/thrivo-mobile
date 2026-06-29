@@ -12,14 +12,18 @@ import {
 } from "@expo-google-fonts/inter";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
-import { queryClient, persistOptions } from "@/api";
+import { queryClient, persistOptions, registerOfflineMutations } from "@/api";
 import { BrandSplash, ErrorState, Screen } from "@/components";
-import { wireApiSeams, addNotificationResponseListener } from "@/lib";
+import { wireApiSeams, addNotificationResponseListener, initOnlineManager } from "@/lib";
 import { useSessionInit, useSessionRefresh } from "@/hooks";
 import { useAuthStatus, useIsOnboarded, useIsOnboardingSkipped, useSessionActions } from "@/stores";
 
 // Wire the API client's token/unauthenticated seams once, at module load.
 wireApiSeams();
+// Bridge device connectivity into React Query and register the resumable offline
+// writes, so food/water/weight logging works with no network and syncs on reconnect.
+initOnlineManager();
+registerOfflineMutations(queryClient);
 void SplashScreen.preventAutoHideAsync();
 
 /**
@@ -128,7 +132,15 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <PersistQueryClientProvider client={queryClient} persistOptions={persistOptions}>
+        <PersistQueryClientProvider
+          client={queryClient}
+          persistOptions={persistOptions}
+          onSuccess={() => {
+            // Cache restored from disk → flush any offline writes that were
+            // queued before the last app kill.
+            void queryClient.resumePausedMutations();
+          }}
+        >
           <RootNavigator fontsLoaded={fontsLoaded} />
         </PersistQueryClientProvider>
       </SafeAreaProvider>

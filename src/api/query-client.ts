@@ -26,6 +26,10 @@ export const queryClient = new QueryClient({
     },
     mutations: {
       retry: false,
+      // Offline writes fire optimistically and pause (not fail) with no network,
+      // then auto-resume on reconnect. The offline-able writes register their own
+      // resumable defaults (api/offline-mutations).
+      networkMode: "offlineFirst",
     },
   },
 });
@@ -46,5 +50,8 @@ export const persistOptions: Omit<PersistQueryClientOptions, "queryClient"> = {
   dehydrateOptions: {
     // Only persist successful queries.
     shouldDehydrateQuery: (query) => query.state.status === "success",
+    // Persist queued (paused) offline writes so they survive an app kill and
+    // replay on next launch once connectivity returns.
+    shouldDehydrateMutation: (mutation) => mutation.state.isPaused,
   },
 };

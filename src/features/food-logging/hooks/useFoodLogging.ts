@@ -1,10 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { invalidateFoodLogViews, invalidateWaterViews, queryKeys } from "@/api";
+import {
+  invalidateFoodLogViews,
+  invalidateWaterViews,
+  offlineMutationKeys,
+  queryKeys,
+  useOfflineWrite,
+  type AddWaterVars,
+  type LogEstimateVars,
+  type LogFoodVars,
+} from "@/api";
 import { localDay } from "@/utils";
 import type { EstimateFoodPayload, LogEstimatePayload, LogFoodPayload } from "@/contracts";
 import {
   addFavorite,
-  addWater,
   deleteFoodLog,
   deleteWater,
   estimateFood,
@@ -12,8 +20,6 @@ import {
   getFoodLogDay,
   getRecentFoods,
   getWater,
-  logEstimate,
-  logFood,
   lookupFood,
   removeFavorite,
   searchFoods,
@@ -75,19 +81,18 @@ export function useEstimateFood() {
 }
 
 export function useLogFood() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (payload: LogFoodPayload) => logFood(payload),
-    onSuccess: (_data, payload) => invalidateFoodLogViews(queryClient, payload.day),
-  });
+  // Offline-first: queues + syncs on reconnect, idempotency-keyed (see api/offline-mutations).
+  return useOfflineWrite<LogFoodPayload, LogFoodVars>(
+    offlineMutationKeys.logFood,
+    (payload, idempotencyKey) => ({ payload, idempotencyKey })
+  );
 }
 
 export function useLogEstimate() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (payload: LogEstimatePayload) => logEstimate(payload),
-    onSuccess: (_data, payload) => invalidateFoodLogViews(queryClient, payload.day),
-  });
+  return useOfflineWrite<LogEstimatePayload, LogEstimateVars>(
+    offlineMutationKeys.logEstimate,
+    (payload, idempotencyKey) => ({ payload, idempotencyKey })
+  );
 }
 
 export function useUpdateFoodLog() {
@@ -128,13 +133,11 @@ export function useRemoveFavorite() {
 }
 
 export function useAddWaterLog(day = localDay()) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (amountMl: number) => addWater(amountMl, day),
-    onSuccess: () => {
-      invalidateWaterViews(queryClient, day);
-    },
-  });
+  // Offline-first with an optimistic day-total bump (see api/offline-mutations).
+  return useOfflineWrite<number, AddWaterVars>(
+    offlineMutationKeys.addWater,
+    (amountMl, idempotencyKey) => ({ amountMl, day, idempotencyKey })
+  );
 }
 
 export function useDeleteWaterLog(day = localDay()) {

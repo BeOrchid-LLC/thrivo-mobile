@@ -10,6 +10,7 @@ export const getMetricChart = (metric: ChartMetric, period: ChartPeriod, day = l
 export const getWeightContext = (day = localDay()) =>
   callApi("WEIGHT_CONTEXT", { query: { date: day } });
 
-export const addWeight = (payload: AddWeightPayload) => callApi("WEIGHT_ADD", { payload });
+export const addWeight = (payload: AddWeightPayload, idempotencyKey?: string) =>
+  callApi("WEIGHT_ADD", { payload, idempotencyKey });
 
 export const deleteWeight = (id: string) => callApi("WEIGHT_DELETE", { params: { id } });

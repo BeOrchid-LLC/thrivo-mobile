@@ -21,7 +21,8 @@ export const createFood = (payload: UpsertFoodPayload) => callApi("FOOD_CREATE",
 export const updateFood = (id: string, payload: UpsertFoodPayload) =>
   callApi("FOOD_UPDATE", { params: { id }, payload });
 
-export const logFood = (payload: LogFoodPayload) => callApi("FOOD_LOG", { payload });
+export const logFood = (payload: LogFoodPayload, idempotencyKey?: string) =>
+  callApi("FOOD_LOG", { payload, idempotencyKey });
 
 export const updateFoodLog = (id: string, payload: UpdateLogPayload) =>
   callApi("FOOD_LOG_UPDATE", { params: { id }, payload });
@@ -42,12 +43,12 @@ export const removeFavorite = (id: string) => callApi("FOOD_FAVORITE_REMOVE", { 
 
 export const estimateFood = (payload: EstimateFoodPayload) => callApi("FOOD_ESTIMATE", { payload });
 
-export const logEstimate = (payload: LogEstimatePayload) =>
-  callApi("FOOD_LOG_ESTIMATE", { payload });
+export const logEstimate = (payload: LogEstimatePayload, idempotencyKey?: string) =>
+  callApi("FOOD_LOG_ESTIMATE", { payload, idempotencyKey });
 
 export const getWater = (day = localDay()) => callApi("WATER_GET", { query: { date: day } });
 
-export const addWater = (amountMl: number, day = localDay()) =>
-  callApi("WATER_ADD", { payload: { day, amountMl } satisfies AddWaterPayload });
+export const addWater = (amountMl: number, day = localDay(), idempotencyKey?: string) =>
+  callApi("WATER_ADD", { payload: { day, amountMl } satisfies AddWaterPayload, idempotencyKey });
 
 export const deleteWater = (id: string) => callApi("WATER_DELETE", { params: { id } });
