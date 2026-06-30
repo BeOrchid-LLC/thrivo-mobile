@@ -30,25 +30,11 @@ export interface EndpointConfig {
 
 export const ENDPOINTS = {
   // --- Auth (public) ---
-  PASSWORD_SIGNUP: {
-    path: "/auth/password/signup",
-    method: "POST",
-    auth: false,
-    payload: c.signUpPayload,
-    response: c.authSessionSchema,
-  },
-  PASSWORD_SIGNIN: {
-    path: "/auth/password/signin",
-    method: "POST",
-    auth: false,
-    payload: c.signInPayload,
-    response: c.authSessionSchema,
-  },
   OAUTH_APPLE: {
     path: "/auth/oauth/apple",
     method: "POST",
     auth: false,
-    payload: c.oauthPayload,
+    payload: c.appleSignInPayloadSchema,
     response: c.authSessionSchema,
   },
   OTP_REQUEST: {
