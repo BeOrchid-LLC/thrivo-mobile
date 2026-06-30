@@ -21,7 +21,7 @@
     "checks": "npm run typecheck && npm run lint && npm run format:check"
   },
   "dependencies": {
-    "@beorchid-llc/thrivo-contracts": "^0.8.0",
+    "@beorchid-llc/thrivo-contracts": "^0.9.0",
     "@expo-google-fonts/inter": "^0.4.2",
     "@expo/vector-icons": "^15.0.3",
     "@hookform/resolvers": "^3.9.0",
