@@ -6,10 +6,13 @@ module.exports = {
   testTimeout: 30000,
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
-    "^@beorchid-llc/thrivo-contracts/users$":
-      "<rootDir>/node_modules/@beorchid-llc/thrivo-contracts/dist/users.js",
-    "^@beorchid-llc/thrivo-contracts/auth$":
-      "<rootDir>/node_modules/@beorchid-llc/thrivo-contracts/dist/auth.js",
+    // The package's `exports` map only declares the `import` condition, which Jest's
+    // CJS resolver skips — map the root barrel and every subpath to the built files.
+    // (The package is in the transform allowlist below, so its ESM is transpiled.)
+    "^@beorchid-llc/thrivo-contracts$":
+      "<rootDir>/node_modules/@beorchid-llc/thrivo-contracts/dist/index.js",
+    "^@beorchid-llc/thrivo-contracts/(.*)$":
+      "<rootDir>/node_modules/@beorchid-llc/thrivo-contracts/dist/$1.js",
   },
   // Transform RN / Expo ESM packages that ship untranspiled.
   transformIgnorePatterns: [
