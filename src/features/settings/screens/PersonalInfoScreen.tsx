@@ -1,11 +1,28 @@
 import { useEffect, useState } from "react";
-import { Pressable, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, View } from "react-native";
 import { router } from "expo-router";
-import { CaretDown } from "phosphor-react-native";
+import { Image } from "expo-image";
+import { CaretDown, Camera } from "phosphor-react-native";
 import { BackButton, Button, Input, Screen, Text } from "@/components";
 import type { Goal, Sex, UpdateProfilePayload } from "@/contracts";
-import { useMe, useUpdateProfile } from "@/features/profile";
+import {
+  FileTooLargeError,
+  formatBytes,
+  useAvatarUpload,
+  useMe,
+  useUpdateProfile,
+} from "@/features/profile";
 import { colors } from "@/theme";
+
+function initialsFrom(name: string): string {
+  return name
+    .split(/\s+/)
+    .map((part) => part[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+}
 
 const GOAL_LABELS: Record<Goal, string> = {
   lose: "Lose weight",
@@ -41,7 +58,27 @@ function parsePositive(value: string): number | undefined {
 export function PersonalInfoScreen() {
   const profile = useMe();
   const updateProfile = useUpdateProfile();
+  const avatarUpload = useAvatarUpload();
   const user = profile.data;
+
+  const changeAvatar = () => {
+    avatarUpload.mutate(undefined, {
+      onError: (error) => {
+        if (error instanceof FileTooLargeError) {
+          Alert.alert(
+            "Photo too large",
+            `Please choose an image under ${formatBytes(error.maxBytes)}.`
+          );
+          return;
+        }
+        if (error instanceof Error && error.message === "PERMISSION_DENIED") {
+          Alert.alert("Photo access needed", "Allow photo access to set a profile picture.");
+          return;
+        }
+        Alert.alert("Upload failed", "We couldn't update your photo. Please try again.");
+      },
+    });
+  };
 
   const [fullName, setFullName] = useState("");
   const [goal, setGoal] = useState<Goal>("lose");
@@ -84,6 +121,43 @@ export function PersonalInfoScreen() {
       <Text color="muted" className="text-[16px]">
         Edit your details and save changes
       </Text>
+
+      <View className="items-center gap-xs">
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Change profile photo"
+          onPress={changeAvatar}
+          disabled={avatarUpload.isPending}
+          className="h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-light"
+        >
+          {avatarUpload.isPending ? (
+            <ActivityIndicator color={colors.gray[500]} />
+          ) : user?.image ? (
+            <Image
+              source={{ uri: user.image }}
+              style={{ width: 96, height: 96 }}
+              contentFit="cover"
+              transition={150}
+            />
+          ) : initialsFrom(user?.name ?? "") ? (
+            <Text variant="heading2" color="muted">
+              {initialsFrom(user?.name ?? "")}
+            </Text>
+          ) : (
+            <Camera size={28} color={colors.gray[500]} />
+          )}
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          onPress={changeAvatar}
+          disabled={avatarUpload.isPending}
+          hitSlop={8}
+        >
+          <Text color="muted" className="text-[14px]">
+            Change photo
+          </Text>
+        </Pressable>
+      </View>
 
       <Input label="Full name" value={fullName} onChangeText={setFullName} />
       <Input label="Email" value={user?.email ?? ""} editable={false} />
