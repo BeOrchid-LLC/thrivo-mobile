@@ -50,6 +50,12 @@
           "cameraPermission": "Allow Thrivo to use your camera to scan and log foods."
         }
       ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Thrivo to access your photos to set a profile picture."
+        }
+      ],
       "expo-apple-authentication",
       [
         "expo-notifications",

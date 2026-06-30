@@ -9,6 +9,7 @@ const mockUpdateSettingsMutate = jest.fn();
 const mockUseSubscription = jest.fn();
 const mockLogoutMutate = jest.fn();
 const mockUpdateProfileMutate = jest.fn();
+const mockAvatarUploadMutate = jest.fn();
 
 jest.mock("expo-router", () => ({
   router: { back: jest.fn(), push: jest.fn() },
@@ -20,6 +21,12 @@ jest.mock("@/features/profile", () => ({
     mutate: mockUpdateProfileMutate,
     isPending: false,
   }),
+  useAvatarUpload: () => ({
+    mutate: mockAvatarUploadMutate,
+    isPending: false,
+  }),
+  FileTooLargeError: class FileTooLargeError extends Error {},
+  formatBytes: (bytes: number) => `${bytes} B`,
 }));
 
 jest.mock("@/features/subscription", () => ({
