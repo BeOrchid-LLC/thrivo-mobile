@@ -38,6 +38,7 @@ export const userSchema = z.object({
   id: idSchema,
   email: z.string().email(),
   name: z.string(),
+  image: z.string().url().nullable(),
   goal: goalSchema.nullable(),
   sex: sexSchema.nullable(),
   age: z.number().int().nullable(),
@@ -66,6 +67,8 @@ export type User = z.infer<typeof userSchema>;
 /** Onboarding profile submission; server recomputes TDEE/targets. */
 export const updateProfilePayload = z.object({
   firstName: z.string().min(1).optional(),
+  /** Avatar URL — a verified R2 public URL, or null to clear. Sendable on its own. */
+  image: z.string().url().nullable().optional(),
   goal: goalSchema.optional(),
   currentWeightKg: z.number().positive().optional(),
   targetWeightKg: z.number().positive().optional(),

@@ -9,6 +9,7 @@
 export * from "./common";
 export * from "./auth";
 export * from "./user";
+export * from "./upload";
 export * from "./foods";
 export * from "./dashboard";
 export * from "./metrics";

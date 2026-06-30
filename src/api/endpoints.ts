@@ -115,6 +115,21 @@ export const ENDPOINTS = {
     response: c.userSettingsSchema,
   },
 
+  // --- Uploads (presigned direct-to-R2) ---
+  UPLOAD_PRESIGNED_URL: {
+    path: "/uploads/presigned-url",
+    method: "POST",
+    auth: true,
+    payload: c.requestUploadPayload,
+    response: c.requestUploadResult,
+  },
+  UPLOAD_VERIFY: {
+    path: "/uploads/:id/verify",
+    method: "POST",
+    auth: true,
+    response: c.verifyUploadResult,
+  },
+
   // --- Foods (free tier) ---
   FOOD_LOOKUP: {
     path: "/foods/lookup",
