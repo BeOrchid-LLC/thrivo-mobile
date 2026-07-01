@@ -21,7 +21,6 @@ export type { SkeletonBlockProps, SkeletonTextProps } from "./Skeleton";
 export { PlaceholderScreen } from "./PlaceholderScreen";
 export type { PlaceholderScreenProps } from "./PlaceholderScreen";
 export { BrandSplash } from "./BrandSplash";
-export type { BrandSplashProps } from "./BrandSplash";
 export { ThrivoMark } from "./ThrivoMark";
 export type { ThrivoMarkProps } from "./ThrivoMark";
 export { BackButton } from "./BackButton";
