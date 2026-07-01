@@ -39,7 +39,7 @@
         {
           "backgroundColor": "#F4F6F9",
           "image": "./src/assets/logo.png",
-          "imageWidth": 160,
+          "imageWidth": 96,
           "resizeMode": "contain"
         }
       ],
