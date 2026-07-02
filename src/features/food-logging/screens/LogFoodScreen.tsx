@@ -91,7 +91,7 @@ export function LogFoodScreen() {
     <Screen
       scroll
       edges={["top", "left", "right"]}
-      style={{ gap: 24, paddingBottom: 16 }}
+      style={{ gap: 24, paddingTop: 32, paddingBottom: 16 }}
       refreshing={refreshing}
       onRefresh={refresh}
     >
