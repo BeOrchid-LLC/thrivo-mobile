@@ -46,6 +46,11 @@ export function OtpVerifyScreen() {
   }, [normalizedEmail]);
 
   useEffect(() => {
+    const timer = setTimeout(() => inputs.current[0]?.focus(), 0);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
     if (code.length !== 6 || verify.isPending || submittedCode.current === code) return;
     submittedCode.current = code;
     verify.mutate(
@@ -89,72 +94,71 @@ export function OtpVerifyScreen() {
   };
 
   return (
-    <Screen backgroundColor={colors.white}>
-      <View className="flex-1">
+    <Screen scroll backgroundColor={colors.white} style={{ flexGrow: 1 }}>
+      <View className="gap-xl pt-xl">
         <BackButton onPress={() => router.replace(differentEmailTarget)} />
-        <View className="flex-1 justify-center gap-xl">
-          <View className="gap-sm">
-            <Text variant="heading2" color="dark" className="text-center tracking-[-0.5px]">
-              Enter your code
+
+        <View className="gap-sm">
+          <Text variant="heading2" color="dark" className="text-center tracking-[-0.5px]">
+            Enter your code
+          </Text>
+          <Text variant="body" color="muted" selectable className="text-center">
+            We sent a 6-digit code to {normalizedEmail}.
+          </Text>
+        </View>
+
+        <View className="gap-md">
+          <View className="flex-row justify-center gap-sm">
+            {boxes.map((digit, index) => (
+              <TextInput
+                key={index}
+                ref={(node) => {
+                  inputs.current[index] = node;
+                }}
+                accessibilityLabel={`Digit ${index + 1}`}
+                autoFocus={index === 0}
+                keyboardType="number-pad"
+                textContentType="oneTimeCode"
+                maxLength={index === 0 ? 6 : 1}
+                value={digit}
+                editable={!verify.isPending}
+                onChangeText={(value) => onChangeAt(index, value)}
+                onKeyPress={({ nativeEvent }) => {
+                  if (nativeEvent.key === "Backspace" && !boxes[index] && index > 0) {
+                    inputs.current[index - 1]?.focus();
+                  }
+                }}
+                className={`h-[54px] w-[46px] rounded-md border bg-white text-center font-semibold text-[22px] text-dark ${
+                  verify.error ? "border-error" : digit ? "border-primary" : "border-gray-300"
+                }`}
+                style={{ borderCurve: "continuous", fontVariant: ["tabular-nums"] }}
+              />
+            ))}
+          </View>
+
+          {verify.isPending ? (
+            <Text variant="caption" color="muted" className="text-center">
+              Verifying...
             </Text>
-            <Text variant="body" color="muted" selectable className="text-center">
-              We sent a 6-digit code to {normalizedEmail}.
-            </Text>
-          </View>
+          ) : null}
 
-          <View className="gap-md">
-            <View className="flex-row justify-center gap-sm">
-              {boxes.map((digit, index) => (
-                <TextInput
-                  key={index}
-                  ref={(node) => {
-                    inputs.current[index] = node;
-                  }}
-                  accessibilityLabel={`Digit ${index + 1}`}
-                  autoFocus={index === 0}
-                  keyboardType="number-pad"
-                  textContentType="oneTimeCode"
-                  maxLength={index === 0 ? 6 : 1}
-                  value={digit}
-                  editable={!verify.isPending}
-                  onChangeText={(value) => onChangeAt(index, value)}
-                  onKeyPress={({ nativeEvent }) => {
-                    if (nativeEvent.key === "Backspace" && !boxes[index] && index > 0) {
-                      inputs.current[index - 1]?.focus();
-                    }
-                  }}
-                  className={`h-[54px] w-[46px] rounded-md border bg-white text-center font-semibold text-[22px] text-dark ${
-                    verify.error ? "border-error" : digit ? "border-primary" : "border-gray-300"
-                  }`}
-                  style={{ borderCurve: "continuous", fontVariant: ["tabular-nums"] }}
-                />
-              ))}
-            </View>
+          <FormError message={verify.error?.message} center />
+        </View>
 
-            {verify.isPending ? (
-              <Text variant="caption" color="muted" className="text-center">
-                Verifying...
-              </Text>
-            ) : null}
-
-            <FormError message={verify.error?.message} center />
-          </View>
-
-          <View className="gap-sm">
-            <Button
-              label={countdown > 0 ? `Resend in ${countdown}s` : "Resend code"}
-              variant="outline"
-              disabled={countdown > 0}
-              loading={request.isPending}
-              onPress={onResend}
-            />
-            <Button
-              label="Use a different email"
-              variant="ghost"
-              disabled={verify.isPending}
-              onPress={() => router.replace(differentEmailTarget)}
-            />
-          </View>
+        <View className="gap-sm">
+          <Button
+            label={countdown > 0 ? `Resend in ${countdown}s` : "Resend code"}
+            variant="outline"
+            disabled={countdown > 0}
+            loading={request.isPending}
+            onPress={onResend}
+          />
+          <Button
+            label="Use a different email"
+            variant="ghost"
+            disabled={verify.isPending}
+            onPress={() => router.replace(differentEmailTarget)}
+          />
         </View>
       </View>
     </Screen>

@@ -54,6 +54,12 @@ describe("OtpVerifyScreen", () => {
     );
   });
 
+  it("marks the first OTP input for initial focus", () => {
+    const screen = render(<OtpVerifyScreen />);
+
+    expect(screen.getByLabelText("Digit 1").props.autoFocus).toBe(true);
+  });
+
   it("shows verify errors from invalid or rate-limited codes", () => {
     mockVerifyError = new Error("Too many failed attempts — try again in 30 seconds.");
 
