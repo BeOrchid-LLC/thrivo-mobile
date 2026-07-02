@@ -30,7 +30,7 @@ export default function Dashboard() {
     <Screen
       scroll
       edges={["top", "left", "right"]}
-      style={{ paddingBottom: 16 }}
+      style={{ paddingTop: 32, paddingBottom: 16 }}
       refreshing={refreshing}
       onRefresh={refresh}
     >

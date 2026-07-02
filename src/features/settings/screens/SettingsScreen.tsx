@@ -199,7 +199,7 @@ export function SettingsScreen() {
       scroll
       edges={["top", "left", "right"]}
       backgroundColor={colors.white}
-      style={{ gap: 26, paddingBottom: 32 }}
+      style={{ gap: 26, paddingTop: 32, paddingBottom: 32 }}
       refreshing={refreshing}
       onRefresh={refresh}
     >
