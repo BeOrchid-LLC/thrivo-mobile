@@ -3,7 +3,7 @@ import { ActivityIndicator, Alert, Pressable, View } from "react-native";
 import { router } from "expo-router";
 import { Image } from "expo-image";
 import { CaretDown, Camera } from "phosphor-react-native";
-import { BackButton, Button, Input, Screen, Text } from "@/components";
+import { BackButton, Button, Input, Screen, SelectSheet, Text } from "@/components";
 import type { Goal, Sex, UpdateProfilePayload } from "@/contracts";
 import {
   FileTooLargeError,
@@ -31,6 +31,7 @@ const GOAL_LABELS: Record<Goal, string> = {
 };
 
 const GOAL_ORDER: Goal[] = ["lose", "maintain", "gain"];
+const GOAL_OPTIONS = GOAL_ORDER.map((value) => ({ label: GOAL_LABELS[value], value }));
 
 const SEX_LABELS: Record<Sex, string> = {
   female: "Female",
@@ -39,12 +40,7 @@ const SEX_LABELS: Record<Sex, string> = {
 };
 
 const SEX_ORDER: Sex[] = ["female", "male", "prefer_not_to_say"];
-
-function nextValue<T extends string>(values: T[], value: T | null | undefined, fallback: T): T {
-  const current = value ?? fallback;
-  const index = values.indexOf(current);
-  return values[(index + 1) % values.length] ?? fallback;
-}
+const SEX_OPTIONS = SEX_ORDER.map((value) => ({ label: SEX_LABELS[value], value }));
 
 function numberText(value: string | null | undefined) {
   return value ? String(Number.parseFloat(value)) : "";
@@ -86,6 +82,7 @@ export function PersonalInfoScreen() {
   const [targetWeight, setTargetWeight] = useState("");
   const [height, setHeight] = useState("");
   const [sex, setSex] = useState<Sex>("female");
+  const [editingSelect, setEditingSelect] = useState<"goal" | "sex" | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -164,7 +161,8 @@ export function PersonalInfoScreen() {
 
       <Pressable
         accessibilityRole="button"
-        onPress={() => setGoal((value) => nextValue(GOAL_ORDER, value, "lose"))}
+        accessibilityLabel="Select goal"
+        onPress={() => setEditingSelect("goal")}
         className="gap-xs"
       >
         <Text variant="caption" color="muted" className="ml-xs">
@@ -200,7 +198,8 @@ export function PersonalInfoScreen() {
 
       <Pressable
         accessibilityRole="button"
-        onPress={() => setSex((value) => nextValue(SEX_ORDER, value, "female"))}
+        accessibilityLabel="Select sex"
+        onPress={() => setEditingSelect("sex")}
         className="gap-xs"
       >
         <Text variant="caption" color="muted" className="ml-xs">
@@ -213,6 +212,23 @@ export function PersonalInfoScreen() {
 
       <View className="flex-1" />
       <Button label="Save changes" loading={updateProfile.isPending} onPress={save} />
+
+      <SelectSheet
+        title="Goal"
+        options={GOAL_OPTIONS}
+        value={goal}
+        visible={editingSelect === "goal"}
+        onChange={setGoal}
+        onClose={() => setEditingSelect(null)}
+      />
+      <SelectSheet
+        title="Sex"
+        options={SEX_OPTIONS}
+        value={sex}
+        visible={editingSelect === "sex"}
+        onChange={setSex}
+        onClose={() => setEditingSelect(null)}
+      />
     </Screen>
   );
 }
