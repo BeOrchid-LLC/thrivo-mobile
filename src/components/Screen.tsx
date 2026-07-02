@@ -1,5 +1,11 @@
 import type { ReactNode } from "react";
-import { ScrollView, View, type ViewStyle } from "react-native";
+import {
+  RefreshControl,
+  ScrollView,
+  View,
+  type RefreshControlProps,
+  type ViewStyle,
+} from "react-native";
 import { SafeAreaView, type Edge } from "react-native-safe-area-context";
 import { colors, spacing } from "@/theme";
 
@@ -13,6 +19,9 @@ export interface ScreenProps {
   padded?: boolean;
   style?: ViewStyle;
   backgroundColor?: string;
+  refreshing?: boolean;
+  onRefresh?: () => void;
+  refreshControlProps?: Partial<RefreshControlProps>;
 }
 
 /**
@@ -27,7 +36,10 @@ export function Screen({
   edges = ["top", "bottom", "left", "right"],
   padded = true,
   style,
-  backgroundColor = colors.light,
+  backgroundColor = colors.white,
+  refreshing,
+  onRefresh,
+  refreshControlProps,
 }: ScreenProps) {
   const padding: ViewStyle | undefined = padded
     ? { paddingHorizontal: spacing.lg, paddingVertical: spacing.lg }
@@ -36,7 +48,22 @@ export function Screen({
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor }} edges={edges}>
       {scroll ? (
-        <ScrollView contentContainerStyle={[padding, style]} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          contentContainerStyle={[padding, style]}
+          keyboardShouldPersistTaps="handled"
+          contentInsetAdjustmentBehavior="automatic"
+          refreshControl={
+            onRefresh ? (
+              <RefreshControl
+                refreshing={Boolean(refreshing)}
+                onRefresh={onRefresh}
+                tintColor={colors.primary}
+                colors={[colors.primary]}
+                {...refreshControlProps}
+              />
+            ) : undefined
+          }
+        >
           {children}
         </ScrollView>
       ) : (

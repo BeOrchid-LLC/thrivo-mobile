@@ -8,10 +8,12 @@ import {
   type PressableProps,
   type ViewStyle,
 } from "react-native";
+import type { ReactNode } from "react";
 import { colors } from "@/theme";
 
 interface FigmaAuthRowProps extends Omit<PressableProps, "children" | "style"> {
-  icon: ImageSourcePropType;
+  icon?: ImageSourcePropType;
+  iconElement?: ReactNode;
   iconSize?: number;
   label: string;
   loading?: boolean;
@@ -20,6 +22,7 @@ interface FigmaAuthRowProps extends Omit<PressableProps, "children" | "style"> {
 
 export function FigmaAuthRow({
   icon,
+  iconElement,
   iconSize = 22,
   label,
   loading = false,
@@ -46,12 +49,15 @@ export function FigmaAuthRow({
         <ActivityIndicator color={colors.primary} />
       ) : (
         <View className="flex-row items-center justify-center gap-sm">
-          <Image
-            source={icon}
-            accessibilityIgnoresInvertColors
-            resizeMode="contain"
-            style={{ width: iconSize, height: iconSize }}
-          />
+          {iconElement ??
+            (icon ? (
+              <Image
+                source={icon}
+                accessibilityIgnoresInvertColors
+                resizeMode="contain"
+                style={{ width: iconSize, height: iconSize }}
+              />
+            ) : null)}
           <Text className="text-center font-medium text-[16px] leading-[24px] text-dark">
             {label}
           </Text>

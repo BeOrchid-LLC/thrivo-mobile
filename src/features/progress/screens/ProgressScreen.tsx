@@ -3,6 +3,7 @@ import { Pressable, TextInput, View } from "react-native";
 import Svg, { Circle, Line, Path, Polyline } from "react-native-svg";
 import { ArrowLeft, Minus, Plus, TrendDown, Warning } from "phosphor-react-native";
 import { router } from "expo-router";
+import { queryClient, queryKeys } from "@/api";
 import {
   Button,
   Card,
@@ -16,8 +17,15 @@ import {
 import { isApiError } from "@/api/errors";
 import { useCurrentDay } from "@/hooks/useCurrentDay";
 import { colors } from "@/theme";
-import { kgToLb, lbToKg, roundTo } from "@/utils";
+import {
+  formatWeight,
+  roundTo,
+  weightFromKg,
+  weightToKg,
+  weightUnitFor,
+} from "@/utils";
 import type { ChartMetric, ChartPeriod, ChartPoint, ProgressResponse } from "@/contracts";
+import { useSettings } from "@/features/settings";
 import { useAddWeight, useMetricChart, useProgress, useWeightContext } from "../hooks/useProgress";
 
 const metricOptions = [
@@ -53,19 +61,35 @@ export function ProgressScreen() {
 function ProgressHome({ day, onLogWeight }: { day: string; onLogWeight: () => void }) {
   const [metric, setMetric] = useState<ChartMetric>("weight");
   const [period, setPeriod] = useState<ChartPeriod>("7d");
+  const [refreshing, setRefreshing] = useState(false);
   const progress = useProgress(day);
   const chart = useMetricChart(metric, period, day);
+  const settings = useSettings();
+  const unitSystem = settings.data?.unitSystem ?? "metric";
   const premiumRequired =
     chart.isError && isApiError(chart.error) && chart.error.code === "PREMIUM_REQUIRED";
   const data = progress.data?.progress;
+  const refresh = () => {
+    setRefreshing(true);
+    void Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.metrics.progress(day) }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.metrics.chart(metric, period, day) }),
+    ]).finally(() => setRefreshing(false));
+  };
 
   return (
-    <Screen scroll style={{ gap: 24 }}>
+    <Screen
+      scroll
+      edges={["top", "left", "right"]}
+      style={{ gap: 24, paddingTop: 32, paddingBottom: 16 }}
+      refreshing={refreshing}
+      onRefresh={refresh}
+    >
       <Text variant="heading2" color="dark">
         Progress
       </Text>
       {data ? (
-        <SummaryCards data={data} />
+        <SummaryCards data={data} unitSystem={unitSystem} />
       ) : progress.isLoading ? (
         <SummarySkeleton />
       ) : progress.isError ? (
@@ -134,7 +158,7 @@ function ProgressHome({ day, onLogWeight }: { day: string; onLogWeight: () => vo
             <Text color="muted">
               {data.projection.weeklyRateKg === null
                 ? "Not enough data"
-                : `${formatSignedWeightRate(data.projection.weeklyRateKg)} / week`}
+                : `${formatWeight(data.projection.weeklyRateKg, unitSystem, { signed: true })} / week`}
             </Text>
           </View>
         ) : (
@@ -143,7 +167,15 @@ function ProgressHome({ day, onLogWeight }: { day: string; onLogWeight: () => vo
       </View>
 
       <Button label="Log this week’s weight" onPress={onLogWeight} />
-      {data ? <StreakCalendar days={data.calendar.days} /> : <CalendarSkeleton />}
+      {data ? (
+        <StreakCalendar
+          days={data.calendar.days}
+          currentStreakDays={data.summary.currentStreakDays}
+          longestStreakDays={data.summary.longestStreakDays}
+        />
+      ) : (
+        <CalendarSkeleton />
+      )}
       <Button
         label="Log something you ate"
         variant="secondary"
@@ -156,15 +188,23 @@ function ProgressHome({ day, onLogWeight }: { day: string; onLogWeight: () => vo
 function LogWeightScreen({ day, onBack }: { day: string; onBack: () => void }) {
   const context = useWeightContext(day);
   const addWeight = useAddWeight(day);
-  const currentLb = context.data?.context.currentWeightKg
-    ? roundTo(kgToLb(context.data.context.currentWeightKg), 1)
-    : 178;
-  const [weight, setWeight] = useState(String(currentLb));
+  const settings = useSettings();
+  const unitSystem = settings.data?.unitSystem ?? "metric";
+  const weightUnit = weightUnitFor(unitSystem);
+  const currentWeight = context.data?.context.currentWeightKg
+    ? roundTo(weightFromKg(context.data.context.currentWeightKg, unitSystem), 1)
+    : unitSystem === "imperial"
+      ? 178
+      : 80.7;
+  const [weight, setWeight] = useState(String(currentWeight));
   const numberValue = Number.parseFloat(weight);
 
   const save = () => {
     if (!Number.isFinite(numberValue) || numberValue <= 0) return;
-    addWeight.mutate({ day, weightKg: roundTo(lbToKg(numberValue), 1) }, { onSuccess: onBack });
+    addWeight.mutate(
+      { day, weightKg: roundTo(weightToKg(numberValue, unitSystem), 1) },
+      { onSuccess: onBack }
+    );
   };
 
   return (
@@ -196,7 +236,7 @@ function LogWeightScreen({ day, onBack }: { day: string; onBack: () => void }) {
             keyboardType="decimal-pad"
             className="min-h-[48px] flex-1 rounded-md bg-gray-100 px-lg text-center font-semibold text-[16px] text-dark"
           />
-          <Text color="primary">lbs</Text>
+          <Text color="primary">{weightUnit}</Text>
           <Stepper label="+" onPress={() => setWeight(String(roundTo(numberValue + 0.5, 1)))} />
         </View>
         <Text color="muted">Tap the number to type the exact weight</Text>
@@ -206,18 +246,24 @@ function LogWeightScreen({ day, onBack }: { day: string; onBack: () => void }) {
         <ComparisonRow
           label="Yesterday"
           detail={yesterdayLabel(day)}
-          value={formatWeight(context.data?.context.yesterdayWeightKg)}
+          value={formatWeight(context.data?.context.yesterdayWeightKg, unitSystem, {
+            absolute: true,
+          })}
         />
         <Divider />
         <ComparisonRow
           label="7-day average"
           detail="Last 7 days"
-          value={formatWeight(context.data?.context.sevenDayAverageKg)}
+          value={formatWeight(context.data?.context.sevenDayAverageKg, unitSystem, {
+            absolute: true,
+          })}
         />
         <Divider />
         <ComparisonRow
           label="Goal weight"
-          value={formatWeight(context.data?.context.targetWeightKg)}
+          value={formatWeight(context.data?.context.targetWeightKg, unitSystem, {
+            absolute: true,
+          })}
           primary
         />
       </Card>
@@ -227,9 +273,9 @@ function LogWeightScreen({ day, onBack }: { day: string; onBack: () => void }) {
         <Text variant="body" color="primary" className="font-semibold">
           {context.data?.context.projection.weeklyRateKg === null
             ? "Start tracking"
-            : `${formatSignedWeightRate(context.data?.context.projection.weeklyRateKg)}  ${statusLabel(
-                context.data?.context.projection.status
-              )}`}
+            : `${formatWeight(context.data?.context.projection.weeklyRateKg, unitSystem, {
+                signed: true,
+              })}  ${statusLabel(context.data?.context.projection.status)}`}
         </Text>
       </View>
 
@@ -238,23 +284,17 @@ function LogWeightScreen({ day, onBack }: { day: string; onBack: () => void }) {
   );
 }
 
-function SummaryCards({ data }: { data: ProgressData }) {
+function SummaryCards({ data, unitSystem }: { data: ProgressData; unitSystem: "metric" | "imperial" }) {
   return (
     <View className="flex-row flex-wrap gap-sm">
       <StatCard
         label="Current weight"
-        value={formatWeight(data.summary.currentWeightKg)}
+        value={formatWeight(data.summary.currentWeightKg, unitSystem, { absolute: true })}
         detail={
           data.summary.goalGapKg === null
             ? "Set a target to track progress"
-            : `${formatWeight(data.summary.goalGapKg)} toward goal`
+            : `${formatWeight(data.summary.goalGapKg, unitSystem, { absolute: true })} toward goal`
         }
-        tone="green"
-      />
-      <StatCard
-        label="Logging streak"
-        value={`${data.summary.currentStreakDays} days`}
-        detail={`Personal best: ${data.summary.longestStreakDays}`}
         tone="green"
       />
       <StatCard
@@ -264,11 +304,11 @@ function SummaryCards({ data }: { data: ProgressData }) {
       />
       <StatCard
         label="Target weight"
-        value={formatWeight(data.summary.targetWeightKg)}
+        value={formatWeight(data.summary.targetWeightKg, unitSystem, { absolute: true })}
         detail={
           data.summary.goalGapKg === null
             ? "No target set"
-            : `${formatWeight(data.summary.goalGapKg)} to go`
+            : `${formatWeight(data.summary.goalGapKg, unitSystem, { absolute: true })} to go`
         }
       />
     </View>
@@ -365,44 +405,70 @@ function chartPolyline(points: { value: number }[]) {
 
 function StreakCalendar({
   days,
+  currentStreakDays,
+  longestStreakDays,
 }: {
   days: { day: string; dayOfMonth: number; logged: boolean; today: boolean; inMonth: boolean }[];
+  currentStreakDays: number;
+  longestStreakDays: number;
 }) {
+  const rows = chunk(days, 7);
+
   return (
-    <Card className="gap-md bg-gray-100">
+    <Card className="gap-md rounded-[16px] border-0 bg-gray-100 px-lg py-lg">
       <View className="flex-row justify-between">
-        <Text variant="heading3" color="dark">
-          Food log streak
+        <Text color="dark" className="font-semibold">
+          Current streak: {currentStreakDays}
         </Text>
-        <Text color="muted">Personal best</Text>
+        <Text color="muted">Personal best: {longestStreakDays}</Text>
       </View>
       <View className="flex-row justify-between">
         {["S", "M", "T", "W", "T", "F", "S"].map((day, index) => (
-          <Text key={`${day}-${index}`} color="muted" className="w-[40px] text-center">
+          <Text key={`${day}-${index}`} color="muted" className="w-[36px] text-center">
             {day}
           </Text>
         ))}
       </View>
-      <View className="flex-row flex-wrap gap-xs">
-        {days.map((day) => (
-          <View
-            key={day.day}
-            className={`h-[40px] w-[40px] items-center justify-center rounded-sm border border-gray-200 ${
-              day.today ? "bg-primary" : day.logged ? "bg-primarySoft" : "bg-white"
-            } ${day.inMonth ? "" : "opacity-60"}`}
-          >
-            <Text color={day.today ? "inverse" : day.logged ? "primary" : "muted"}>
-              {day.dayOfMonth}
-            </Text>
+      <View className="gap-xs">
+        {rows.map((row, rowIndex) => (
+          <View key={`week-${rowIndex}`} className="flex-row justify-between">
+            {row.map((day) => (
+              <CalendarDayCell key={day.day} day={day} />
+            ))}
           </View>
         ))}
       </View>
       <View className="flex-row justify-center gap-md">
         <Legend color="bg-primary" label="Today" />
-        <Legend color="bg-primarySoft" label="Logged" />
+        <Legend color="bg-[#90CFAE]" label="Logged" />
         <Legend color="bg-white" label="Upcoming" />
       </View>
     </Card>
+  );
+}
+
+function CalendarDayCell({
+  day,
+}: {
+  day: { dayOfMonth: number; logged: boolean; today: boolean; inMonth: boolean };
+}) {
+  const stateClass = day.today
+    ? "border-primary bg-primary"
+    : day.logged
+      ? "border-[#64B889] bg-[#90CFAE]"
+      : "border-gray-200 bg-white";
+  const textColor = day.today ? "inverse" : day.logged ? "primary" : "muted";
+
+  return (
+    <View
+      className={`h-[36px] w-[36px] items-center justify-center rounded-md border ${stateClass} ${
+        day.inMonth ? "" : "opacity-60"
+      }`}
+    >
+      <Text color={textColor} className={day.today ? "font-semibold" : ""}>
+        {day.dayOfMonth}
+      </Text>
+    </View>
   );
 }
 
@@ -481,27 +547,24 @@ function Divider() {
 function Legend({ color, label }: { color: string; label: string }) {
   return (
     <View className="flex-row items-center gap-xs">
-      <View className={`rounded-xs h-[18px] w-[18px] border border-gray-200 ${color}`} />
+      <View className={`h-[18px] w-[18px] rounded-sm border border-gray-200 ${color}`} />
       <Text color="muted">{label}</Text>
     </View>
   );
+}
+
+function chunk<T>(items: T[], size: number): T[][] {
+  const rows: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    rows.push(items.slice(index, index + size));
+  }
+  return rows;
 }
 
 function labelForMetric(metric: ChartMetric) {
   if (metric === "calories") return "Calories";
   if (metric === "water") return "Water";
   return "Weight";
-}
-
-function formatWeight(kg: number | null | undefined) {
-  if (kg === null || kg === undefined) return "-- lbs";
-  return `${roundTo(kgToLb(Math.abs(kg)), 1)} lbs`;
-}
-
-function formatSignedWeightRate(kg: number | null | undefined) {
-  if (kg === null || kg === undefined) return "-- lbs";
-  const value = roundTo(kgToLb(kg), 1);
-  return `${value > 0 ? "+" : ""}${value} lbs`;
 }
 
 function statusLabel(status: string | undefined) {

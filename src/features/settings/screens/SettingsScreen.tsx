@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Linking, Pressable, Switch, View } from "react-native";
+import { Image } from "expo-image";
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { router } from "expo-router";
 import {
@@ -13,12 +14,13 @@ import {
   Ticket,
   X,
 } from "phosphor-react-native";
-import { Button, Screen, SectionError, SkeletonText, Text } from "@/components";
+import { Button, Screen, SectionError, SelectSheet, SkeletonText, Text } from "@/components";
+import { queryClient, queryKeys } from "@/api";
 import { LEGAL_LINKS } from "@/config/links";
 import { useLogout } from "@/features/auth/hooks/useAuth";
 import { useMe } from "@/features/profile";
 import { useSubscription } from "@/features/subscription";
-import { authenticateBiometric, isBiometricAvailable } from "@/lib";
+import { authenticateBiometric, isBiometricAvailable } from "@/lib/biometric";
 import { useBiometricAuthEnabled, usePreferencesActions } from "@/stores";
 import { colors } from "@/theme";
 import { useSettings } from "../hooks/useSettings";
@@ -36,11 +38,17 @@ function shortDate(value?: string | null) {
   );
 }
 
-function nextHydrationInterval(current: number) {
-  const options = [30, 40, 60, 90, 120];
-  const index = options.indexOf(current);
-  return options[(index + 1) % options.length] ?? 40;
-}
+type UnitSystem = "metric" | "imperial";
+
+const UNIT_OPTIONS: readonly { label: string; value: UnitSystem }[] = [
+  { label: "Metric (kg / cm)", value: "metric" },
+  { label: "Imperial (lb / in)", value: "imperial" },
+];
+
+const HYDRATION_OPTIONS = [30, 40, 60, 90, 120].map((value) => ({
+  label: `Every ${value} mins`,
+  value,
+}));
 
 /** "HH:mm[:ss]" → a Date today at that clock time (for the native picker). */
 function timeToDate(value?: string) {
@@ -134,6 +142,8 @@ export function SettingsScreen() {
   const [editingTime, setEditingTime] = useState<
     "dailyFoodLogReminderTime" | "weightCheckReminderTime" | null
   >(null);
+  const [editingSelect, setEditingSelect] = useState<"units" | "hydration" | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     void isBiometricAvailable().then(setBiometricAvailable);
@@ -167,6 +177,15 @@ export function SettingsScreen() {
     updateSettings.mutate({ [field]: dateToTime(date) });
   };
 
+  const refresh = () => {
+    setRefreshing(true);
+    void Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.me() }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.settings.me() }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.subscription.me() }),
+    ]).finally(() => setRefreshing(false));
+  };
+
   const subscriptionSubtitle = useMemo(() => {
     if (!sub || sub.status === "none" || sub.status === "expired") return "Choose a plan";
     if (sub.cancelAtPeriodEnd && renewsAt) return `Access until ${renewsAt}`;
@@ -176,15 +195,32 @@ export function SettingsScreen() {
   const settingsLoading = settings.isLoading || !userSettings;
 
   return (
-    <Screen scroll backgroundColor={colors.white} style={{ gap: 26, paddingBottom: 120 }}>
+    <Screen
+      scroll
+      edges={["top", "left", "right"]}
+      backgroundColor={colors.white}
+      style={{ gap: 26, paddingTop: 32, paddingBottom: 32 }}
+      refreshing={refreshing}
+      onRefresh={refresh}
+    >
       <Text variant="heading2">Settings</Text>
 
       <Section title="Profile">
         <Row
           iconWide
           icon={
-            <View className="h-[64px] w-[64px] items-center justify-center rounded-full bg-primarySoft">
-              <Text className="font-semibold text-[20px]">{initials(user?.name)}</Text>
+            <View className="h-[64px] w-[64px] items-center justify-center overflow-hidden rounded-full bg-primarySoft">
+              {user?.image ? (
+                <Image
+                  accessibilityLabel="Profile photo"
+                  source={{ uri: user.image }}
+                  style={{ width: 64, height: 64 }}
+                  contentFit="cover"
+                  transition={150}
+                />
+              ) : (
+                <Text className="font-semibold text-[20px]">{initials(user?.name)}</Text>
+              )}
             </View>
           }
           title={user?.name || "Your profile"}
@@ -224,10 +260,7 @@ export function SettingsScreen() {
           onPress={
             settingsLoading
               ? undefined
-              : () =>
-                  updateSettings.mutate({
-                    unitSystem: userSettings.unitSystem === "imperial" ? "metric" : "imperial",
-                  })
+              : () => setEditingSelect("units")
           }
         />
         {profile.isError ? (
@@ -343,13 +376,7 @@ export function SettingsScreen() {
               <CaretRight size={18} color={colors.gray[500]} />
             </View>
           }
-          onPress={() =>
-            updateSettings.mutate({
-              hydrationReminderIntervalMinutes: nextHydrationInterval(
-                userSettings?.hydrationReminderIntervalMinutes ?? 40
-              ),
-            })
-          }
+          onPress={settingsLoading ? undefined : () => setEditingSelect("hydration")}
         />
       </Section>
 
@@ -405,7 +432,7 @@ export function SettingsScreen() {
           <Row
             icon={<FingerprintSimple size={24} color={colors.dark} />}
             title="Biometric unlock"
-            subtitle="Require Face ID, Touch ID, or your passcode to open Thrivo. Stays on this device."
+            subtitle="Show device unlock on the welcome screen when this device has a saved login. Stays on this device."
             action={
               <Switch
                 value={biometricEnabled}
@@ -455,6 +482,27 @@ export function SettingsScreen() {
           onChange={onTimePicked}
         />
       ) : null}
+
+      <SelectSheet
+        title="Units"
+        options={UNIT_OPTIONS}
+        value={(userSettings?.unitSystem ?? "metric") as UnitSystem}
+        visible={editingSelect === "units"}
+        disabled={settingsLoading}
+        onChange={(unitSystem) => updateSettings.mutate({ unitSystem })}
+        onClose={() => setEditingSelect(null)}
+      />
+      <SelectSheet
+        title="Hydration interval"
+        options={HYDRATION_OPTIONS}
+        value={userSettings?.hydrationReminderIntervalMinutes ?? 40}
+        visible={editingSelect === "hydration"}
+        disabled={settingsLoading}
+        onChange={(hydrationReminderIntervalMinutes) =>
+          updateSettings.mutate({ hydrationReminderIntervalMinutes })
+        }
+        onClose={() => setEditingSelect(null)}
+      />
     </Screen>
   );
 }

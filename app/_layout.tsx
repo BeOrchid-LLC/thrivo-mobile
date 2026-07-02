@@ -1,5 +1,5 @@
 import "../global.css";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -23,7 +23,16 @@ import {
   analytics,
 } from "@/lib";
 import { useSessionInit, useSessionRefresh } from "@/hooks";
-import { useAuthStatus, useIsOnboarded, useIsOnboardingSkipped, useSessionActions } from "@/stores";
+import { resolveRootRedirect } from "@/navigation/root-redirect";
+import {
+  useAuthStatus,
+  useBiometricAuthEnabled,
+  useIsBiometricUnlocked,
+  useIsOnboarded,
+  useIsOnboardingSkipped,
+  usePreferencesHydrated,
+  useSessionActions,
+} from "@/stores";
 
 // Start crash reporting + analytics before anything else so an early boot error
 // is still captured. No-ops in dev when their env vars are unset (fail fast in prod).
@@ -37,6 +46,13 @@ initOnlineManager();
 registerOfflineMutations(queryClient);
 void SplashScreen.preventAutoHideAsync();
 
+const FONT_GATE_TIMEOUT_MS = 3000;
+const PREFERENCE_GATE_TIMEOUT_MS = 1000;
+
+function bootLog(message: string): void {
+  if (__DEV__) console.info(`[boot] ${message}`);
+}
+
 /**
  * The single navigation guard (MOBILE_ARCHITECTURE §5). Reads auth/onboarding
  * state and redirects to the correct group so no screen re-implements the gate:
@@ -44,10 +60,14 @@ void SplashScreen.preventAutoHideAsync();
  *   session, not onboarded → (onboarding)
  *   session + onboarded    → (app)
  */
-function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
+function RootNavigator({ fontsReady }: { fontsReady: boolean }) {
   const status = useAuthStatus();
+  const biometricEnabled = useBiometricAuthEnabled();
+  const isBiometricUnlocked = useIsBiometricUnlocked();
   const isOnboarded = useIsOnboarded();
   const isOnboardingSkipped = useIsOnboardingSkipped();
+  const preferencesHydrated = usePreferencesHydrated();
+  const [preferenceTimeoutReached, setPreferenceTimeoutReached] = useState(false);
   const segments = useSegments();
   const router = useRouter();
   const { setStatus } = useSessionActions();
@@ -55,6 +75,17 @@ function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
 
   useSessionInit();
   useSessionRefresh();
+
+  useEffect(() => {
+    if (preferencesHydrated || status !== "authenticated") return undefined;
+
+    const timeout = setTimeout(() => {
+      bootLog("preference gate timed out; continuing without biometric startup lock");
+      setPreferenceTimeoutReached(true);
+    }, PREFERENCE_GATE_TIMEOUT_MS);
+
+    return () => clearTimeout(timeout);
+  }, [preferencesHydrated, status]);
 
   // Route notification taps to a usable app screen. The backend sends a stable
   // screen *key* (e.g. "checkin") so its payload never couples to Expo Router's
@@ -72,35 +103,33 @@ function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
     });
   }, [router]);
 
-  const ready = fontsLoaded && status !== "loading";
+  const preferencesReady =
+    status !== "authenticated" || preferencesHydrated || preferenceTimeoutReached;
+  const ready = fontsReady && status !== "loading" && preferencesReady;
+  const isBiometricLocked =
+    status === "authenticated" && biometricEnabled && !isBiometricUnlocked && preferencesHydrated;
+
+  useEffect(() => {
+    if (!fontsReady) return;
+    bootLog("font gate done; hiding native splash");
+    void SplashScreen.hideAsync();
+  }, [fontsReady]);
 
   useEffect(() => {
     if (!ready || redirecting.current) return;
 
     const group = segments[0];
-    const inAuth = group === "(auth)";
-    const inOnboarding = group === "(onboarding)";
-    // OAuth deep-link handler: routes itself after applying tokens; exclude from guard.
-    const inAuthCallback = group === "auth";
+    const target = resolveRootRedirect({
+      group,
+      status,
+      isOnboarded,
+      isOnboardingSkipped,
+      isBiometricLocked,
+    });
 
-    let target: string | null = null;
-    if (status === "unauthenticated" && !inAuth && !inAuthCallback) {
-      target = "/(auth)/welcome";
-    } else if (
-      status === "authenticated" &&
-      !isOnboarded &&
-      !isOnboardingSkipped &&
-      !inOnboarding &&
-      !inAuthCallback
-    ) {
-      target = "/(onboarding)/name";
-    } else if (
-      status === "authenticated" &&
-      (isOnboarded || isOnboardingSkipped) &&
-      (inAuth || inOnboarding)
-    ) {
-      target = "/(app)/dashboard";
-    }
+    bootLog(
+      `guard group=${group ?? "/"} status=${status} onboarded=${isOnboarded} skipped=${isOnboardingSkipped} biometricLocked=${isBiometricLocked} target=${target ?? "none"}`
+    );
 
     if (target) {
       redirecting.current = true;
@@ -110,11 +139,17 @@ function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
         redirecting.current = false;
       }, 0);
     }
+  }, [
+    ready,
+    status,
+    isOnboarded,
+    isOnboardingSkipped,
+    isBiometricLocked,
+    segments,
+    router,
+  ]);
 
-    void SplashScreen.hideAsync();
-  }, [ready, status, isOnboarded, isOnboardingSkipped, segments, router]);
-
-  if (!fontsLoaded) {
+  if (!fontsReady) {
     return null;
   }
 
@@ -141,12 +176,31 @@ function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
 }
 
 function RootLayout() {
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     Inter_400Regular,
     Inter_500Medium,
     Inter_600SemiBold,
     Inter_700Bold,
   });
+  const [fontTimeoutReached, setFontTimeoutReached] = useState(false);
+
+  useEffect(() => {
+    if (fontsLoaded || fontError) return undefined;
+
+    const timeout = setTimeout(() => {
+      bootLog("font gate timed out; continuing with fallback font");
+      setFontTimeoutReached(true);
+    }, FONT_GATE_TIMEOUT_MS);
+
+    return () => clearTimeout(timeout);
+  }, [fontError, fontsLoaded]);
+
+  useEffect(() => {
+    if (fontsLoaded) bootLog("fonts loaded");
+    if (fontError) bootLog("font load failed; continuing with fallback font");
+  }, [fontError, fontsLoaded]);
+
+  const fontsReady = fontsLoaded || Boolean(fontError) || fontTimeoutReached;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -160,7 +214,7 @@ function RootLayout() {
             void queryClient.resumePausedMutations();
           }}
         >
-          <RootNavigator fontsLoaded={fontsLoaded} />
+          <RootNavigator fontsReady={fontsReady} />
         </PersistQueryClientProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

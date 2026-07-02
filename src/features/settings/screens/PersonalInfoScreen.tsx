@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, View } from "react-native";
 import { router } from "expo-router";
 import { Image } from "expo-image";
-import { CaretDown, Camera } from "phosphor-react-native";
-import { BackButton, Button, Input, Screen, Text } from "@/components";
+import { Camera } from "phosphor-react-native";
+import { BackButton, Button, Input, Screen, SelectInput, SelectSheet, Text } from "@/components";
 import type { Goal, Sex, UpdateProfilePayload } from "@/contracts";
 import {
   FileTooLargeError,
@@ -13,6 +13,16 @@ import {
   useUpdateProfile,
 } from "@/features/profile";
 import { colors } from "@/theme";
+import {
+  heightToCm,
+  heightUnitFor,
+  heightFromCm,
+  roundTo,
+  weightFromKg,
+  weightToKg,
+  weightUnitFor,
+} from "@/utils";
+import { useSettings } from "../hooks/useSettings";
 
 function initialsFrom(name: string): string {
   return name
@@ -31,6 +41,7 @@ const GOAL_LABELS: Record<Goal, string> = {
 };
 
 const GOAL_ORDER: Goal[] = ["lose", "maintain", "gain"];
+const GOAL_OPTIONS = GOAL_ORDER.map((value) => ({ label: GOAL_LABELS[value], value }));
 
 const SEX_LABELS: Record<Sex, string> = {
   female: "Female",
@@ -39,16 +50,7 @@ const SEX_LABELS: Record<Sex, string> = {
 };
 
 const SEX_ORDER: Sex[] = ["female", "male", "prefer_not_to_say"];
-
-function nextValue<T extends string>(values: T[], value: T | null | undefined, fallback: T): T {
-  const current = value ?? fallback;
-  const index = values.indexOf(current);
-  return values[(index + 1) % values.length] ?? fallback;
-}
-
-function numberText(value: string | null | undefined) {
-  return value ? String(Number.parseFloat(value)) : "";
-}
+const SEX_OPTIONS = SEX_ORDER.map((value) => ({ label: SEX_LABELS[value], value }));
 
 function parsePositive(value: string): number | undefined {
   const parsed = Number.parseFloat(value);
@@ -57,9 +59,13 @@ function parsePositive(value: string): number | undefined {
 
 export function PersonalInfoScreen() {
   const profile = useMe();
+  const settings = useSettings();
   const updateProfile = useUpdateProfile();
   const avatarUpload = useAvatarUpload();
   const user = profile.data;
+  const unitSystem = settings.data?.unitSystem ?? "metric";
+  const weightUnit = weightUnitFor(unitSystem);
+  const heightUnit = heightUnitFor(unitSystem);
 
   const changeAvatar = () => {
     avatarUpload.mutate(undefined, {
@@ -86,25 +92,43 @@ export function PersonalInfoScreen() {
   const [targetWeight, setTargetWeight] = useState("");
   const [height, setHeight] = useState("");
   const [sex, setSex] = useState<Sex>("female");
+  const [editingSelect, setEditingSelect] = useState<"goal" | "sex" | null>(null);
 
   useEffect(() => {
     if (!user) return;
     setFullName(user.name);
     setGoal(user.goal ?? "lose");
-    setCurrentWeight(numberText(user.weightKg));
-    setTargetWeight(numberText(user.targetWeightKg));
-    setHeight(numberText(user.heightCm));
+    setCurrentWeight(
+      user.weightKg ? String(roundTo(weightFromKg(Number.parseFloat(user.weightKg), unitSystem))) : ""
+    );
+    setTargetWeight(
+      user.targetWeightKg
+        ? String(roundTo(weightFromKg(Number.parseFloat(user.targetWeightKg), unitSystem)))
+        : ""
+    );
+    setHeight(
+      user.heightCm ? String(roundTo(heightFromCm(Number.parseFloat(user.heightCm), unitSystem))) : ""
+    );
     setSex(user.sex ?? "female");
-  }, [user]);
+  }, [unitSystem, user]);
 
   const save = () => {
     const payload: UpdateProfilePayload = {
       firstName: fullName.trim(),
       goal,
       sex,
-      currentWeightKg: parsePositive(currentWeight),
-      targetWeightKg: parsePositive(targetWeight),
-      heightCm: parsePositive(height),
+      currentWeightKg:
+        parsePositive(currentWeight) !== undefined
+          ? roundTo(weightToKg(parsePositive(currentWeight)!, unitSystem))
+          : undefined,
+      targetWeightKg:
+        parsePositive(targetWeight) !== undefined
+          ? roundTo(weightToKg(parsePositive(targetWeight)!, unitSystem))
+          : undefined,
+      heightCm:
+        parsePositive(height) !== undefined
+          ? roundTo(heightToCm(parsePositive(height)!, unitSystem))
+          : undefined,
     };
 
     updateProfile.mutate(payload, {
@@ -162,57 +186,63 @@ export function PersonalInfoScreen() {
       <Input label="Full name" value={fullName} onChangeText={setFullName} />
       <Input label="Email" value={user?.email ?? ""} editable={false} />
 
-      <Pressable
+      <SelectInput
         accessibilityRole="button"
-        onPress={() => setGoal((value) => nextValue(GOAL_ORDER, value, "lose"))}
-        className="gap-xs"
-      >
-        <Text variant="caption" color="muted" className="ml-xs">
-          Goal
-        </Text>
-        <View className="min-h-[52px] flex-row items-center justify-between rounded-md bg-light px-lg">
-          <Text>{GOAL_LABELS[goal]}</Text>
-          <CaretDown size={20} color={colors.gray[500]} />
-        </View>
-      </Pressable>
+        accessibilityLabel="Select goal"
+        onPress={() => setEditingSelect("goal")}
+        label="Goal"
+        value={GOAL_LABELS[goal]}
+      />
 
       <Input
         label="Current weight"
         value={currentWeight}
         onChangeText={setCurrentWeight}
         keyboardType="decimal-pad"
-        trailingText="kg"
+        trailingText={weightUnit}
       />
       <Input
         label="Target weight"
         value={targetWeight}
         onChangeText={setTargetWeight}
         keyboardType="decimal-pad"
-        trailingText="kg"
+        trailingText={weightUnit}
       />
       <Input
         label="Height"
         value={height}
         onChangeText={setHeight}
         keyboardType="decimal-pad"
-        trailingText="cm"
+        trailingText={heightUnit}
       />
 
-      <Pressable
+      <SelectInput
         accessibilityRole="button"
-        onPress={() => setSex((value) => nextValue(SEX_ORDER, value, "female"))}
-        className="gap-xs"
-      >
-        <Text variant="caption" color="muted" className="ml-xs">
-          Sex
-        </Text>
-        <View className="min-h-[52px] justify-center rounded-md bg-light px-lg">
-          <Text color={sex === "prefer_not_to_say" ? "muted" : "dark"}>{SEX_LABELS[sex]}</Text>
-        </View>
-      </Pressable>
+        accessibilityLabel="Select sex"
+        onPress={() => setEditingSelect("sex")}
+        label="Sex"
+        value={SEX_LABELS[sex]}
+      />
 
       <View className="flex-1" />
       <Button label="Save changes" loading={updateProfile.isPending} onPress={save} />
+
+      <SelectSheet
+        title="Goal"
+        options={GOAL_OPTIONS}
+        value={goal}
+        visible={editingSelect === "goal"}
+        onChange={setGoal}
+        onClose={() => setEditingSelect(null)}
+      />
+      <SelectSheet
+        title="Sex"
+        options={SEX_OPTIONS}
+        value={sex}
+        visible={editingSelect === "sex"}
+        onChange={setSex}
+        onClose={() => setEditingSelect(null)}
+      />
     </Screen>
   );
 }

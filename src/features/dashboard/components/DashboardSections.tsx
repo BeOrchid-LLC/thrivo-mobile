@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { ForkKnife } from "phosphor-react-native";
 import {
   Button,
@@ -28,6 +28,16 @@ const GLASS_ML = 250;
 
 const goToLog = () => router.push("/(app)/log");
 const goToHistory = () => router.push("/(app)/history");
+
+const styles = StyleSheet.create({
+  macroCardShadow: {
+    shadowColor: colors.dark,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 16,
+    elevation: 1,
+  },
+});
 
 export function CaloriesSummarySection() {
   const calories = useDashboardCalories();
@@ -62,16 +72,19 @@ export function CaloriesSummarySection() {
   const { consumedCalories, targetCalories, remainingCalories } = calories.data;
 
   return (
-    <Card className="flex-row items-center gap-lg">
+    <Card className="flex-row items-center gap-lg border-transparent pl-0">
       <CalorieRing
         consumed={consumedCalories}
         target={targetCalories}
         emptyLabel="Log your first meal"
       />
       <View className="flex-1 gap-xs">
-        <Text variant="heading1" color="dark">
-          {consumedCalories.toLocaleString()}
-        </Text>
+        <View className="flex-row items-baseline gap-xs">
+          <Text variant="heading1" color="dark">
+            {consumedCalories.toLocaleString()}
+          </Text>
+          <Text className="mb-2 text-lg font-normal text-muted">kcal</Text>
+        </View>
         <Text variant="body" color="muted">
           of {targetCalories.toLocaleString()} daily target
         </Text>
@@ -88,7 +101,11 @@ export function MacrosSection() {
 
   if (macros.isLoading) {
     return (
-      <Card accessibilityRole="progressbar" accessibilityLabel="Loading macros">
+      <Card
+        accessibilityRole="progressbar"
+        accessibilityLabel="Loading macros"
+        style={styles.macroCardShadow}
+      >
         <View className="gap-md">
           {["protein", "carbs", "fat"].map((label) => (
             <View key={label} className="gap-xs">
@@ -115,7 +132,7 @@ export function MacrosSection() {
   }
 
   return (
-    <Card>
+    <Card className="border-2 border-gray-2" style={styles.macroCardShadow}>
       <MacroBars
         consumed={{
           proteinG: macros.data.consumed.proteinG,
@@ -168,7 +185,7 @@ export function WaterSection() {
       <View
         accessibilityRole="progressbar"
         accessibilityLabel="Loading water tracker"
-        className="gap-sm rounded-[16px] bg-primarySoft px-lg py-md"
+        className="gap-sm rounded-[16px] bg-gray-2 px-lg py-md"
       >
         <View className="flex-row items-center">
           <SkeletonBlock className="h-[22px] w-[22px] rounded-pill" />
@@ -250,17 +267,17 @@ export function TodayMealLogSection() {
   return entries.length > 0 ? (
     <MealLog entries={entries} onLogFood={goToLog} onViewAll={goToHistory} />
   ) : (
-    <Card className="items-center gap-md">
+    <View className="items-center gap-md rounded-[16px] bg-primaryBright/10 px-8 py-6">
       <View className="h-[52px] w-[52px] items-center justify-center rounded-pill bg-primarySoft">
         <ForkKnife size={28} color={colors.primary} weight="regular" />
       </View>
       <Text variant="heading3" color="dark" className="text-center">
         Nothing logged yet
       </Text>
-      <Text variant="body" color="muted" className="text-center">
+      <Text variant="body" className="text-center text-muted">
         Scan a barcode, search the database or describe what you ate to get started.
       </Text>
       <Button label="Log first meal" onPress={() => goToLog()} />
-    </Card>
+    </View>
   );
 }

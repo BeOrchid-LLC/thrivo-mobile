@@ -79,6 +79,11 @@ const profile = {
   createdAt: "2026-06-01T00:00:00.000Z",
 };
 
+const profileWithImage = {
+  ...profile,
+  image: "https://example.com/avatar.jpg",
+};
+
 const settings = {
   id: "settings-1",
   userId: "user-1",
@@ -132,13 +137,27 @@ describe("settings screens", () => {
     expect(router.push).toHaveBeenCalledWith("/(app)/settings/personal-info");
   });
 
-  it("persists unit and notification setting changes", () => {
+  it("shows the profile image in settings when one is saved", () => {
+    mockUseMe.mockReturnValue({ data: profileWithImage, isLoading: false });
+
+    const screen = render(<SettingsScreen />);
+
+    expect(screen.getByLabelText("Profile photo")).toBeTruthy();
+    expect(screen.queryByText("AJ")).toBeNull();
+  });
+
+  it("persists unit and notification setting changes from select sheets", () => {
     const screen = render(<SettingsScreen />);
 
     fireEvent.press(screen.getByText("kg / cm"));
+    expect(screen.getByText("Metric (kg / cm)")).toBeTruthy();
+    fireEvent.press(screen.getByText("Imperial (lb / in)"));
     expect(mockUpdateSettingsMutate).toHaveBeenCalledWith({ unitSystem: "imperial" });
 
     fireEvent.press(screen.getByText("Every 40 mins"));
+    expect(screen.getByText("Hydration interval")).toBeTruthy();
+    expect(screen.getByText("Every 120 mins")).toBeTruthy();
+    fireEvent.press(screen.getByText("Every 60 mins"));
     expect(mockUpdateSettingsMutate).toHaveBeenCalledWith({
       hydrationReminderIntervalMinutes: 60,
     });
@@ -156,13 +175,18 @@ describe("settings screens", () => {
     const screen = render(<PersonalInfoScreen />);
 
     fireEvent.changeText(screen.getByDisplayValue("Alex Johnson"), "Alexandra Johnson");
+    fireEvent.press(screen.getByLabelText("Select goal"));
+    expect(screen.getByText("Build muscle")).toBeTruthy();
+    fireEvent.press(screen.getByText("Build muscle"));
+    fireEvent.press(screen.getByLabelText("Select sex"));
+    fireEvent.press(screen.getByText("Prefer not to say"));
     fireEvent.press(screen.getByText("Save changes"));
 
     expect(mockUpdateProfileMutate).toHaveBeenCalledWith(
       expect.objectContaining({
         firstName: "Alexandra Johnson",
-        goal: "lose",
-        sex: "female",
+        goal: "gain",
+        sex: "prefer_not_to_say",
         currentWeightKg: 92,
         targetWeightKg: 76,
         heightCm: 156,

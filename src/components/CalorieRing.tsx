@@ -21,7 +21,7 @@ export interface CalorieRingProps {
 export function CalorieRing({
   consumed,
   target,
-  size = 140,
+  size = 100,
   strokeWidth = 12,
   emptyLabel,
 }: CalorieRingProps) {
@@ -52,23 +52,21 @@ export function CalorieRing({
             fill="none"
             strokeLinecap="round"
             strokeDasharray={`${circumference * ratio} ${circumference}`}
-            transform={`rotate(-90 ${center} ${center})`}
+            transform={`rotate(90 ${center} ${center})`}
           />
         ) : null}
       </Svg>
       <View className="absolute inset-0 items-center justify-center px-md">
         {isEmpty ? (
-          <Text variant="caption" color="dark" className="text-center font-semibold">
+          <Text variant="caption" color="dark" className="mx-1 text-center font-semibold">
             {emptyLabel}
           </Text>
         ) : (
           <>
-            <Text variant="heading2" color="dark">
+            <Text color="dark" className="font-semibold text-[1.5rem] leading-7">
               {Math.round(ratio * 100)}%
             </Text>
-            <Text variant="caption" color="muted">
-              Used
-            </Text>
+            <Text className="font-semibold text-xs text-muted">Used</Text>
           </>
         )}
       </View>

@@ -13,6 +13,7 @@ const mockUseEstimateFood = jest.fn();
 const mockUseLogEstimate = jest.fn();
 const mockUseBarcodeLookup = jest.fn();
 const mockCameraScan = jest.fn();
+const mockUseSettings = jest.fn();
 
 jest.mock("expo-camera", () => {
   const { View } = jest.requireActual("react-native");
@@ -46,6 +47,10 @@ jest.mock("../hooks/useFoodLogging", () => ({
   useEstimateFood: () => mockUseEstimateFood(),
   useLogEstimate: () => mockUseLogEstimate(),
   useBarcodeLookup: (barcode: string | null) => mockUseBarcodeLookup(barcode),
+}));
+
+jest.mock("@/features/settings", () => ({
+  useSettings: () => mockUseSettings(),
 }));
 
 const food = {
@@ -108,6 +113,7 @@ describe("LogFoodScreen", () => {
     mockUseEstimateFood.mockReturnValue({ mutate: jest.fn(), isPending: false, data: undefined });
     mockUseLogEstimate.mockReturnValue({ mutate: jest.fn(), isPending: false });
     mockUseBarcodeLookup.mockReturnValue(successQuery({ food: null }));
+    mockUseSettings.mockReturnValue({ data: { unitSystem: "metric" } });
   });
 
   it("renders the empty food state", () => {
