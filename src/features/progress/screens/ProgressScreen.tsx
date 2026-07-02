@@ -167,7 +167,15 @@ function ProgressHome({ day, onLogWeight }: { day: string; onLogWeight: () => vo
       </View>
 
       <Button label="Log this week’s weight" onPress={onLogWeight} />
-      {data ? <StreakCalendar days={data.calendar.days} /> : <CalendarSkeleton />}
+      {data ? (
+        <StreakCalendar
+          days={data.calendar.days}
+          currentStreakDays={data.summary.currentStreakDays}
+          longestStreakDays={data.summary.longestStreakDays}
+        />
+      ) : (
+        <CalendarSkeleton />
+      )}
       <Button
         label="Log something you ate"
         variant="secondary"
@@ -290,12 +298,6 @@ function SummaryCards({ data, unitSystem }: { data: ProgressData; unitSystem: "m
         tone="green"
       />
       <StatCard
-        label="Logging streak"
-        value={`${data.summary.currentStreakDays} days`}
-        detail={`Personal best: ${data.summary.longestStreakDays}`}
-        tone="green"
-      />
-      <StatCard
         label="This week average"
         value={data.summary.currentWeekAverageKcal.toLocaleString()}
         detail="kcal per day"
@@ -403,44 +405,70 @@ function chartPolyline(points: { value: number }[]) {
 
 function StreakCalendar({
   days,
+  currentStreakDays,
+  longestStreakDays,
 }: {
   days: { day: string; dayOfMonth: number; logged: boolean; today: boolean; inMonth: boolean }[];
+  currentStreakDays: number;
+  longestStreakDays: number;
 }) {
+  const rows = chunk(days, 7);
+
   return (
-    <Card className="gap-md bg-gray-100">
+    <Card className="gap-md rounded-[16px] border-0 bg-gray-100 px-lg py-lg">
       <View className="flex-row justify-between">
-        <Text variant="heading3" color="dark">
-          Food log streak
+        <Text color="dark" className="font-semibold">
+          Current streak: {currentStreakDays}
         </Text>
-        <Text color="muted">Personal best</Text>
+        <Text color="muted">Personal best: {longestStreakDays}</Text>
       </View>
       <View className="flex-row justify-between">
         {["S", "M", "T", "W", "T", "F", "S"].map((day, index) => (
-          <Text key={`${day}-${index}`} color="muted" className="w-[40px] text-center">
+          <Text key={`${day}-${index}`} color="muted" className="w-[36px] text-center">
             {day}
           </Text>
         ))}
       </View>
-      <View className="flex-row flex-wrap gap-xs">
-        {days.map((day) => (
-          <View
-            key={day.day}
-            className={`h-[40px] w-[40px] items-center justify-center rounded-sm border border-gray-200 ${
-              day.today ? "bg-primary" : day.logged ? "bg-primarySoft" : "bg-white"
-            } ${day.inMonth ? "" : "opacity-60"}`}
-          >
-            <Text color={day.today ? "inverse" : day.logged ? "primary" : "muted"}>
-              {day.dayOfMonth}
-            </Text>
+      <View className="gap-xs">
+        {rows.map((row, rowIndex) => (
+          <View key={`week-${rowIndex}`} className="flex-row justify-between">
+            {row.map((day) => (
+              <CalendarDayCell key={day.day} day={day} />
+            ))}
           </View>
         ))}
       </View>
       <View className="flex-row justify-center gap-md">
         <Legend color="bg-primary" label="Today" />
-        <Legend color="bg-primarySoft" label="Logged" />
+        <Legend color="bg-[#90CFAE]" label="Logged" />
         <Legend color="bg-white" label="Upcoming" />
       </View>
     </Card>
+  );
+}
+
+function CalendarDayCell({
+  day,
+}: {
+  day: { dayOfMonth: number; logged: boolean; today: boolean; inMonth: boolean };
+}) {
+  const stateClass = day.today
+    ? "border-primary bg-primary"
+    : day.logged
+      ? "border-[#64B889] bg-[#90CFAE]"
+      : "border-gray-200 bg-white";
+  const textColor = day.today ? "inverse" : day.logged ? "primary" : "muted";
+
+  return (
+    <View
+      className={`h-[36px] w-[36px] items-center justify-center rounded-md border ${stateClass} ${
+        day.inMonth ? "" : "opacity-60"
+      }`}
+    >
+      <Text color={textColor} className={day.today ? "font-semibold" : ""}>
+        {day.dayOfMonth}
+      </Text>
+    </View>
   );
 }
 
@@ -519,10 +547,18 @@ function Divider() {
 function Legend({ color, label }: { color: string; label: string }) {
   return (
     <View className="flex-row items-center gap-xs">
-      <View className={`rounded-xs h-[18px] w-[18px] border border-gray-200 ${color}`} />
+      <View className={`h-[18px] w-[18px] rounded-sm border border-gray-200 ${color}`} />
       <Text color="muted">{label}</Text>
     </View>
   );
+}
+
+function chunk<T>(items: T[], size: number): T[][] {
+  const rows: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    rows.push(items.slice(index, index + size));
+  }
+  return rows;
 }
 
 function labelForMetric(metric: ChartMetric) {
