@@ -9,6 +9,9 @@ const mockUseWeightContext = jest.fn();
 const mockUseAddWeight = jest.fn();
 const mockUseSettings = jest.fn();
 
+const currentStreakDays = 14;
+const longestStreakDays = 21;
+
 jest.mock("expo-router", () => ({
   router: { push: jest.fn() },
 }));
@@ -31,8 +34,8 @@ const progress = {
       currentWeightKg: 80.7,
       targetWeightKg: 70.3,
       goalGapKg: 10.4,
-      currentStreakDays: 14,
-      longestStreakDays: 21,
+      currentStreakDays,
+      longestStreakDays,
       currentWeekAverageKcal: 1621,
     },
     projection: {
@@ -102,16 +105,40 @@ describe("ProgressScreen", () => {
 
     expect(screen.getByText("Progress")).toBeTruthy();
     expect(screen.getByText("Current weight")).toBeTruthy();
-    expect(screen.getByText("Logging streak")).toBeTruthy();
+    expect(screen.queryByText("Logging streak")).toBeNull();
+    expect(screen.getByText(`Current streak: ${currentStreakDays}`)).toBeTruthy();
+    expect(screen.getByText(`Personal best: ${longestStreakDays}`)).toBeTruthy();
     expect(screen.getByText("Weight over time")).toBeTruthy();
     expect(screen.getByText("-0.9 lbs / week")).toBeTruthy();
+  });
+
+  it("renders streak values from the progress response", () => {
+    mockUseProgress.mockReturnValue(
+      successQuery({
+        progress: {
+          ...progress.progress,
+          summary: {
+            ...progress.progress.summary,
+            currentStreakDays: 3,
+            longestStreakDays: 9,
+          },
+        },
+      })
+    );
+
+    const screen = render(<ProgressScreen />);
+
+    expect(screen.getByText("Current streak: 3")).toBeTruthy();
+    expect(screen.getByText("Personal best: 9")).toBeTruthy();
+    expect(screen.queryByText(`Current streak: ${currentStreakDays}`)).toBeNull();
+    expect(screen.queryByText(`Personal best: ${longestStreakDays}`)).toBeNull();
   });
 
   it("switches metric tabs and period selections", () => {
     const screen = render(<ProgressScreen />);
 
     fireEvent.press(screen.getByText("Calories"));
-    fireEvent.press(screen.getAllByText("14 days")[1]);
+    fireEvent.press(screen.getByText("14 days"));
 
     expect(mockUseMetricChart).toHaveBeenLastCalledWith("calories", "14d");
   });
