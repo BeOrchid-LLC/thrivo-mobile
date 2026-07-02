@@ -36,7 +36,7 @@ export function Screen({
   edges = ["top", "bottom", "left", "right"],
   padded = true,
   style,
-  backgroundColor = colors.light,
+  backgroundColor = colors.white,
   refreshing,
   onRefresh,
   refreshControlProps,
