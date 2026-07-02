@@ -1,5 +1,5 @@
 import { Pressable, View } from "react-native";
-import { Drop, PlusCircle } from "phosphor-react-native";
+import { Drop, PlusCircle, PintGlassIcon } from "phosphor-react-native";
 import { Text } from "@/components";
 import { colors } from "@/theme";
 
@@ -21,9 +21,11 @@ export function WaterTracker({
 }: WaterTrackerProps) {
   const filled = Math.min(glasses, targetGlasses);
   return (
-    <View className="gap-sm rounded-[16px] bg-primarySoft px-lg py-md">
+    <View
+      className={`gap-lg rounded-[16px] ${glasses > 0 ? "bg-primaryTint" : "bg-gray-2"} px-lg py-[20px]`}
+    >
       <View className="flex-row items-center">
-        <Drop size={22} color={colors.primary} weight="regular" />
+        <PintGlassIcon size={22} color={colors.primary} weight="regular" />
         <Text variant="body" className="ml-sm flex-1 font-semibold text-primary">
           Drink water
         </Text>
