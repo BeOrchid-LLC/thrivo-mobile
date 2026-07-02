@@ -7,6 +7,7 @@ const mockUseProgress = jest.fn();
 const mockUseMetricChart = jest.fn();
 const mockUseWeightContext = jest.fn();
 const mockUseAddWeight = jest.fn();
+const mockUseSettings = jest.fn();
 
 jest.mock("expo-router", () => ({
   router: { push: jest.fn() },
@@ -17,6 +18,10 @@ jest.mock("../hooks/useProgress", () => ({
   useMetricChart: (metric: string, period: string) => mockUseMetricChart(metric, period),
   useWeightContext: () => mockUseWeightContext(),
   useAddWeight: () => mockUseAddWeight(),
+}));
+
+jest.mock("@/features/settings", () => ({
+  useSettings: () => mockUseSettings(),
 }));
 
 const progress = {
@@ -89,6 +94,7 @@ describe("ProgressScreen", () => {
     mockUseMetricChart.mockReturnValue(successQuery(chart));
     mockUseWeightContext.mockReturnValue(successQuery(weightContext));
     mockUseAddWeight.mockReturnValue({ mutate: jest.fn(), isPending: false });
+    mockUseSettings.mockReturnValue({ data: { unitSystem: "imperial" } });
   });
 
   it("renders the progress summary and default chart", () => {

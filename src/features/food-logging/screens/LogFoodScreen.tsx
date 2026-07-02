@@ -27,6 +27,7 @@ import {
   SkeletonText,
   Text,
 } from "@/components";
+import { queryClient, queryKeys } from "@/api";
 import { useCurrentDay } from "@/hooks/useCurrentDay";
 import {
   isNetworkReachable,
@@ -35,6 +36,8 @@ import {
   removeQueuedBarcodeScan,
 } from "@/lib";
 import { colors } from "@/theme";
+import { useSettings } from "@/features/settings";
+import { formatWater, roundTo, waterFromMl, waterToMl, waterUnitFor } from "@/utils";
 import type { FoodItem, FoodLogEntry, PortionMeasure } from "@/contracts";
 import {
   useAddFavorite,
@@ -65,13 +68,33 @@ export function LogFoodScreen() {
   const day = useCurrentDay();
   const [segment, setSegment] = useState<Segment>("food");
   const [subview, setSubview] = useState<Subview>("main");
+  const [refreshing, setRefreshing] = useState(false);
+
+  const refresh = () => {
+    setRefreshing(true);
+    const queries =
+      segment === "water"
+        ? [queryClient.invalidateQueries({ queryKey: queryKeys.metrics.waterByDay(day) })]
+        : [
+            queryClient.invalidateQueries({ queryKey: queryKeys.foods.recent() }),
+            queryClient.invalidateQueries({ queryKey: queryKeys.foods.favorites() }),
+            queryClient.invalidateQueries({ queryKey: queryKeys.foods.logDay(day) }),
+          ];
+    void Promise.all(queries).finally(() => setRefreshing(false));
+  };
 
   if (subview === "scan") return <ScanBarcodeScreen day={day} onBack={() => setSubview("main")} />;
   if (subview === "describe")
     return <DescribeMealScreen day={day} onBack={() => setSubview("main")} />;
 
   return (
-    <Screen scroll style={{ gap: 24 }}>
+    <Screen
+      scroll
+      edges={["top", "left", "right"]}
+      style={{ gap: 24, paddingBottom: 16 }}
+      refreshing={refreshing}
+      onRefresh={refresh}
+    >
       <View className="gap-xs">
         <Text variant="heading2" color="dark">
           Log Food
@@ -293,13 +316,21 @@ function FoodHome({
 
 function WaterHome({ day }: { day: string }) {
   const water = useWater(day);
+  const settings = useSettings();
   const addWater = useAddWaterLog(day);
   const deleteWater = useDeleteWaterLog(day);
-  const [manual, setManual] = useState("250");
+  const unitSystem = settings.data?.unitSystem ?? "metric";
+  const waterUnit = waterUnitFor(unitSystem);
+  const quickAddMl = [100, 250, 500];
+  const [manual, setManual] = useState(
+    unitSystem === "imperial" ? String(roundTo(waterFromMl(250, unitSystem), 1)) : "250"
+  );
   const [message, setMessage] = useState<string | null>(null);
   const data = water.data?.water;
   const manualAmount = Number(manual);
-  const manualValid = Number.isInteger(manualAmount) && manualAmount > 0 && manualAmount <= 5000;
+  const manualAmountMl = Math.round(waterToMl(manualAmount, unitSystem));
+  const manualValid =
+    Number.isFinite(manualAmount) && manualAmount > 0 && manualAmountMl > 0 && manualAmountMl <= 5000;
 
   if (water.isLoading) {
     return <WaterSkeleton />;
@@ -328,16 +359,16 @@ function WaterHome({ day }: { day: string }) {
         </View>
         <View className="flex-1">
           <Text variant="heading1" color="dark">
-            {data.totalMl.toLocaleString()}{" "}
+            {formatWater(data.totalMl, unitSystem)}{" "}
             <Text variant="body" color="muted">
-              ml
+              logged
             </Text>
           </Text>
           <Text variant="body" color="muted">
-            of {data.targetMl.toLocaleString()}ml daily goal
+            of {formatWater(data.targetMl, unitSystem)} daily goal
           </Text>
           <Text variant="caption" color="primary">
-            {data.remainingMl.toLocaleString()}ml remaining
+            {formatWater(data.remainingMl, unitSystem)} remaining
           </Text>
         </View>
       </View>
@@ -359,36 +390,39 @@ function WaterHome({ day }: { day: string }) {
           Quick add
         </Text>
         <View className="flex-row gap-md">
-          {[100, 250, 500].map((amount) => (
+          {quickAddMl.map((amountMl) => {
+            const amount = roundTo(waterFromMl(amountMl, unitSystem), unitSystem === "imperial" ? 1 : 0);
+            return (
             <Pressable
-              key={amount}
+              key={amountMl}
               accessibilityRole="button"
               disabled={addWater.isPending}
               onPress={() =>
-                addWater.mutate(amount, {
-                  onSuccess: () => setMessage(`${amount} ml added.`),
+                addWater.mutate(amountMl, {
+                  onSuccess: () => setMessage(`${formatWater(amountMl, unitSystem)} added.`),
                   onError: () => setMessage("Could not add water. Try again."),
                 })
               }
               className={`min-h-[64px] flex-1 items-center justify-center rounded-md ${
-                amount === 250 ? "bg-primarySoft" : "bg-gray-100"
+                amountMl === 250 ? "bg-primarySoft" : "bg-gray-100"
               }`}
             >
-              <Text variant="heading3" color={amount === 250 ? "primary" : "muted"}>
+              <Text variant="heading3" color={amountMl === 250 ? "primary" : "muted"}>
                 {amount}
               </Text>
-              <Text variant="body" color={amount === 250 ? "primary" : "muted"}>
-                ml
+              <Text variant="body" color={amountMl === 250 ? "primary" : "muted"}>
+                {waterUnit}
               </Text>
             </Pressable>
-          ))}
+            );
+          })}
         </View>
         <View className="flex-row items-center gap-md">
           <Input
             value={manual}
             onChangeText={setManual}
-            keyboardType="number-pad"
-            trailingText="ml"
+            keyboardType="decimal-pad"
+            trailingText={waterUnit}
             className="text-center"
           />
           <Button
@@ -397,8 +431,8 @@ function WaterHome({ day }: { day: string }) {
             loading={addWater.isPending}
             disabled={!manualValid}
             onPress={() =>
-              addWater.mutate(manualAmount, {
-                onSuccess: () => setMessage(`${manualAmount} ml added.`),
+              addWater.mutate(manualAmountMl, {
+                onSuccess: () => setMessage(`${formatWater(manualAmountMl, unitSystem)} added.`),
                 onError: () => setMessage("Could not add water. Try again."),
               })
             }
@@ -406,7 +440,7 @@ function WaterHome({ day }: { day: string }) {
         </View>
         {!manualValid ? (
           <Text variant="caption" color="error">
-            Enter a whole number between 1 and 5,000 ml.
+            Enter an amount up to {formatWater(5000, unitSystem)}.
           </Text>
         ) : null}
         {message ? (
@@ -435,10 +469,10 @@ function WaterHome({ day }: { day: string }) {
             <View className="flex-row items-center gap-md">
               <View className="items-end">
                 <Text variant="body" color="dark">
-                  {entry.amountMl}
+                  {roundTo(waterFromMl(entry.amountMl, unitSystem), unitSystem === "imperial" ? 1 : 0)}
                 </Text>
                 <Text variant="caption" color="muted">
-                  ml
+                  {waterUnit}
                 </Text>
               </View>
               <Pressable

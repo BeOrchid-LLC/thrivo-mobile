@@ -13,6 +13,7 @@ import { OnboardingStep } from "@/features/onboarding/components/OnboardingStep"
 import { InsightPill } from "@/features/onboarding/components/InsightPill";
 import { useSubmitOnboarding } from "@/features/onboarding/hooks/useCompleteOnboarding";
 import { isValidWeightKg } from "@/features/onboarding/utils/validation";
+import { useSettings, useUpdateSettings } from "@/features/settings";
 
 type Unit = "kg" | "lb";
 
@@ -27,9 +28,11 @@ export default function WeightStep() {
   const { setFields } = useOnboardingDraftActions();
   const { setIsOnboardingSkipped } = useSessionActions();
   const { submit, isPending } = useSubmitOnboarding();
+  const settings = useSettings();
+  const updateSettings = useUpdateSettings();
   const needsTarget = draft.goal !== "maintain";
 
-  const initialUnit: Unit = draft.unitSystem === "imperial" ? "lb" : "kg";
+  const initialUnit: Unit = (draft.unitSystem ?? settings.data?.unitSystem) === "imperial" ? "lb" : "kg";
   const [unit, setUnit] = useState<Unit>(initialUnit);
   const [current, setCurrent] = useState(toDisplay(draft.currentWeightKg, initialUnit));
   const [target, setTarget] = useState(toDisplay(draft.targetWeightKg, initialUnit));
@@ -80,7 +83,9 @@ export default function WeightStep() {
 
   const next = () => {
     if (valid) {
-      setFields(buildFields());
+      const fields = buildFields();
+      setFields(fields);
+      updateSettings.mutate({ unitSystem: fields.unitSystem });
     }
     router.push("/(onboarding)/body");
   };
@@ -88,6 +93,7 @@ export default function WeightStep() {
   const skip = () => {
     const fields = buildFields();
     setFields(fields);
+    updateSettings.mutate({ unitSystem: fields.unitSystem });
     setIsOnboardingSkipped(true);
     router.replace("/(app)/dashboard");
     void submit("skip", { silent: true, onboardingStep: 3, fields });

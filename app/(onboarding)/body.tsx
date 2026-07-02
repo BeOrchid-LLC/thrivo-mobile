@@ -2,7 +2,7 @@ import { useState } from "react";
 import { router } from "expo-router";
 import { View } from "react-native";
 import { Button, Input, RadioGroup, Segmented, Text } from "@/components";
-import type { Sex } from "@/contracts";
+import type { Sex, UnitSystem } from "@/contracts";
 import { roundTo } from "@/utils";
 import {
   type OnboardingDraft,
@@ -14,6 +14,7 @@ import { OnboardingStep } from "@/features/onboarding/components/OnboardingStep"
 import { NoteBox } from "@/features/onboarding/components/NoteBox";
 import { useSubmitOnboarding } from "@/features/onboarding/hooks/useCompleteOnboarding";
 import { isValidAgeYears, isValidHeightCm } from "@/features/onboarding/utils/validation";
+import { useSettings, useUpdateSettings } from "@/features/settings";
 
 type HeightUnit = "metric" | "imperial";
 const CM_PER_IN = 2.54;
@@ -32,10 +33,12 @@ export default function BodyStep() {
   const { setFields } = useOnboardingDraftActions();
   const { setIsOnboardingSkipped } = useSessionActions();
   const { submit, isPending } = useSubmitOnboarding();
+  const settings = useSettings();
+  const updateSettings = useUpdateSettings();
 
   const initialFtIn = draft.heightCm ? cmToFtIn(draft.heightCm) : null;
   const [heightUnit, setHeightUnit] = useState<HeightUnit>(
-    draft.unitSystem === "imperial" ? "imperial" : "metric"
+    (draft.unitSystem ?? settings.data?.unitSystem) === "imperial" ? "imperial" : "metric"
   );
   const [cm, setCm] = useState(draft.heightCm ? String(roundTo(draft.heightCm)) : "");
   const [ft, setFt] = useState(initialFtIn ? String(initialFtIn.ft) : "");
@@ -74,17 +77,23 @@ export default function BodyStep() {
     heightCm: heightCm > 0 ? roundTo(heightCm) : undefined,
     ageYears: ageNum >= 13 ? ageNum : undefined,
     sex,
+    unitSystem: heightUnit satisfies UnitSystem,
     onboardingStep: 4,
   });
 
   const next = () => {
-    if (valid) setFields(buildFields());
+    if (valid) {
+      const fields = buildFields();
+      setFields(fields);
+      updateSettings.mutate({ unitSystem: fields.unitSystem });
+    }
     router.push("/(onboarding)/target");
   };
 
   const skip = () => {
     const fields = buildFields();
     setFields(fields);
+    updateSettings.mutate({ unitSystem: fields.unitSystem });
     setIsOnboardingSkipped(true);
     router.replace("/(app)/dashboard");
     void submit("skip", { silent: true, onboardingStep: 4, fields });
