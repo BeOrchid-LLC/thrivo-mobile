@@ -13,7 +13,7 @@ import {
   Ticket,
   X,
 } from "phosphor-react-native";
-import { Button, Screen, SectionError, SkeletonText, Text } from "@/components";
+import { Button, Screen, SectionError, SelectSheet, SkeletonText, Text } from "@/components";
 import { LEGAL_LINKS } from "@/config/links";
 import { useLogout } from "@/features/auth/hooks/useAuth";
 import { useMe } from "@/features/profile";
@@ -36,11 +36,17 @@ function shortDate(value?: string | null) {
   );
 }
 
-function nextHydrationInterval(current: number) {
-  const options = [30, 40, 60, 90, 120];
-  const index = options.indexOf(current);
-  return options[(index + 1) % options.length] ?? 40;
-}
+type UnitSystem = "metric" | "imperial";
+
+const UNIT_OPTIONS: readonly { label: string; value: UnitSystem }[] = [
+  { label: "Metric (kg / cm)", value: "metric" },
+  { label: "Imperial (lb / in)", value: "imperial" },
+];
+
+const HYDRATION_OPTIONS = [30, 40, 60, 90, 120].map((value) => ({
+  label: `Every ${value} mins`,
+  value,
+}));
 
 /** "HH:mm[:ss]" → a Date today at that clock time (for the native picker). */
 function timeToDate(value?: string) {
@@ -134,6 +140,7 @@ export function SettingsScreen() {
   const [editingTime, setEditingTime] = useState<
     "dailyFoodLogReminderTime" | "weightCheckReminderTime" | null
   >(null);
+  const [editingSelect, setEditingSelect] = useState<"units" | "hydration" | null>(null);
 
   useEffect(() => {
     void isBiometricAvailable().then(setBiometricAvailable);
@@ -224,10 +231,7 @@ export function SettingsScreen() {
           onPress={
             settingsLoading
               ? undefined
-              : () =>
-                  updateSettings.mutate({
-                    unitSystem: userSettings.unitSystem === "imperial" ? "metric" : "imperial",
-                  })
+              : () => setEditingSelect("units")
           }
         />
         {profile.isError ? (
@@ -343,13 +347,7 @@ export function SettingsScreen() {
               <CaretRight size={18} color={colors.gray[500]} />
             </View>
           }
-          onPress={() =>
-            updateSettings.mutate({
-              hydrationReminderIntervalMinutes: nextHydrationInterval(
-                userSettings?.hydrationReminderIntervalMinutes ?? 40
-              ),
-            })
-          }
+          onPress={settingsLoading ? undefined : () => setEditingSelect("hydration")}
         />
       </Section>
 
@@ -455,6 +453,27 @@ export function SettingsScreen() {
           onChange={onTimePicked}
         />
       ) : null}
+
+      <SelectSheet
+        title="Units"
+        options={UNIT_OPTIONS}
+        value={(userSettings?.unitSystem ?? "metric") as UnitSystem}
+        visible={editingSelect === "units"}
+        disabled={settingsLoading}
+        onChange={(unitSystem) => updateSettings.mutate({ unitSystem })}
+        onClose={() => setEditingSelect(null)}
+      />
+      <SelectSheet
+        title="Hydration interval"
+        options={HYDRATION_OPTIONS}
+        value={userSettings?.hydrationReminderIntervalMinutes ?? 40}
+        visible={editingSelect === "hydration"}
+        disabled={settingsLoading}
+        onChange={(hydrationReminderIntervalMinutes) =>
+          updateSettings.mutate({ hydrationReminderIntervalMinutes })
+        }
+        onClose={() => setEditingSelect(null)}
+      />
     </Screen>
   );
 }

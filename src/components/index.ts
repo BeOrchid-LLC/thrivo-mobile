@@ -8,6 +8,8 @@ export { Card } from "./Card";
 export type { CardProps } from "./Card";
 export { Input } from "./Input";
 export type { InputProps } from "./Input";
+export { SelectSheet } from "./select-sheet";
+export type { SelectSheetOption, SelectSheetProps } from "./select-sheet";
 export { LoadingState } from "./LoadingState";
 export type { LoadingStateProps } from "./LoadingState";
 export { ErrorState } from "./ErrorState";
