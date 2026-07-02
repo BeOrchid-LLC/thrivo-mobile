@@ -10,7 +10,7 @@ import { env } from "@/config/env";
 import type { OtpRequestPayload, OtpVerifyPayload, User } from "@/contracts";
 import { setTokens, clearTokens, getRefreshToken, analytics, monitoring } from "@/lib";
 import { getMe } from "@/features/profile";
-import { useSessionActions } from "@/stores";
+import { useBiometricUnlockActions, useSessionActions } from "@/stores";
 import { requestOtp, verifyOtp, logoutSession, googleStartUrl, appleSignIn } from "../api/auth.api";
 
 // The OAuth callback redirects here with the issued tokens; openAuthSessionAsync
@@ -26,6 +26,7 @@ async function applyTokens(
   accessToken: string,
   refreshToken: string,
   setSession: ReturnType<typeof useSessionActions>["setSession"],
+  setBiometricUnlocked: ReturnType<typeof useBiometricUnlockActions>["setBiometricUnlocked"],
   queryClient: QueryClient
 ): Promise<User> {
   await setTokens(accessToken, refreshToken);
@@ -39,6 +40,7 @@ async function applyTokens(
       isOnboarded: user.isOnboarded,
       isOnboardingSkipped: user.isOnboardingSkipped,
     });
+    setBiometricUnlocked(true);
     analytics.identify(user.id);
     monitoring.setUser({ id: user.id });
     return user;
@@ -58,18 +60,26 @@ export function useRequestOtp() {
 
 export function useVerifyOtp() {
   const { setSession } = useSessionActions();
+  const { setBiometricUnlocked } = useBiometricUnlockActions();
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (input: OtpVerifyPayload) => {
       const tokens = await verifyOtp(input);
-      return applyTokens(tokens.accessToken, tokens.refreshToken, setSession, queryClient);
+      return applyTokens(
+        tokens.accessToken,
+        tokens.refreshToken,
+        setSession,
+        setBiometricUnlocked,
+        queryClient
+      );
     },
   });
 }
 
 export function useGoogleSignIn() {
   const { setSession } = useSessionActions();
+  const { setBiometricUnlocked } = useBiometricUnlockActions();
   const queryClient = useQueryClient();
   // The web client id is the per-environment "Google is wired" flag for the UI;
   // the OAuth flow itself is fully server-driven (the app only opens the browser).
@@ -117,7 +127,7 @@ export function useGoogleSignIn() {
         });
       }
 
-      return applyTokens(token, refresh, setSession, queryClient);
+      return applyTokens(token, refresh, setSession, setBiometricUnlocked, queryClient);
     },
   });
 
@@ -134,6 +144,7 @@ export function useGoogleSignIn() {
  */
 export function useAppleSignIn() {
   const { setSession } = useSessionActions();
+  const { setBiometricUnlocked } = useBiometricUnlockActions();
   const queryClient = useQueryClient();
   const isConfigured = Platform.OS === "ios";
 
@@ -184,7 +195,7 @@ export function useAppleSignIn() {
         : undefined;
 
       const tokens = await appleSignIn(idToken, name);
-      return applyTokens(tokens.accessToken, tokens.refreshToken, setSession, queryClient);
+      return applyTokens(tokens.accessToken, tokens.refreshToken, setSession, setBiometricUnlocked, queryClient);
     },
   });
 
@@ -194,6 +205,7 @@ export function useAppleSignIn() {
 /** Sign out: revoke the server session, then clear local token + caches regardless. */
 export function useLogout() {
   const { clearSession } = useSessionActions();
+  const { setBiometricUnlocked } = useBiometricUnlockActions();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async () => {
@@ -203,6 +215,7 @@ export function useLogout() {
     onSettled: async () => {
       await clearTokens();
       clearSession();
+      setBiometricUnlocked(false);
       analytics.reset();
       monitoring.setUser(null);
       queryClient.clear();

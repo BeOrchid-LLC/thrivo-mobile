@@ -8,6 +8,7 @@ interface RootRedirectInput {
   status: AuthStatus;
   isOnboarded: boolean;
   isOnboardingSkipped: boolean;
+  isBiometricLocked?: boolean;
 }
 
 export function resolveRootRedirect({
@@ -15,6 +16,7 @@ export function resolveRootRedirect({
   status,
   isOnboarded,
   isOnboardingSkipped,
+  isBiometricLocked = false,
 }: RootRedirectInput): RootRedirectTarget | null {
   const atRoot = !group;
   const inAuth = group === "(auth)";
@@ -28,6 +30,10 @@ export function resolveRootRedirect({
 
   if (status === "unauthenticated" && (atRoot || (!inAuth && !inAuthCallback))) {
     return "/(auth)/welcome";
+  }
+
+  if (status === "authenticated" && isBiometricLocked) {
+    return atRoot || inApp || inOnboarding ? "/(auth)/welcome" : null;
   }
 
   if (status === "authenticated" && !isOnboarded && !isOnboardingSkipped) {

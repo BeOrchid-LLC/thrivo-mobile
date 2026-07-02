@@ -24,7 +24,15 @@ import {
 } from "@/lib";
 import { useSessionInit, useSessionRefresh } from "@/hooks";
 import { resolveRootRedirect } from "@/navigation/root-redirect";
-import { useAuthStatus, useIsOnboarded, useIsOnboardingSkipped, useSessionActions } from "@/stores";
+import {
+  useAuthStatus,
+  useBiometricAuthEnabled,
+  useIsBiometricUnlocked,
+  useIsOnboarded,
+  useIsOnboardingSkipped,
+  usePreferencesHydrated,
+  useSessionActions,
+} from "@/stores";
 
 // Start crash reporting + analytics before anything else so an early boot error
 // is still captured. No-ops in dev when their env vars are unset (fail fast in prod).
@@ -39,6 +47,7 @@ registerOfflineMutations(queryClient);
 void SplashScreen.preventAutoHideAsync();
 
 const FONT_GATE_TIMEOUT_MS = 3000;
+const PREFERENCE_GATE_TIMEOUT_MS = 1000;
 
 function bootLog(message: string): void {
   if (__DEV__) console.info(`[boot] ${message}`);
@@ -53,8 +62,12 @@ function bootLog(message: string): void {
  */
 function RootNavigator({ fontsReady }: { fontsReady: boolean }) {
   const status = useAuthStatus();
+  const biometricEnabled = useBiometricAuthEnabled();
+  const isBiometricUnlocked = useIsBiometricUnlocked();
   const isOnboarded = useIsOnboarded();
   const isOnboardingSkipped = useIsOnboardingSkipped();
+  const preferencesHydrated = usePreferencesHydrated();
+  const [preferenceTimeoutReached, setPreferenceTimeoutReached] = useState(false);
   const segments = useSegments();
   const router = useRouter();
   const { setStatus } = useSessionActions();
@@ -62,6 +75,17 @@ function RootNavigator({ fontsReady }: { fontsReady: boolean }) {
 
   useSessionInit();
   useSessionRefresh();
+
+  useEffect(() => {
+    if (preferencesHydrated || status !== "authenticated") return undefined;
+
+    const timeout = setTimeout(() => {
+      bootLog("preference gate timed out; continuing without biometric startup lock");
+      setPreferenceTimeoutReached(true);
+    }, PREFERENCE_GATE_TIMEOUT_MS);
+
+    return () => clearTimeout(timeout);
+  }, [preferencesHydrated, status]);
 
   // Route notification taps to a usable app screen. The backend sends a stable
   // screen *key* (e.g. "checkin") so its payload never couples to Expo Router's
@@ -79,7 +103,11 @@ function RootNavigator({ fontsReady }: { fontsReady: boolean }) {
     });
   }, [router]);
 
-  const ready = fontsReady && status !== "loading";
+  const preferencesReady =
+    status !== "authenticated" || preferencesHydrated || preferenceTimeoutReached;
+  const ready = fontsReady && status !== "loading" && preferencesReady;
+  const isBiometricLocked =
+    status === "authenticated" && biometricEnabled && !isBiometricUnlocked && preferencesHydrated;
 
   useEffect(() => {
     if (!fontsReady) return;
@@ -96,10 +124,11 @@ function RootNavigator({ fontsReady }: { fontsReady: boolean }) {
       status,
       isOnboarded,
       isOnboardingSkipped,
+      isBiometricLocked,
     });
 
     bootLog(
-      `guard group=${group ?? "/"} status=${status} onboarded=${isOnboarded} skipped=${isOnboardingSkipped} target=${target ?? "none"}`
+      `guard group=${group ?? "/"} status=${status} onboarded=${isOnboarded} skipped=${isOnboardingSkipped} biometricLocked=${isBiometricLocked} target=${target ?? "none"}`
     );
 
     if (target) {
@@ -110,7 +139,15 @@ function RootNavigator({ fontsReady }: { fontsReady: boolean }) {
         redirecting.current = false;
       }, 0);
     }
-  }, [ready, status, isOnboarded, isOnboardingSkipped, segments, router]);
+  }, [
+    ready,
+    status,
+    isOnboarded,
+    isOnboardingSkipped,
+    isBiometricLocked,
+    segments,
+    router,
+  ]);
 
   if (!fontsReady) {
     return null;
