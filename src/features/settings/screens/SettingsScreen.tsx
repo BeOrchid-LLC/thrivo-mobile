@@ -403,7 +403,7 @@ export function SettingsScreen() {
           <Row
             icon={<FingerprintSimple size={24} color={colors.dark} />}
             title="Biometric unlock"
-            subtitle="Require Face ID, Touch ID, or your passcode to open Thrivo. Stays on this device."
+            subtitle="Show device unlock on the welcome screen when this device has a saved login. Stays on this device."
             action={
               <Switch
                 value={biometricEnabled}

@@ -19,5 +19,11 @@ export {
 export {
   usePreferencesStore,
   useBiometricAuthEnabled,
+  usePreferencesHydrated,
   usePreferencesActions,
 } from "./preferences.store";
+export {
+  useBiometricUnlockStore,
+  useIsBiometricUnlocked,
+  useBiometricUnlockActions,
+} from "./biometric-unlock.store";

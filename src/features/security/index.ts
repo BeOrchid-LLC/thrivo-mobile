@@ -1,1 +1,1 @@
-export { BiometricGate } from "./BiometricGate";
+export {};
