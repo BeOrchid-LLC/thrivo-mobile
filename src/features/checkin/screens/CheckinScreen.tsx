@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Pressable, View } from "react-native";
 import { useRouter } from "expo-router";
+import { queryClient, queryKeys } from "@/api";
 import { Button, Card, Input, Screen, SectionError, SkeletonText, Text } from "@/components";
 import { useCurrentDay } from "@/hooks/useCurrentDay";
 import type { Mood } from "@/contracts";
@@ -22,6 +23,7 @@ export function CheckinScreen() {
   const day = useCurrentDay();
   const [mood, setMood] = useState<Mood | null>(null);
   const [note, setNote] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
   const create = useCreateCheckin();
   const history = useCheckins();
 
@@ -34,8 +36,22 @@ export function CheckinScreen() {
     create.mutate({ mood, day, note: trimmed.length > 0 ? trimmed : undefined });
   };
 
+  const refresh = () => {
+    setRefreshing(true);
+    void Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.checkins.list() }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.streak() }),
+    ]).finally(() => setRefreshing(false));
+  };
+
   return (
-    <Screen scroll style={{ gap: 24 }}>
+    <Screen
+      scroll
+      edges={["top", "left", "right"]}
+      style={{ gap: 24, paddingBottom: 16 }}
+      refreshing={refreshing}
+      onRefresh={refresh}
+    >
       <View className="gap-xs">
         <Pressable
           accessibilityRole="button"

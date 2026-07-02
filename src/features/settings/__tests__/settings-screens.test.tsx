@@ -79,6 +79,11 @@ const profile = {
   createdAt: "2026-06-01T00:00:00.000Z",
 };
 
+const profileWithImage = {
+  ...profile,
+  image: "https://example.com/avatar.jpg",
+};
+
 const settings = {
   id: "settings-1",
   userId: "user-1",
@@ -130,6 +135,15 @@ describe("settings screens", () => {
     fireEvent.press(screen.getByText("Alex Johnson"));
 
     expect(router.push).toHaveBeenCalledWith("/(app)/settings/personal-info");
+  });
+
+  it("shows the profile image in settings when one is saved", () => {
+    mockUseMe.mockReturnValue({ data: profileWithImage, isLoading: false });
+
+    const screen = render(<SettingsScreen />);
+
+    expect(screen.getByLabelText("Profile photo")).toBeTruthy();
+    expect(screen.queryByText("AJ")).toBeNull();
   });
 
   it("persists unit and notification setting changes from select sheets", () => {
