@@ -1,4 +1,6 @@
+import { useContext } from "react";
 import { Modal, Pressable, View } from "react-native";
+import { SafeAreaInsetsContext } from "react-native-safe-area-context";
 import { Check, X } from "phosphor-react-native";
 import { colors } from "@/theme";
 import { Text } from "./Text";
@@ -27,6 +29,7 @@ export function SelectSheet<T extends string | number>({
   onClose,
   disabled = false,
 }: SelectSheetProps<T>) {
+  const insets = useContext(SafeAreaInsetsContext) ?? { top: 0, right: 0, bottom: 0, left: 0 };
   const select = (nextValue: T) => {
     if (disabled) return;
     onChange(nextValue);
@@ -42,7 +45,10 @@ export function SelectSheet<T extends string | number>({
           className="absolute inset-0"
           onPress={onClose}
         />
-        <View className="gap-md rounded-t-[24px] bg-white px-lg pb-xl pt-md">
+        <View
+          className="gap-md rounded-t-[24px] bg-white px-lg pt-md"
+          style={{ paddingBottom: Math.max(insets.bottom + 24, 40) }}
+        >
           <View className="h-[4px] w-[44px] self-center rounded-pill bg-gray-300" />
           <View className="flex-row items-center justify-between">
             <Text className="font-semibold text-[18px]">{title}</Text>

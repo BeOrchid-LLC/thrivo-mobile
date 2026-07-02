@@ -1,2 +1,22 @@
-export { lbToKg, kgToLb, roundTo } from "./units";
+export {
+  lbToKg,
+  kgToLb,
+  cmToIn,
+  inToCm,
+  mlToFlOz,
+  flOzToMl,
+  roundTo,
+  weightUnitFor,
+  heightUnitFor,
+  waterUnitFor,
+  weightFromKg,
+  weightToKg,
+  heightFromCm,
+  heightToCm,
+  waterFromMl,
+  waterToMl,
+  formatWeight,
+  formatHeight,
+  formatWater,
+} from "./units";
 export { localDay, addDays, isToday } from "./date";
