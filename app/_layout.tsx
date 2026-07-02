@@ -23,6 +23,7 @@ import {
   analytics,
 } from "@/lib";
 import { useSessionInit, useSessionRefresh } from "@/hooks";
+import { resolveRootRedirect } from "@/navigation/root-redirect";
 import { useAuthStatus, useIsOnboarded, useIsOnboardingSkipped, useSessionActions } from "@/stores";
 
 // Start crash reporting + analytics before anything else so an early boot error
@@ -90,29 +91,16 @@ function RootNavigator({ fontsReady }: { fontsReady: boolean }) {
     if (!ready || redirecting.current) return;
 
     const group = segments[0];
-    const inAuth = group === "(auth)";
-    const inOnboarding = group === "(onboarding)";
-    // OAuth deep-link handler: routes itself after applying tokens; exclude from guard.
-    const inAuthCallback = group === "auth";
+    const target = resolveRootRedirect({
+      group,
+      status,
+      isOnboarded,
+      isOnboardingSkipped,
+    });
 
-    let target: string | null = null;
-    if (status === "unauthenticated" && !inAuth && !inAuthCallback) {
-      target = "/(auth)/welcome";
-    } else if (
-      status === "authenticated" &&
-      !isOnboarded &&
-      !isOnboardingSkipped &&
-      !inOnboarding &&
-      !inAuthCallback
-    ) {
-      target = "/(onboarding)/name";
-    } else if (
-      status === "authenticated" &&
-      (isOnboarded || isOnboardingSkipped) &&
-      (inAuth || inOnboarding)
-    ) {
-      target = "/(app)/dashboard";
-    }
+    bootLog(
+      `guard group=${group ?? "/"} status=${status} onboarded=${isOnboarded} skipped=${isOnboardingSkipped} target=${target ?? "none"}`
+    );
 
     if (target) {
       redirecting.current = true;
