@@ -10,6 +10,8 @@ export { Input } from "./Input";
 export type { InputProps } from "./Input";
 export { SelectSheet } from "./select-sheet";
 export type { SelectSheetOption, SelectSheetProps } from "./select-sheet";
+export { SelectInput } from "./SelectInput";
+export type { SelectInputProps } from "./SelectInput";
 export { LoadingState } from "./LoadingState";
 export type { LoadingStateProps } from "./LoadingState";
 export { ErrorState } from "./ErrorState";
