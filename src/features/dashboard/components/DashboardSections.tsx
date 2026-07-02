@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { ForkKnife } from "phosphor-react-native";
 import {
   Button,
@@ -28,6 +28,16 @@ const GLASS_ML = 250;
 
 const goToLog = () => router.push("/(app)/log");
 const goToHistory = () => router.push("/(app)/history");
+
+const styles = StyleSheet.create({
+  macroCardShadow: {
+    shadowColor: colors.dark,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 16,
+    elevation: 1,
+  },
+});
 
 export function CaloriesSummarySection() {
   const calories = useDashboardCalories();
@@ -91,7 +101,11 @@ export function MacrosSection() {
 
   if (macros.isLoading) {
     return (
-      <Card accessibilityRole="progressbar" accessibilityLabel="Loading macros">
+      <Card
+        accessibilityRole="progressbar"
+        accessibilityLabel="Loading macros"
+        style={styles.macroCardShadow}
+      >
         <View className="gap-md">
           {["protein", "carbs", "fat"].map((label) => (
             <View key={label} className="gap-xs">
@@ -118,7 +132,7 @@ export function MacrosSection() {
   }
 
   return (
-    <Card className="border-2 border-gray-2">
+    <Card className="border-2 border-gray-2" style={styles.macroCardShadow}>
       <MacroBars
         consumed={{
           proteinG: macros.data.consumed.proteinG,
