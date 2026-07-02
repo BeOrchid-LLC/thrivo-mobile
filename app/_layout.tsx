@@ -1,5 +1,5 @@
 import "../global.css";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -37,6 +37,12 @@ initOnlineManager();
 registerOfflineMutations(queryClient);
 void SplashScreen.preventAutoHideAsync();
 
+const FONT_GATE_TIMEOUT_MS = 3000;
+
+function bootLog(message: string): void {
+  if (__DEV__) console.info(`[boot] ${message}`);
+}
+
 /**
  * The single navigation guard (MOBILE_ARCHITECTURE §5). Reads auth/onboarding
  * state and redirects to the correct group so no screen re-implements the gate:
@@ -44,7 +50,7 @@ void SplashScreen.preventAutoHideAsync();
  *   session, not onboarded → (onboarding)
  *   session + onboarded    → (app)
  */
-function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
+function RootNavigator({ fontsReady }: { fontsReady: boolean }) {
   const status = useAuthStatus();
   const isOnboarded = useIsOnboarded();
   const isOnboardingSkipped = useIsOnboardingSkipped();
@@ -72,7 +78,13 @@ function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
     });
   }, [router]);
 
-  const ready = fontsLoaded && status !== "loading";
+  const ready = fontsReady && status !== "loading";
+
+  useEffect(() => {
+    if (!fontsReady) return;
+    bootLog("font gate done; hiding native splash");
+    void SplashScreen.hideAsync();
+  }, [fontsReady]);
 
   useEffect(() => {
     if (!ready || redirecting.current) return;
@@ -110,11 +122,9 @@ function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
         redirecting.current = false;
       }, 0);
     }
-
-    void SplashScreen.hideAsync();
   }, [ready, status, isOnboarded, isOnboardingSkipped, segments, router]);
 
-  if (!fontsLoaded) {
+  if (!fontsReady) {
     return null;
   }
 
@@ -141,12 +151,31 @@ function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
 }
 
 function RootLayout() {
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     Inter_400Regular,
     Inter_500Medium,
     Inter_600SemiBold,
     Inter_700Bold,
   });
+  const [fontTimeoutReached, setFontTimeoutReached] = useState(false);
+
+  useEffect(() => {
+    if (fontsLoaded || fontError) return undefined;
+
+    const timeout = setTimeout(() => {
+      bootLog("font gate timed out; continuing with fallback font");
+      setFontTimeoutReached(true);
+    }, FONT_GATE_TIMEOUT_MS);
+
+    return () => clearTimeout(timeout);
+  }, [fontError, fontsLoaded]);
+
+  useEffect(() => {
+    if (fontsLoaded) bootLog("fonts loaded");
+    if (fontError) bootLog("font load failed; continuing with fallback font");
+  }, [fontError, fontsLoaded]);
+
+  const fontsReady = fontsLoaded || Boolean(fontError) || fontTimeoutReached;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -160,7 +189,7 @@ function RootLayout() {
             void queryClient.resumePausedMutations();
           }}
         >
-          <RootNavigator fontsLoaded={fontsLoaded} />
+          <RootNavigator fontsReady={fontsReady} />
         </PersistQueryClientProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

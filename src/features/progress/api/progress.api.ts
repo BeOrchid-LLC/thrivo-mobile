@@ -1,4 +1,4 @@
-import { callApi } from "@/api";
+import { callApi } from "@/api/client";
 import { localDay } from "@/utils";
 import type { AddWeightPayload, ChartMetric, ChartPeriod } from "@/contracts";
 

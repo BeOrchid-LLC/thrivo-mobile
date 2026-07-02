@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from "@testing-library/react-native";
+import { act, renderHook, waitFor } from "@testing-library/react-native";
 import { callApi } from "@/api";
 import { getToken, clearToken } from "@/lib";
 import { useSessionStore } from "@/stores/session.store";
@@ -33,6 +33,7 @@ const mockClearToken = clearToken as jest.MockedFunction<typeof clearToken>;
 
 describe("useSessionInit", () => {
   beforeEach(() => {
+    jest.useRealTimers();
     jest.clearAllMocks();
     useSessionStore.setState({
       status: "loading",
@@ -40,7 +41,12 @@ describe("useSessionInit", () => {
       userId: null,
       accountStatus: null,
       isOnboarded: false,
+      isOnboardingSkipped: false,
     });
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   it("marks unauthenticated when no token is stored", async () => {
@@ -70,7 +76,10 @@ describe("useSessionInit", () => {
     await waitFor(() => {
       expect(useSessionStore.getState().status).toBe("authenticated");
     });
-    expect(mockCallApi).toHaveBeenCalledWith("GET_SESSION");
+    expect(mockCallApi).toHaveBeenCalledWith(
+      "GET_SESSION",
+      expect.objectContaining({ signal: expect.any(Object) })
+    );
     expect(useSessionStore.getState().userId).toBe("550e8400-e29b-41d4-a716-446655440000");
     expect(useSessionStore.getState().isOnboarded).toBe(false);
   });
@@ -85,5 +94,49 @@ describe("useSessionInit", () => {
       expect(useSessionStore.getState().status).toBe("unauthenticated");
     });
     expect(mockClearToken).toHaveBeenCalled();
+  });
+
+  it("moves to restore_error when token restore hangs", async () => {
+    jest.useFakeTimers();
+    mockGetToken.mockReturnValue(new Promise(() => {}) as ReturnType<typeof getToken>);
+
+    renderHook(() => useSessionInit());
+
+    await act(async () => {
+      jest.advanceTimersByTime(8000);
+    });
+
+    await waitFor(() => {
+      expect(useSessionStore.getState().status).toBe("restore_error");
+    });
+    expect(mockCallApi).not.toHaveBeenCalled();
+  });
+
+  it("aborts GET_SESSION and moves to restore_error when session validation hangs", async () => {
+    jest.useFakeTimers();
+    let signal: AbortSignal | undefined;
+    mockGetToken.mockResolvedValue("access-token");
+    mockCallApi.mockImplementation((_endpoint, options) => {
+      signal = options?.signal;
+      return new Promise(() => {}) as ReturnType<typeof callApi>;
+    });
+
+    renderHook(() => useSessionInit());
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(mockCallApi).toHaveBeenCalled();
+
+    await act(async () => {
+      jest.advanceTimersByTime(10000);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(useSessionStore.getState().status).toBe("restore_error");
+    });
+    expect(signal?.aborted).toBe(true);
   });
 });
