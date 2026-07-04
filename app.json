@@ -77,7 +77,14 @@
       ],
       "expo-web-browser",
       "@react-native-community/datetimepicker",
-      "@sentry/react-native",
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "organization": "beorchid-llc",
+          "project": "thrivo"
+        }
+      ],
       "expo-localization"
     ],
     "scheme": "thrivo",
