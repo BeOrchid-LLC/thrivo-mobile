@@ -24,7 +24,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./src/assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#F4F6F9"
       },
       "edgeToEdgeEnabled": true,
       "package": "com.beorchid.thrivo"
@@ -37,13 +37,13 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#FFFFFF",
-          "image": "./src/assets/logo.png",
+          "backgroundColor": "#F4F6F9",
+          "image": "./src/assets/adaptive-icon.png",
           "imageWidth": 160,
           "resizeMode": "contain",
           "dark": {
-            "backgroundColor": "#FFFFFF",
-            "image": "./src/assets/logo.png",
+            "backgroundColor": "#F4F6F9",
+            "image": "./src/assets/adaptive-icon.png",
             "imageWidth": 160,
             "resizeMode": "contain"
           }
