@@ -27,10 +27,11 @@ import {
 } from "../api/food-logging.api";
 
 export function useFoodSearch(query: string) {
+  const normalized = query.trim().replace(/\s+/g, " ");
   return useQuery({
-    queryKey: queryKeys.foods.search(query),
-    queryFn: () => searchFoods(query),
-    enabled: query.trim().length > 0,
+    queryKey: queryKeys.foods.search(normalized),
+    queryFn: () => searchFoods(normalized),
+    enabled: normalized.length >= 2,
     staleTime: 1000 * 60,
   });
 }

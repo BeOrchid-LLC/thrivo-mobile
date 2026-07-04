@@ -14,6 +14,8 @@ const mockUseLogEstimate = jest.fn();
 const mockUseBarcodeLookup = jest.fn();
 const mockCameraScan = jest.fn();
 const mockUseSettings = jest.fn();
+const mockIsNetworkReachable = jest.fn(async () => true);
+const mockQueueBarcodeScan = jest.fn();
 
 jest.mock("expo-camera", () => {
   const { View } = jest.requireActual("react-native");
@@ -29,8 +31,8 @@ jest.mock("expo-camera", () => {
 });
 
 jest.mock("@/lib", () => ({
-  isNetworkReachable: jest.fn(async () => true),
-  queueBarcodeScan: jest.fn(),
+  isNetworkReachable: () => mockIsNetworkReachable(),
+  queueBarcodeScan: (scan: unknown) => mockQueueBarcodeScan(scan),
   readQueuedBarcodeScans: jest.fn(async () => []),
   removeQueuedBarcodeScan: jest.fn(),
 }));
@@ -65,6 +67,17 @@ const food = {
   servingOptions: [],
   isPersonal: false,
   isEstimated: false,
+};
+
+const searchResult = {
+  externalId: "off:1234567890123",
+  name: "Chicken breast, grilled",
+  brand: null,
+  barcode: "1234567890123",
+  servingLabel: "100g",
+  servingGrams: 100,
+  nutrients: { calories: 165, proteinG: 31, carbsG: 0, fatG: 4 },
+  source: "openfoodfacts" as const,
 };
 
 const water = {
@@ -114,6 +127,8 @@ describe("LogFoodScreen", () => {
     mockUseLogEstimate.mockReturnValue({ mutate: jest.fn(), isPending: false });
     mockUseBarcodeLookup.mockReturnValue(successQuery({ food: null }));
     mockUseSettings.mockReturnValue({ data: { unitSystem: "metric" } });
+    mockIsNetworkReachable.mockResolvedValue(true);
+    mockQueueBarcodeScan.mockResolvedValue(undefined);
   });
 
   it("renders the empty food state", () => {
@@ -123,18 +138,21 @@ describe("LogFoodScreen", () => {
     expect(screen.getByText("Nothing logged yet")).toBeTruthy();
   });
 
-  it("shows search results and logs a selected food", () => {
+  it("shows search results and logs a selected food snapshot", async () => {
     const mutate = jest.fn();
-    mockUseFoodSearch.mockReturnValue(successQuery({ items: [food] }));
+    mockUseFoodSearch.mockReturnValue(successQuery({ items: [searchResult], cached: false }));
     mockUseLogFood.mockReturnValue({ mutate, isPending: false });
 
     const screen = render(<LogFoodScreen />);
     fireEvent.changeText(screen.getByPlaceholderText("Or, search by name..."), "Chic");
+    await waitFor(() => expect(screen.getByText("Chicken breast, grilled")).toBeTruthy());
     fireEvent.press(screen.getByLabelText("Log food"));
 
-    expect(screen.getByText("Chicken breast, grilled")).toBeTruthy();
     expect(mutate).toHaveBeenCalledWith(
-      expect.objectContaining({ foodItemId: "food-1", servings: 1 }),
+      expect.objectContaining({
+        externalFood: searchResult,
+        servings: 1,
+      }),
       expect.any(Object)
     );
   });
@@ -175,6 +193,23 @@ describe("LogFoodScreen", () => {
     return waitFor(() => {
       expect(screen.getByText("Captured barcode")).toBeTruthy();
       expect(mockUseBarcodeLookup).toHaveBeenLastCalledWith("1234567890123");
+    });
+  });
+
+  it("queues a captured barcode while offline", async () => {
+    mockIsNetworkReachable.mockResolvedValue(false);
+
+    const screen = render(<LogFoodScreen />);
+    fireEvent.press(screen.getByText("Scan barcode"));
+    act(() => {
+      mockCameraScan();
+    });
+
+    await waitFor(() => {
+      expect(mockQueueBarcodeScan).toHaveBeenCalledWith(
+        expect.objectContaining({ barcode: "1234567890123", format: "ean13" })
+      );
+      expect(screen.getByText(/saved for lookup later/i)).toBeTruthy();
     });
   });
 
