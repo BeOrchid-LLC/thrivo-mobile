@@ -43,6 +43,20 @@ eas whoami                  # confirm you're logged in
 
 The project is already linked (`app.json` → `extra.eas.projectId`), so no `eas init` needed.
 
+### Observability env vars
+
+Preview and production builds must have these Expo environment variables configured before building:
+
+```bash
+EXPO_PUBLIC_SENTRY_DSN=...      # public runtime crash-reporting DSN
+EXPO_PUBLIC_POSTHOG_KEY=...     # public runtime product analytics key
+EXPO_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
+SENTRY_AUTH_TOKEN=...           # secret build-time token for source map upload
+```
+
+`app.json` already pins the Sentry source map upload target to organization `beorchid-llc` and project
+`thrivo`; keep `SENTRY_AUTH_TOKEN` out of source control and set it as a Secret in Expo/EAS.
+
 ---
 
 ## 3. The three build profiles
@@ -213,4 +227,6 @@ eas submit --profile production --platform android
 | OTA applied but native feature crashes           | You shipped JS that needs a native change — rebuild instead.                                          |
 | Google sign-in button missing / "not configured" | `EXPO_PUBLIC_GOOGLE_*_CLIENT_ID` unset at build time — see the auth setup notes. Rebuild after setting. |
 | Android build OK but Google OAuth fails          | The signing key's SHA-1 isn't registered in the Google Android OAuth client — get it via `eas credentials`. |
+| Preview app crashes before welcome screen        | Missing required release env, usually `EXPO_PUBLIC_POSTHOG_KEY` or `EXPO_PUBLIC_SENTRY_DSN`; set it in Expo and rebuild. |
+| Sentry warns about organization/project          | `@sentry/react-native/expo` config or `SENTRY_AUTH_TOKEN` is missing; verify `app.json` and Expo/EAS env vars. |
 ```
