@@ -27,7 +27,6 @@ export const chartMetric = pkg.chartMetricSchema;
 export const chartPeriod = pkg.chartPeriodSchema;
 export const estimateFoodPayload = pkg.estimateFoodPayloadSchema;
 export const logEstimatePayload = pkg.logEstimatePayloadSchema;
-export const logFoodPayload = pkg.logFoodPayloadSchema;
 export const otpRequestPayload = pkg.otpRequestPayloadSchema;
 export const otpVerifyPayload = pkg.otpVerifyPayloadSchema;
 export const purchaseSubscriptionPayload = pkg.purchaseSubscriptionPayloadSchema;
@@ -58,7 +57,6 @@ export const foodItemResponse = pkg.foodItemResponseSchema.shape.data;
 export const foodLogDayResponse = pkg.foodLogDayResponseSchema.shape.data;
 export const foodLogHistoryResponse = pkg.foodLogHistoryResponseSchema.shape.data;
 export const foodLookupResponse = pkg.foodLookupResponseSchema.shape.data;
-export const foodSearchResponse = pkg.foodSearchResponseSchema.shape.data;
 export const logMutationResponse = pkg.logMutationResponseSchema.shape.data;
 export const meResponse = pkg.getMeResponseSchema.shape.data;
 export const progressResponse = pkg.progressResponseSchema.shape.data;
@@ -96,7 +94,6 @@ export type FoodItemResponse = z.infer<typeof pkg.foodItemResponseSchema.shape.d
 export type FoodLogDayResponse = z.infer<typeof pkg.foodLogDayResponseSchema.shape.data>;
 export type FoodLogHistoryResponse = z.infer<typeof pkg.foodLogHistoryResponseSchema.shape.data>;
 export type FoodLookupResponse = z.infer<typeof pkg.foodLookupResponseSchema.shape.data>;
-export type FoodSearchResponse = z.infer<typeof pkg.foodSearchResponseSchema.shape.data>;
 export type LogMutationResponse = z.infer<typeof pkg.logMutationResponseSchema.shape.data>;
 export type MeResponse = z.infer<typeof pkg.getMeResponseSchema.shape.data>;
 export type ProgressResponse = z.infer<typeof pkg.progressResponseSchema.shape.data>;
@@ -106,3 +103,60 @@ export type SubscriptionResponse = z.infer<typeof pkg.subscriptionResponseSchema
 export type WaterResponse = z.infer<typeof pkg.waterResponseSchema.shape.data>;
 export type WeightContextResponse = z.infer<typeof pkg.weightContextResponseSchema.shape.data>;
 export type WeightEntryResponse = z.infer<typeof pkg.weightEntryResponseSchema.shape.data>;
+
+const boundedNutrientsSchema = z.object({
+  calories: z.number().min(0).max(5000),
+  proteinG: z.number().min(0).max(500),
+  carbsG: z.number().min(0).max(800),
+  fatG: z.number().min(0).max(500),
+});
+
+export const foodSearchResultSchema = z.object({
+  externalId: z.string(),
+  name: z.string(),
+  brand: z.string().nullable(),
+  barcode: z.string().nullable(),
+  servingLabel: z.string(),
+  servingGrams: z.number().nullable(),
+  nutrients: pkg.nutrientsSchema,
+  source: z.literal("openfoodfacts"),
+});
+export type FoodSearchResult = z.infer<typeof foodSearchResultSchema>;
+
+export const foodSearchResponse = z.object({
+  items: z.array(foodSearchResultSchema),
+  cached: z.boolean(),
+});
+export type FoodSearchResponse = z.infer<typeof foodSearchResponse>;
+
+export const externalFoodSnapshotSchema = z.object({
+  externalId: z.string().trim().min(1).max(128),
+  name: z.string().trim().min(1).max(160),
+  brand: z.string().trim().max(120).nullable().optional(),
+  barcode: z.string().trim().max(32).nullable().optional(),
+  servingLabel: z.string().trim().min(1).max(80),
+  servingGrams: z.number().positive().nullable().optional(),
+  nutrients: boundedNutrientsSchema,
+  source: z.literal("openfoodfacts"),
+});
+
+export const logFoodPayload = z
+  .object({
+    foodItemId: pkg.idSchema.optional(),
+    externalFood: externalFoodSnapshotSchema.optional(),
+    day: pkg.localDaySchema,
+    servings: z.number().positive().max(100),
+    servingId: pkg.idSchema.optional(),
+    servingUnit: z.string().trim().max(80).optional(),
+    consumedAt: pkg.isoDateSchema.optional(),
+  })
+  .superRefine((payload, ctx) => {
+    if (Boolean(payload.foodItemId) === Boolean(payload.externalFood)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["foodItemId"],
+        message: "Provide exactly one of foodItemId or externalFood",
+      });
+    }
+  });
+export type LogFoodPayload = z.infer<typeof logFoodPayload>;
