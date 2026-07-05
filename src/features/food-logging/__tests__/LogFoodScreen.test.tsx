@@ -120,7 +120,7 @@ describe("LogFoodScreen", () => {
     mockUseFavorites.mockReturnValue(successQuery({ items: [] }));
     mockUseLogFood.mockReturnValue({ mutate: jest.fn(), isPending: false });
     mockUseAddFavorite.mockReturnValue({ mutate: jest.fn() });
-    mockUseWater.mockReturnValue(successQuery({ water }));
+    mockUseWater.mockReturnValue(successQuery(water));
     mockUseAddWaterLog.mockReturnValue({ mutate: jest.fn(), isPending: false });
     mockUseDeleteWaterLog.mockReturnValue({ mutate: jest.fn() });
     mockUseEstimateFood.mockReturnValue({ mutate: jest.fn(), isPending: false, data: undefined });

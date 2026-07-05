@@ -46,7 +46,8 @@ export const estimateFood = (payload: EstimateFoodPayload) => callApi("FOOD_ESTI
 export const logEstimate = (payload: LogEstimatePayload, idempotencyKey?: string) =>
   callApi("FOOD_LOG_ESTIMATE", { payload, idempotencyKey });
 
-export const getWater = (day = localDay()) => callApi("WATER_GET", { query: { date: day } });
+export const getWater = async (day = localDay()) =>
+  (await callApi("WATER_GET", { query: { date: day } })).water;
 
 export const addWater = (amountMl: number, day = localDay(), idempotencyKey?: string) =>
   callApi("WATER_ADD", { payload: { day, amountMl } satisfies AddWaterPayload, idempotencyKey });
