@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Pressable, TextInput, View } from "react-native";
 import {
   CameraView,
@@ -38,9 +38,8 @@ import {
 import { colors } from "@/theme";
 import { useSettings } from "@/features/settings";
 import { formatWater, roundTo, waterFromMl, waterToMl, waterUnitFor } from "@/utils";
-import type { FoodItem, FoodLogEntry, PortionMeasure } from "@/contracts";
+import type { FoodItem, FoodLogEntry, FoodSearchResult, PortionMeasure } from "@/contracts";
 import {
-  useAddFavorite,
   useAddWaterLog,
   useBarcodeLookup,
   useDeleteWaterLog,
@@ -63,6 +62,20 @@ const portions: { label: string; value: PortionMeasure }[] = [
   { label: "Tbsp", value: "tbsp" },
   { label: "Piece", value: "piece" },
 ];
+
+function useDebouncedValue<T>(value: T, delayMs: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const timeout = setTimeout(() => setDebounced(value), delayMs);
+    return () => clearTimeout(timeout);
+  }, [delayMs, value]);
+  return debounced;
+}
+
+function normalizeBarcode(value: string): string | null {
+  const normalized = value.replace(/[\s-]/g, "");
+  return /^\d{8,14}$/.test(normalized) ? normalized : null;
+}
 
 export function LogFoodScreen() {
   const day = useCurrentDay();
@@ -134,15 +147,16 @@ function FoodHome({
   onDescribe: () => void;
 }) {
   const [query, setQuery] = useState("");
+  const debouncedQuery = useDebouncedValue(query, 350);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const search = useFoodSearch(query);
+  const search = useFoodSearch(debouncedQuery);
   const recent = useRecentFoods();
   const favorites = useFavorites();
   const logFood = useLogFood();
-  const addFavorite = useAddFavorite();
 
   const hasQuery = query.trim().length > 0;
+  const canSearch = query.trim().length >= 2;
   const results = search.data?.items ?? [];
   const recentItems = recent.data?.items ?? [];
   const favoriteItems = favorites.data?.items ?? [];
@@ -162,11 +176,19 @@ function FoodHome({
     );
   };
 
-  const favoriteItem = (food: FoodItem) => {
-    addFavorite.mutate(food.id, {
-      onSuccess: () => setMessage(`${food.name} added to favorites.`),
-      onError: () => setMessage("Could not update favorites. Try again."),
-    });
+  const logSearchResult = (food: FoodSearchResult) => {
+    logFood.mutate(
+      {
+        externalFood: food,
+        day,
+        servings: 1,
+        servingUnit: food.servingLabel,
+      },
+      {
+        onSuccess: () => setMessage(`${food.name} logged.`),
+        onError: () => setMessage("Could not log food. Try again."),
+      }
+    );
   };
 
   return (
@@ -211,7 +233,12 @@ function FoodHome({
           <Text variant="body" color="dark">
             {`Showing results for "${query.trim()}"`}
           </Text>
-          {search.isLoading ? <FoodRowSkeleton count={4} /> : null}
+          {!canSearch ? (
+            <Text variant="caption" color="muted">
+              Type at least 2 characters to search.
+            </Text>
+          ) : null}
+          {canSearch && search.isLoading ? <FoodRowSkeleton count={4} /> : null}
           {search.isError ? (
             <SectionError
               title="Could not search foods"
@@ -222,14 +249,14 @@ function FoodHome({
           ) : null}
           {results.map((item) => (
             <FoodResultRow
-              key={item.id}
+              key={item.externalId}
               item={item}
-              onLog={() => logItem(item)}
-              onFavorite={() => favoriteItem(item)}
+              onLog={() => logSearchResult(item)}
               loading={logFood.isPending}
+              showFavorite={false}
             />
           ))}
-          {!search.isLoading && !search.isError && results.length === 0 ? (
+          {canSearch && !search.isLoading && !search.isError && results.length === 0 ? (
             <View className="items-center gap-xs py-md">
               <Text variant="caption" color="muted">
                 {"Don't see it?"}
@@ -258,6 +285,7 @@ function FoodHome({
               onLog={() => logItem(item)}
               onFavorite={() => undefined}
               loading={logFood.isPending}
+              showFavorite={false}
             />
           ))}
         </FoodListSection>
@@ -306,6 +334,7 @@ function FoodHome({
               onLog={() => logItem(item)}
               onFavorite={() => undefined}
               loading={logFood.isPending}
+              showFavorite={false}
             />
           ))}
         </View>
@@ -326,11 +355,14 @@ function WaterHome({ day }: { day: string }) {
     unitSystem === "imperial" ? String(roundTo(waterFromMl(250, unitSystem), 1)) : "250"
   );
   const [message, setMessage] = useState<string | null>(null);
-  const data = water.data?.water;
+  const data = water.data;
   const manualAmount = Number(manual);
   const manualAmountMl = Math.round(waterToMl(manualAmount, unitSystem));
   const manualValid =
-    Number.isFinite(manualAmount) && manualAmount > 0 && manualAmountMl > 0 && manualAmountMl <= 5000;
+    Number.isFinite(manualAmount) &&
+    manualAmount > 0 &&
+    manualAmountMl > 0 &&
+    manualAmountMl <= 5000;
 
   if (water.isLoading) {
     return <WaterSkeleton />;
@@ -391,29 +423,32 @@ function WaterHome({ day }: { day: string }) {
         </Text>
         <View className="flex-row gap-md">
           {quickAddMl.map((amountMl) => {
-            const amount = roundTo(waterFromMl(amountMl, unitSystem), unitSystem === "imperial" ? 1 : 0);
+            const amount = roundTo(
+              waterFromMl(amountMl, unitSystem),
+              unitSystem === "imperial" ? 1 : 0
+            );
             return (
-            <Pressable
-              key={amountMl}
-              accessibilityRole="button"
-              disabled={addWater.isPending}
-              onPress={() =>
-                addWater.mutate(amountMl, {
-                  onSuccess: () => setMessage(`${formatWater(amountMl, unitSystem)} added.`),
-                  onError: () => setMessage("Could not add water. Try again."),
-                })
-              }
-              className={`min-h-[64px] flex-1 items-center justify-center rounded-md ${
-                amountMl === 250 ? "bg-primarySoft" : "bg-gray-100"
-              }`}
-            >
-              <Text variant="heading3" color={amountMl === 250 ? "primary" : "muted"}>
-                {amount}
-              </Text>
-              <Text variant="body" color={amountMl === 250 ? "primary" : "muted"}>
-                {waterUnit}
-              </Text>
-            </Pressable>
+              <Pressable
+                key={amountMl}
+                accessibilityRole="button"
+                disabled={addWater.isPending}
+                onPress={() =>
+                  addWater.mutate(amountMl, {
+                    onSuccess: () => setMessage(`${formatWater(amountMl, unitSystem)} added.`),
+                    onError: () => setMessage("Could not add water. Try again."),
+                  })
+                }
+                className={`min-h-[64px] flex-1 items-center justify-center rounded-md ${
+                  amountMl === 250 ? "bg-primarySoft" : "bg-gray-100"
+                }`}
+              >
+                <Text variant="heading3" color={amountMl === 250 ? "primary" : "muted"}>
+                  {amount}
+                </Text>
+                <Text variant="body" color={amountMl === 250 ? "primary" : "muted"}>
+                  {waterUnit}
+                </Text>
+              </Pressable>
             );
           })}
         </View>
@@ -469,7 +504,10 @@ function WaterHome({ day }: { day: string }) {
             <View className="flex-row items-center gap-md">
               <View className="items-end">
                 <Text variant="body" color="dark">
-                  {roundTo(waterFromMl(entry.amountMl, unitSystem), unitSystem === "imperial" ? 1 : 0)}
+                  {roundTo(
+                    waterFromMl(entry.amountMl, unitSystem),
+                    unitSystem === "imperial" ? 1 : 0
+                  )}
                 </Text>
                 <Text variant="caption" color="muted">
                   {waterUnit}
@@ -504,9 +542,11 @@ function ScanBarcodeScreen({ day, onBack }: { day: string; onBack: () => void })
   const [scanned, setScanned] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [permission, requestPermission] = useCameraPermissions();
-  const lookup = useBarcodeLookup(barcode.trim() || null);
+  const lookupBarcode = normalizeBarcode(barcode);
+  const lookup = useBarcodeLookup(lookupBarcode);
   const logFood = useLogFood();
   const food = lookup.data?.food;
+  const lastScanRef = useRef<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -515,7 +555,9 @@ function ScanBarcodeScreen({ day, onBack }: { day: string; onBack: () => void })
       if (!active || !online || barcode) return;
       const [queued] = await readQueuedBarcodeScans();
       if (!active || !queued) return;
-      setBarcode(queued.barcode);
+      const normalized = normalizeBarcode(queued.barcode);
+      if (!normalized) return;
+      setBarcode(normalized);
       setFormat(queued.format);
       setMessage("Replaying an offline scan.");
     })();
@@ -525,23 +567,30 @@ function ScanBarcodeScreen({ day, onBack }: { day: string; onBack: () => void })
   }, [barcode]);
 
   useEffect(() => {
-    if (food && barcode) {
-      void removeQueuedBarcodeScan(barcode);
+    if (food && lookupBarcode) {
+      void removeQueuedBarcodeScan(lookupBarcode);
     }
-  }, [barcode, food]);
+  }, [food, lookupBarcode]);
 
   const handleScan = (result: BarcodeScanningResult) => {
     const value = result.raw ?? result.data;
     if (!value) return;
+    const normalized = normalizeBarcode(value);
+    if (!normalized) {
+      setMessage("That barcode format is not supported. Try another packaged food.");
+      return;
+    }
+    if (lastScanRef.current === normalized) return;
+    lastScanRef.current = normalized;
     setScanned(true);
-    setBarcode(value);
+    setBarcode(normalized);
     setFormat(result.type);
     setMessage("Barcode captured. Looking up nutrition...");
     void (async () => {
       const online = await isNetworkReachable();
       if (!online) {
         await queueBarcodeScan({
-          barcode: value,
+          barcode: normalized,
           format: result.type,
           scannedAt: new Date().toISOString(),
         });
@@ -608,6 +657,7 @@ function ScanBarcodeScreen({ day, onBack }: { day: string; onBack: () => void })
               setBarcode("");
               setFormat(null);
               setScanned(false);
+              lastScanRef.current = null;
               setMessage(null);
             }}
           />
@@ -618,8 +668,9 @@ function ScanBarcodeScreen({ day, onBack }: { day: string; onBack: () => void })
           label="Developer barcode"
           value={barcode}
           onChangeText={(value) => {
-            setBarcode(value);
-            setScanned(Boolean(value));
+            const normalized = normalizeBarcode(value);
+            setBarcode(normalized ?? value);
+            setScanned(Boolean(normalized));
           }}
           keyboardType="number-pad"
           placeholder="Type barcode to test lookup"
@@ -635,6 +686,13 @@ function ScanBarcodeScreen({ day, onBack }: { day: string; onBack: () => void })
         <SectionError
           title="Could not look up barcode"
           message="The decoded barcode is saved locally if you are offline. Try again when your connection returns."
+          onRetry={() => void lookup.refetch()}
+        />
+      ) : null}
+      {barcode && lookup.data && !lookup.isFetching && !lookup.isError && !food ? (
+        <SectionError
+          title="Barcode not found"
+          message="This packaged food is not in Open Food Facts yet. You can search by name or describe the meal instead."
           onRetry={() => void lookup.refetch()}
         />
       ) : null}
@@ -814,11 +872,13 @@ function FoodResultRow({
   onLog,
   onFavorite,
   loading,
+  showFavorite = true,
 }: {
-  item: FoodItem;
+  item: FoodItem | FoodSearchResult;
   onLog: () => void;
-  onFavorite: () => void;
+  onFavorite?: () => void;
   loading: boolean;
+  showFavorite?: boolean;
 }) {
   return (
     <View className="flex-row items-center justify-between gap-md border-b border-gray-200 py-sm">
@@ -828,17 +888,19 @@ function FoodResultRow({
         </Text>
         <Text variant="caption" color="dark">
           {item.nutrients.calories} kcal per {item.servingLabel}
-          {item.isEstimated ? "  Estimated" : ""}
+          {"isEstimated" in item && item.isEstimated ? "  Estimated" : ""}
         </Text>
       </View>
       <View className="flex-row gap-sm">
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Add favorite"
-          onPress={onFavorite}
-        >
-          <Heart size={22} color={colors.primary} />
-        </Pressable>
+        {showFavorite && onFavorite ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Add favorite"
+            onPress={onFavorite}
+          >
+            <Heart size={22} color={colors.primary} />
+          </Pressable>
+        ) : null}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Log food"

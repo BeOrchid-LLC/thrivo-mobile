@@ -27,7 +27,6 @@ export const chartMetric = pkg.chartMetricSchema;
 export const chartPeriod = pkg.chartPeriodSchema;
 export const estimateFoodPayload = pkg.estimateFoodPayloadSchema;
 export const logEstimatePayload = pkg.logEstimatePayloadSchema;
-export const logFoodPayload = pkg.logFoodPayloadSchema;
 export const otpRequestPayload = pkg.otpRequestPayloadSchema;
 export const otpVerifyPayload = pkg.otpVerifyPayloadSchema;
 export const purchaseSubscriptionPayload = pkg.purchaseSubscriptionPayloadSchema;
@@ -58,7 +57,6 @@ export const foodItemResponse = pkg.foodItemResponseSchema.shape.data;
 export const foodLogDayResponse = pkg.foodLogDayResponseSchema.shape.data;
 export const foodLogHistoryResponse = pkg.foodLogHistoryResponseSchema.shape.data;
 export const foodLookupResponse = pkg.foodLookupResponseSchema.shape.data;
-export const foodSearchResponse = pkg.foodSearchResponseSchema.shape.data;
 export const logMutationResponse = pkg.logMutationResponseSchema.shape.data;
 export const meResponse = pkg.getMeResponseSchema.shape.data;
 export const progressResponse = pkg.progressResponseSchema.shape.data;
@@ -96,7 +94,6 @@ export type FoodItemResponse = z.infer<typeof pkg.foodItemResponseSchema.shape.d
 export type FoodLogDayResponse = z.infer<typeof pkg.foodLogDayResponseSchema.shape.data>;
 export type FoodLogHistoryResponse = z.infer<typeof pkg.foodLogHistoryResponseSchema.shape.data>;
 export type FoodLookupResponse = z.infer<typeof pkg.foodLookupResponseSchema.shape.data>;
-export type FoodSearchResponse = z.infer<typeof pkg.foodSearchResponseSchema.shape.data>;
 export type LogMutationResponse = z.infer<typeof pkg.logMutationResponseSchema.shape.data>;
 export type MeResponse = z.infer<typeof pkg.getMeResponseSchema.shape.data>;
 export type ProgressResponse = z.infer<typeof pkg.progressResponseSchema.shape.data>;
@@ -106,3 +103,14 @@ export type SubscriptionResponse = z.infer<typeof pkg.subscriptionResponseSchema
 export type WaterResponse = z.infer<typeof pkg.waterResponseSchema.shape.data>;
 export type WeightContextResponse = z.infer<typeof pkg.weightContextResponseSchema.shape.data>;
 export type WeightEntryResponse = z.infer<typeof pkg.weightEntryResponseSchema.shape.data>;
+
+// boundedNutrientsSchema, foodSearchResultSchema, and externalFoodSnapshotSchema
+// used to be hand-rolled here (patched around a stale published package) — the
+// package now defines all three under these exact names, so they already flow
+// through the `export *` passthrough above.
+
+export const foodSearchResponse = pkg.foodSearchResponseSchema.shape.data;
+export type FoodSearchResponse = z.infer<typeof pkg.foodSearchResponseSchema.shape.data>;
+
+export const logFoodPayload = pkg.logFoodPayloadSchema;
+export type LogFoodPayload = z.infer<typeof pkg.logFoodPayloadSchema>;
