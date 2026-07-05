@@ -104,59 +104,13 @@ export type WaterResponse = z.infer<typeof pkg.waterResponseSchema.shape.data>;
 export type WeightContextResponse = z.infer<typeof pkg.weightContextResponseSchema.shape.data>;
 export type WeightEntryResponse = z.infer<typeof pkg.weightEntryResponseSchema.shape.data>;
 
-const boundedNutrientsSchema = z.object({
-  calories: z.number().min(0).max(5000),
-  proteinG: z.number().min(0).max(500),
-  carbsG: z.number().min(0).max(800),
-  fatG: z.number().min(0).max(500),
-});
+// boundedNutrientsSchema, foodSearchResultSchema, and externalFoodSnapshotSchema
+// used to be hand-rolled here (patched around a stale published package) — the
+// package now defines all three under these exact names, so they already flow
+// through the `export *` passthrough above.
 
-export const foodSearchResultSchema = z.object({
-  externalId: z.string(),
-  name: z.string(),
-  brand: z.string().nullable(),
-  barcode: z.string().nullable(),
-  servingLabel: z.string(),
-  servingGrams: z.number().nullable(),
-  nutrients: pkg.nutrientsSchema,
-  source: z.literal("openfoodfacts"),
-});
-export type FoodSearchResult = z.infer<typeof foodSearchResultSchema>;
+export const foodSearchResponse = pkg.foodSearchResponseSchema.shape.data;
+export type FoodSearchResponse = z.infer<typeof pkg.foodSearchResponseSchema.shape.data>;
 
-export const foodSearchResponse = z.object({
-  items: z.array(foodSearchResultSchema),
-  cached: z.boolean(),
-});
-export type FoodSearchResponse = z.infer<typeof foodSearchResponse>;
-
-export const externalFoodSnapshotSchema = z.object({
-  externalId: z.string().trim().min(1).max(128),
-  name: z.string().trim().min(1).max(160),
-  brand: z.string().trim().max(120).nullable().optional(),
-  barcode: z.string().trim().max(32).nullable().optional(),
-  servingLabel: z.string().trim().min(1).max(80),
-  servingGrams: z.number().positive().nullable().optional(),
-  nutrients: boundedNutrientsSchema,
-  source: z.literal("openfoodfacts"),
-});
-
-export const logFoodPayload = z
-  .object({
-    foodItemId: pkg.idSchema.optional(),
-    externalFood: externalFoodSnapshotSchema.optional(),
-    day: pkg.localDaySchema,
-    servings: z.number().positive().max(100),
-    servingId: pkg.idSchema.optional(),
-    servingUnit: z.string().trim().max(80).optional(),
-    consumedAt: pkg.isoDateSchema.optional(),
-  })
-  .superRefine((payload, ctx) => {
-    if (Boolean(payload.foodItemId) === Boolean(payload.externalFood)) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["foodItemId"],
-        message: "Provide exactly one of foodItemId or externalFood",
-      });
-    }
-  });
-export type LogFoodPayload = z.infer<typeof logFoodPayload>;
+export const logFoodPayload = pkg.logFoodPayloadSchema;
+export type LogFoodPayload = z.infer<typeof pkg.logFoodPayloadSchema>;
