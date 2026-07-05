@@ -355,7 +355,7 @@ function WaterHome({ day }: { day: string }) {
     unitSystem === "imperial" ? String(roundTo(waterFromMl(250, unitSystem), 1)) : "250"
   );
   const [message, setMessage] = useState<string | null>(null);
-  const data = water.data?.water;
+  const data = water.data;
   const manualAmount = Number(manual);
   const manualAmountMl = Math.round(waterToMl(manualAmount, unitSystem));
   const manualValid =
