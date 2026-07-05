@@ -55,7 +55,12 @@ async function optimisticAddWater(qc: QueryClient, vars: AddWaterVars): Promise<
   await qc.cancelQueries({ queryKey: key });
   const previous = qc.getQueryData<Water>(key);
 
-  if (previous) {
+  // `getQueryData` only asserts the shape at the type level — a cache entry
+  // written under an older/incompatible shape (e.g. restored from a persisted
+  // cache after a contract change) would crash `applyWaterOptimistic`'s entries
+  // spread. Skip the optimistic bump rather than throw; the real request +
+  // post-settle invalidation still lands the write and corrects the cache.
+  if (previous && Array.isArray(previous.entries)) {
     qc.setQueryData<Water>(key, applyWaterOptimistic(previous, vars.amountMl, vars.idempotencyKey));
   }
 
