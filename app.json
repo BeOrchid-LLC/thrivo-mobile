@@ -37,15 +37,9 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#FFFFFF",
-          "image": "./src/assets/adaptive-icon.png",
-          "imageWidth": 160,
-          "resizeMode": "contain",
+          "backgroundColor": "#F4F6F9",
           "dark": {
-            "backgroundColor": "#FFFFFF",
-            "image": "./src/assets/adaptive-icon.png",
-            "imageWidth": 160,
-            "resizeMode": "contain"
+            "backgroundColor": "#F4F6F9"
           }
         }
       ],

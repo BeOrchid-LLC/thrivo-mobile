@@ -1,5 +1,5 @@
 import "../global.css";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -110,12 +110,6 @@ function RootNavigator({ fontsReady }: { fontsReady: boolean }) {
     status === "authenticated" && biometricEnabled && !isBiometricUnlocked && preferencesHydrated;
 
   useEffect(() => {
-    if (!fontsReady) return;
-    bootLog("font gate done; hiding native splash");
-    void SplashScreen.hideAsync();
-  }, [fontsReady]);
-
-  useEffect(() => {
     if (!ready || redirecting.current) return;
 
     const group = segments[0];
@@ -148,10 +142,6 @@ function RootNavigator({ fontsReady }: { fontsReady: boolean }) {
     segments,
     router,
   ]);
-
-  if (!fontsReady) {
-    return null;
-  }
 
   // Hold the branded splash until fonts + auth resolve so Inter never flashes
   // the fallback face and no screen renders before the guard decides the route.
@@ -202,8 +192,18 @@ function RootLayout() {
 
   const fontsReady = fontsLoaded || Boolean(fontError) || fontTimeoutReached;
 
+  const splashHidden = useRef(false);
+  const handleRootLayout = useCallback(() => {
+    if (splashHidden.current) return;
+    splashHidden.current = true;
+    // First frame is laid out (BrandSplash, since fonts/auth aren't ready yet),
+    // so the native splash can drop out with nothing blank behind it.
+    bootLog("first frame laid out; hiding native splash");
+    void SplashScreen.hideAsync();
+  }, []);
+
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={{ flex: 1 }} onLayout={handleRootLayout}>
       <SafeAreaProvider>
         <PersistQueryClientProvider
           client={queryClient}
