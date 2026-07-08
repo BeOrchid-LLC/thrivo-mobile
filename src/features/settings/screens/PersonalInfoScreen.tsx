@@ -3,7 +3,7 @@ import { ActivityIndicator, Alert, Pressable, View } from "react-native";
 import { router } from "expo-router";
 import { Image } from "expo-image";
 import { Camera } from "phosphor-react-native";
-import { BackButton, Button, Input, Screen, SelectInput, SelectSheet, Text } from "@/components";
+import { Button, Input, PageHeader, Screen, SelectInput, SelectSheet, Text } from "@/components";
 import type { Goal, Sex, UpdateProfilePayload } from "@/contracts";
 import {
   FileTooLargeError,
@@ -138,13 +138,7 @@ export function PersonalInfoScreen() {
 
   return (
     <Screen scroll backgroundColor={colors.white} style={{ gap: 20, paddingBottom: 120 }}>
-      <View className="flex-row items-center gap-md">
-        <BackButton onPress={() => router.back()} />
-        <Text variant="heading2">Personal information</Text>
-      </View>
-      <Text color="muted" className="text-[16px]">
-        Edit your details and save changes
-      </Text>
+      <PageHeader title="Personal information" subtitle="Edit your details and save changes" />
 
       <View className="items-center gap-xs">
         <Pressable

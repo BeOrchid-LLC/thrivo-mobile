@@ -20,6 +20,7 @@ import {
   Button,
   Card,
   Input,
+  PageHeader,
   Screen,
   SectionError,
   Segmented,
@@ -601,7 +602,7 @@ function ScanBarcodeScreen({ day, onBack }: { day: string; onBack: () => void })
 
   return (
     <Screen scroll style={{ gap: 24 }}>
-      <HeaderBack
+      <PageHeader
         title="Scan Barcode"
         subtitle="Packaged foods - instant nutrition look up."
         onBack={onBack}
@@ -743,7 +744,7 @@ function DescribeMealScreen({ day, onBack }: { day: string; onBack: () => void }
 
   return (
     <Screen scroll style={{ gap: 20 }}>
-      <HeaderBack
+      <PageHeader
         title="Describe a meal"
         subtitle="We'll help you estimate the calories."
         onBack={onBack}
@@ -1053,29 +1054,6 @@ function WaterSkeleton() {
         <SkeletonText className="w-1/3" />
         <FoodRowSkeleton count={2} />
       </View>
-    </View>
-  );
-}
-
-function HeaderBack({
-  title,
-  subtitle,
-  onBack,
-}: {
-  title: string;
-  subtitle: string;
-  onBack: () => void;
-}) {
-  return (
-    <View className="gap-xs">
-      <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={onBack}>
-        <Text variant="heading2" color="dark">
-          ← {title}
-        </Text>
-      </Pressable>
-      <Text variant="body" color="muted">
-        {subtitle}
-      </Text>
     </View>
   );
 }
