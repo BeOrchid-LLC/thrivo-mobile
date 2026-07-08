@@ -1,6 +1,6 @@
 import { Tabs } from "expo-router";
 import type { Icon } from "phosphor-react-native";
-import { ChartLine, ForkKnife, Gear, House } from "phosphor-react-native";
+import { ChartLineUp, ChartPieSlice, Scan, UserGear } from "phosphor-react-native";
 import { colors } from "@/theme";
 
 /** Phosphor tab icon, filled when the tab is active (Figma tab bar). */
@@ -36,7 +36,7 @@ export default function AppLayout() {
         name="dashboard"
         options={{
           title: "Dashboard",
-          tabBarIcon: tabIcon(House),
+          tabBarIcon: tabIcon(ChartPieSlice),
           tabBarAccessibilityLabel: "Dashboard",
         }}
       />
@@ -44,7 +44,7 @@ export default function AppLayout() {
         name="log"
         options={{
           title: "Log Food",
-          tabBarIcon: tabIcon(ForkKnife),
+          tabBarIcon: tabIcon(Scan),
           tabBarAccessibilityLabel: "Log food",
         }}
       />
@@ -52,7 +52,7 @@ export default function AppLayout() {
         name="metrics"
         options={{
           title: "Progress",
-          tabBarIcon: tabIcon(ChartLine),
+          tabBarIcon: tabIcon(ChartLineUp),
           tabBarAccessibilityLabel: "Progress",
         }}
       />
@@ -60,7 +60,7 @@ export default function AppLayout() {
         name="settings"
         options={{
           title: "Settings",
-          tabBarIcon: tabIcon(Gear),
+          tabBarIcon: tabIcon(UserGear),
           tabBarAccessibilityLabel: "Settings",
         }}
       />
