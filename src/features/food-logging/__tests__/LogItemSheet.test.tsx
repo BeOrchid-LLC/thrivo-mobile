@@ -1,15 +1,17 @@
-import { fireEvent, render } from "@testing-library/react-native";
+import { act, fireEvent, render } from "@testing-library/react-native";
 import type { FoodItem, FoodSearchResult } from "@/contracts";
 import { useFavoritesStore } from "@/stores";
 import { LogItemSheet } from "../components/LogItemSheet";
 
 const mockUseLogFood = jest.fn();
 const mockUseAddFavorite = jest.fn();
+const mockUseRemoveFavorite = jest.fn();
 const mockUseFavorites = jest.fn();
 
 jest.mock("../hooks/useFoodLogging", () => ({
   useLogFood: () => mockUseLogFood(),
   useAddFavorite: () => mockUseAddFavorite(),
+  useRemoveFavorite: () => mockUseRemoveFavorite(),
   useFavorites: () => mockUseFavorites(),
 }));
 
@@ -54,6 +56,7 @@ describe("LogItemSheet", () => {
       reset: jest.fn(),
     });
     mockUseAddFavorite.mockReturnValue({ mutate: jest.fn() });
+    mockUseRemoveFavorite.mockReturnValue({ mutate: jest.fn() });
     mockUseFavorites.mockReturnValue({ data: { items: [] } });
   });
 
@@ -113,8 +116,38 @@ describe("LogItemSheet", () => {
     );
     fireEvent.press(screen.getByLabelText("Add favorite"));
     fireEvent.press(screen.getByText("Log food"));
-    onSuccess?.({ entry: { foodItemId: "resolved-food-1" }, totals: {} });
+    act(() => {
+      onSuccess?.({ entry: { foodItemId: "resolved-food-1" }, totals: {} });
+    });
 
-    expect(addFavorite).toHaveBeenCalledWith("resolved-food-1");
+    expect(addFavorite).toHaveBeenCalledWith("resolved-food-1", expect.any(Object));
+    expect(useFavoritesStore.getState().favoriteIds).toEqual(["resolved-food-1"]);
+  });
+
+  it("removes a catalog favorite after a successful log when unchecked", () => {
+    const removeFavorite = jest.fn();
+    mockUseRemoveFavorite.mockReturnValue({ mutate: removeFavorite });
+    useFavoritesStore.setState({ favoriteIds: [foodItem.id] });
+    let onSuccess: ((data: unknown) => void) | undefined;
+    mockUseLogFood.mockReturnValue({
+      mutate: (_vars: unknown, opts: { onSuccess: (data: unknown) => void }) => {
+        onSuccess = opts.onSuccess;
+      },
+      isPending: false,
+      error: null,
+      reset: jest.fn(),
+    });
+
+    const screen = render(
+      <LogItemSheet item={foodItem} day="2026-07-10" visible onClose={jest.fn()} />
+    );
+    fireEvent.press(screen.getByLabelText("Remove favorite"));
+    fireEvent.press(screen.getByText("Log food"));
+    act(() => {
+      onSuccess?.({ entry: { foodItemId: foodItem.id }, totals: {} });
+    });
+
+    expect(removeFavorite).toHaveBeenCalledWith(foodItem.id, expect.any(Object));
+    expect(useFavoritesStore.getState().favoriteIds).toEqual([]);
   });
 });

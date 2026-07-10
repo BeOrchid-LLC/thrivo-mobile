@@ -4,10 +4,15 @@ import { SafeAreaInsetsContext } from "react-native-safe-area-context";
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { Heart, X } from "phosphor-react-native";
 import { Button, FormError, Text } from "@/components";
-import { useIsFavorite } from "@/stores";
+import { useFavoritesActions, useIsFavorite } from "@/stores";
 import { colors } from "@/theme";
 import type { FoodItem, FoodSearchResult, LogMutationResponse } from "@/contracts";
-import { useAddFavorite, useFavorites, useLogFood } from "../hooks/useFoodLogging";
+import {
+  useAddFavorite,
+  useFavorites,
+  useLogFood,
+  useRemoveFavorite,
+} from "../hooks/useFoodLogging";
 
 export interface LogItemSheetProps {
   item: FoodItem | FoodSearchResult | null;
@@ -31,6 +36,8 @@ export function LogItemSheet({ item, day, visible, onClose }: LogItemSheetProps)
   const insets = useContext(SafeAreaInsetsContext) ?? { top: 0, right: 0, bottom: 0, left: 0 };
   const logFood = useLogFood();
   const addFavorite = useAddFavorite();
+  const removeFavorite = useRemoveFavorite();
+  const { addFavoriteId, removeFavoriteId } = useFavoritesActions();
   useFavorites(); // keeps the local favorites store synced
 
   const [servings, setServings] = useState("1");
@@ -77,8 +84,18 @@ export function LogItemSheet({ item, day, visible, onClose }: LogItemSheetProps)
           // its mutationFn is merged in externally (registerOfflineMutations); the real
           // shape is LogMutationResponse.
           const response = data as LogMutationResponse;
-          if (favoriteChecked && response.entry.foodItemId) {
-            addFavorite.mutate(response.entry.foodItemId);
+          const resolvedFoodItemId = response.entry.foodItemId ?? catalogFoodItemId;
+
+          if (favoriteChecked && resolvedFoodItemId && !alreadyFavorite) {
+            addFavoriteId(resolvedFoodItemId);
+            addFavorite.mutate(resolvedFoodItemId, {
+              onError: () => removeFavoriteId(resolvedFoodItemId),
+            });
+          } else if (!favoriteChecked && catalogFoodItemId && alreadyFavorite) {
+            removeFavoriteId(catalogFoodItemId);
+            removeFavorite.mutate(catalogFoodItemId, {
+              onError: () => addFavoriteId(catalogFoodItemId),
+            });
           }
           onClose();
         },

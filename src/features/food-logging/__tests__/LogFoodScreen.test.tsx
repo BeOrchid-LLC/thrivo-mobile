@@ -8,6 +8,7 @@ const mockUseRecentFoods = jest.fn();
 const mockUseFavorites = jest.fn();
 const mockUseLogFood = jest.fn();
 const mockUseAddFavorite = jest.fn();
+const mockUseRemoveFavorite = jest.fn();
 const mockUseToggleFavorite = jest.fn();
 const mockUseUpdateFoodLog = jest.fn();
 const mockUseDeleteFoodLog = jest.fn();
@@ -53,6 +54,7 @@ jest.mock("../hooks/useFoodLogging", () => ({
   useFavorites: () => mockUseFavorites(),
   useLogFood: () => mockUseLogFood(),
   useAddFavorite: () => mockUseAddFavorite(),
+  useRemoveFavorite: () => mockUseRemoveFavorite(),
   useToggleFavorite: () => mockUseToggleFavorite(),
   useUpdateFoodLog: () => mockUseUpdateFoodLog(),
   useDeleteFoodLog: () => mockUseDeleteFoodLog(),
@@ -154,6 +156,7 @@ describe("LogFoodScreen", () => {
       reset: jest.fn(),
     });
     mockUseAddFavorite.mockReturnValue({ mutate: jest.fn() });
+    mockUseRemoveFavorite.mockReturnValue({ mutate: jest.fn() });
     mockUseToggleFavorite.mockReturnValue(jest.fn());
     mockUseUpdateFoodLog.mockReturnValue({
       mutate: jest.fn(),
@@ -233,6 +236,19 @@ describe("LogFoodScreen", () => {
 
     expect(screen.getAllByText("Favorites").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Chicken breast, grilled").length).toBeGreaterThan(0);
+  });
+
+  it("shows favorited items with the filled heart state on the favorites screen", () => {
+    mockUseFavorites.mockReturnValue(successQuery({ items: [food] }));
+    act(() => {
+      useFavoritesStore.setState({ favoriteIds: [food.id] });
+    });
+
+    const screen = render(<LogFoodScreen />);
+    fireEvent.press(screen.getAllByText("Favorites")[0]);
+
+    expect(screen.getAllByLabelText("Remove favorite").length).toBeGreaterThan(0);
+    expect(screen.queryByLabelText("Add favorite")).toBeNull();
   });
 
   it("toggles favorite on a scanned food", () => {
