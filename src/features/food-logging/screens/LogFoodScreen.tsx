@@ -474,13 +474,15 @@ function WaterHome({ day }: { day: string }) {
           })}
         </View>
         <View className="flex-row items-center gap-md">
-          <Input
-            value={manual}
-            onChangeText={setManual}
-            keyboardType="decimal-pad"
-            trailingText={waterUnit}
-            className="text-center"
-          />
+          <View className="flex-1">
+            <Input
+              value={manual}
+              onChangeText={setManual}
+              keyboardType="decimal-pad"
+              trailingText={waterUnit}
+              className="text-center"
+            />
+          </View>
           <Button
             label="Add"
             fullWidth={false}
