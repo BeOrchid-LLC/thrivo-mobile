@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Pressable, TextInput, View } from "react-native";
+import { Modal, Pressable, TextInput, View } from "react-native";
 import Svg, { Circle, Line, Path, Polyline } from "react-native-svg";
 import { ArrowLeft, Minus, Plus, TrendDown, Warning } from "phosphor-react-native";
 import { router } from "expo-router";
@@ -10,20 +10,17 @@ import {
   Screen,
   SectionError,
   Segmented,
+  SelectInput,
+  SelectSheet,
   SkeletonBlock,
   SkeletonText,
   Text,
 } from "@/components";
 import { isApiError } from "@/api/errors";
 import { useCurrentDay } from "@/hooks/useCurrentDay";
+import { useEntitlement } from "@/hooks/useEntitlement";
 import { colors } from "@/theme";
-import {
-  formatWeight,
-  roundTo,
-  weightFromKg,
-  weightToKg,
-  weightUnitFor,
-} from "@/utils";
+import { formatWeight, roundTo, weightFromKg, weightToKg, weightUnitFor } from "@/utils";
 import type { ChartMetric, ChartPeriod, ChartPoint, ProgressResponse } from "@/contracts";
 import { useSettings } from "@/features/settings";
 import { useAddWeight, useMetricChart, useProgress, useWeightContext } from "../hooks/useProgress";
@@ -37,12 +34,12 @@ const metricOptions = [
 const periodOptions = [
   { label: "7 days", value: "7d" },
   { label: "14 days", value: "14d" },
-  { label: "Month", value: "1m" },
-  { label: "Quarter", value: "1q" },
-  { label: "6 months", value: "6m" },
-  { label: "Year", value: "1y" },
-  { label: "All", value: "all" },
-] as const satisfies readonly { label: string; value: ChartPeriod }[];
+  { label: "Month", value: "1m", premiumOnly: true },
+  { label: "Quarter", value: "1q", premiumOnly: true },
+  { label: "6 months", value: "6m", premiumOnly: true },
+  { label: "Year", value: "1y", premiumOnly: true },
+  { label: "All", value: "all", premiumOnly: true },
+] as const satisfies readonly { label: string; value: ChartPeriod; premiumOnly?: boolean }[];
 
 type ViewMode = "home" | "log-weight";
 type ProgressData = ProgressResponse["progress"];
@@ -61,11 +58,22 @@ export function ProgressScreen() {
 function ProgressHome({ day, onLogWeight }: { day: string; onLogWeight: () => void }) {
   const [metric, setMetric] = useState<ChartMetric>("weight");
   const [period, setPeriod] = useState<ChartPeriod>("7d");
+  const [periodSelectOpen, setPeriodSelectOpen] = useState(false);
+  const [premiumModalOpen, setPremiumModalOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const progress = useProgress(day);
   const chart = useMetricChart(metric, period, day);
   const settings = useSettings();
+  const entitlement = useEntitlement();
   const unitSystem = settings.data?.unitSystem ?? "metric";
+  const lockPremiumPeriods = !entitlement.isLoading && !entitlement.isPremium;
+  const selectedPeriodLabel =
+    periodOptions.find((option) => option.value === period)?.label ?? "Select period";
+  const selectablePeriodOptions = periodOptions.map((option) => ({
+    label: option.label,
+    value: option.value,
+    locked: Boolean("premiumOnly" in option && option.premiumOnly && lockPremiumPeriods),
+  }));
   const premiumRequired =
     chart.isError && isApiError(chart.error) && chart.error.code === "PREMIUM_REQUIRED";
   const data = progress.data?.progress;
@@ -105,23 +113,12 @@ function ProgressHome({ day, onLogWeight }: { day: string; onLogWeight: () => vo
           {labelForMetric(metric)} over time
         </Text>
         <Segmented options={metricOptions} value={metric} onChange={setMetric} />
-        <View className="flex-row flex-wrap gap-sm">
-          {periodOptions.map((option) => (
-            <Pressable
-              key={option.value}
-              accessibilityRole="button"
-              accessibilityState={{ selected: option.value === period }}
-              onPress={() => setPeriod(option.value)}
-              className={`min-h-[38px] items-center justify-center rounded-sm px-md ${
-                option.value === period ? "bg-primary" : "bg-gray-100"
-              }`}
-            >
-              <Text variant="caption" color={option.value === period ? "inverse" : "muted"}>
-                {option.label}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
+        <SelectInput
+          label="Time period"
+          value={selectedPeriodLabel}
+          accessibilityLabel="Select time period"
+          onPress={() => setPeriodSelectOpen(true)}
+        />
         {premiumRequired ? (
           <Card className="gap-sm bg-primarySoft">
             <View className="flex-row items-center gap-sm">
@@ -181,7 +178,52 @@ function ProgressHome({ day, onLogWeight }: { day: string; onLogWeight: () => vo
         variant="secondary"
         onPress={() => router.push("/(app)/log")}
       />
+      <SelectSheet
+        title="Time period"
+        options={selectablePeriodOptions}
+        value={period}
+        visible={periodSelectOpen}
+        onChange={setPeriod}
+        onLockedPress={() => setPremiumModalOpen(true)}
+        onClose={() => setPeriodSelectOpen(false)}
+      />
+      <PremiumPeriodModal
+        visible={premiumModalOpen}
+        onClose={() => setPremiumModalOpen(false)}
+        onSubscribe={() => {
+          setPremiumModalOpen(false);
+          router.push("/(app)/settings/subscription");
+        }}
+      />
     </Screen>
+  );
+}
+
+function PremiumPeriodModal({
+  visible,
+  onClose,
+  onSubscribe,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onSubscribe: () => void;
+}) {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View className="flex-1 items-center justify-center bg-black/30 px-xl">
+        <View className="w-full gap-lg rounded-lg bg-white p-xl">
+          <View className="h-[48px] w-[48px] items-center justify-center self-center rounded-full bg-primarySoft">
+            <Warning size={26} color={colors.primary} />
+          </View>
+          <Text className="text-center font-semibold text-[18px]">Premium required</Text>
+          <Text color="dark" className="text-center leading-[24px]">
+            You have to be premium to view this option.
+          </Text>
+          <Button label="View subscription plans" onPress={onSubscribe} />
+          <Button label="Not now" variant="secondary" onPress={onClose} />
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -284,7 +326,13 @@ function LogWeightScreen({ day, onBack }: { day: string; onBack: () => void }) {
   );
 }
 
-function SummaryCards({ data, unitSystem }: { data: ProgressData; unitSystem: "metric" | "imperial" }) {
+function SummaryCards({
+  data,
+  unitSystem,
+}: {
+  data: ProgressData;
+  unitSystem: "metric" | "imperial";
+}) {
   return (
     <View className="flex-row flex-wrap gap-sm">
       <StatCard

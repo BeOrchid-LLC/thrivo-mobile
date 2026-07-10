@@ -8,6 +8,7 @@ const mockUseMetricChart = jest.fn();
 const mockUseWeightContext = jest.fn();
 const mockUseAddWeight = jest.fn();
 const mockUseSettings = jest.fn();
+const mockUseEntitlement = jest.fn();
 
 const currentStreakDays = 14;
 const longestStreakDays = 21;
@@ -25,6 +26,10 @@ jest.mock("../hooks/useProgress", () => ({
 
 jest.mock("@/features/settings", () => ({
   useSettings: () => mockUseSettings(),
+}));
+
+jest.mock("@/hooks/useEntitlement", () => ({
+  useEntitlement: () => mockUseEntitlement(),
 }));
 
 const progress = {
@@ -98,6 +103,7 @@ describe("ProgressScreen", () => {
     mockUseWeightContext.mockReturnValue(successQuery(weightContext));
     mockUseAddWeight.mockReturnValue({ mutate: jest.fn(), isPending: false });
     mockUseSettings.mockReturnValue({ data: { unitSystem: "imperial" } });
+    mockUseEntitlement.mockReturnValue({ isPremium: false, isLoading: false });
   });
 
   it("renders the progress summary and default chart", () => {
@@ -138,9 +144,35 @@ describe("ProgressScreen", () => {
     const screen = render(<ProgressScreen />);
 
     fireEvent.press(screen.getByText("Calories"));
-    fireEvent.press(screen.getByText("14 days"));
+    fireEvent.press(screen.getByLabelText("Select time period"));
+    fireEvent.press(screen.getByLabelText("14 days"));
 
     expect(mockUseMetricChart).toHaveBeenLastCalledWith("calories", "14d");
+  });
+
+  it("locks premium period options for free users and links to subscription settings", () => {
+    const screen = render(<ProgressScreen />);
+
+    fireEvent.press(screen.getByLabelText("Select time period"));
+    fireEvent.press(screen.getByLabelText("Month, premium required"));
+
+    expect(screen.getByText("Premium required")).toBeTruthy();
+    expect(screen.getByText("You have to be premium to view this option.")).toBeTruthy();
+
+    fireEvent.press(screen.getByText("View subscription plans"));
+
+    expect(router.push).toHaveBeenCalledWith("/(app)/settings/subscription");
+    expect(mockUseMetricChart).toHaveBeenLastCalledWith("weight", "7d");
+  });
+
+  it("lets premium users select long period options", () => {
+    mockUseEntitlement.mockReturnValue({ isPremium: true, isLoading: false });
+    const screen = render(<ProgressScreen />);
+
+    fireEvent.press(screen.getByLabelText("Select time period"));
+    fireEvent.press(screen.getByLabelText("Month"));
+
+    expect(mockUseMetricChart).toHaveBeenLastCalledWith("weight", "1m");
   });
 
   it("shows an upgrade prompt for long periods", () => {
