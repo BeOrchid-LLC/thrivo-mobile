@@ -30,6 +30,8 @@ export { ThrivoMark } from "./ThrivoMark";
 export type { ThrivoMarkProps } from "./ThrivoMark";
 export { BackButton } from "./BackButton";
 export type { BackButtonProps } from "./BackButton";
+export { PageHeader } from "./PageHeader";
+export type { PageHeaderProps } from "./PageHeader";
 export {
   ChevronLeftIcon,
   MailIcon,

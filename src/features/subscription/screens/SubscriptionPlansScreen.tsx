@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Modal, Pressable, View } from "react-native";
 import { router } from "expo-router";
 import { Check, SealCheck, X } from "phosphor-react-native";
-import { BackButton, Button, Screen, Segmented, Text } from "@/components";
+import { Button, PageHeader, Screen, Segmented, Text } from "@/components";
 import type { SubscriptionPlan } from "@/contracts";
 import { colors } from "@/theme";
 import {
@@ -127,10 +127,7 @@ export function SubscriptionPlansScreen() {
 
   return (
     <Screen scroll backgroundColor={colors.light} style={{ gap: 18, paddingBottom: 120 }}>
-      <View className="flex-row items-center gap-md">
-        <BackButton onPress={() => router.back()} />
-        <Text variant="heading2">Subscription plans</Text>
-      </View>
+      <PageHeader title="Subscription plans" />
 
       <Segmented
         value={plan}

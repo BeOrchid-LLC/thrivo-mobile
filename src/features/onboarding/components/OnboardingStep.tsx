@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { ScrollView, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { BackButton, Text } from "@/components";
+import { PageHeader } from "@/components";
 import { colors } from "@/theme";
 
 const TOTAL_STEPS = 7;
@@ -52,21 +52,9 @@ export function OnboardingStep({
               ))}
             </View>
 
-            <View className="mt-xl flex-row items-start gap-lg">
-              <BackButton onPress={onBack} />
-              <Text
-                className="flex-1 font-bold text-[26px] leading-[31px] tracking-[-0.5px] text-dark"
-                accessibilityRole="header"
-              >
-                {title}
-              </Text>
+            <View className="mt-xl">
+              <PageHeader title={title} subtitle={subtitle} onBack={onBack} />
             </View>
-
-            {subtitle ? (
-              <Text className="mt-sm font-regular text-[15px] leading-[22px] text-stepText">
-                {subtitle}
-              </Text>
-            ) : null}
 
             <View className="mt-2xl flex-1 gap-md">{children}</View>
 

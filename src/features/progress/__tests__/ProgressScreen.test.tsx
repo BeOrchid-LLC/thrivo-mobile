@@ -1,6 +1,7 @@
-import { fireEvent, render } from "@testing-library/react-native";
+import { act, fireEvent, render } from "@testing-library/react-native";
 import { router } from "expo-router";
 import { ApiError } from "@/api/errors";
+import { emitTabRootReset } from "@/navigation/tab-root-reset";
 import { ProgressScreen } from "../screens/ProgressScreen";
 
 const mockUseProgress = jest.fn();
@@ -8,6 +9,7 @@ const mockUseMetricChart = jest.fn();
 const mockUseWeightContext = jest.fn();
 const mockUseAddWeight = jest.fn();
 const mockUseSettings = jest.fn();
+const mockUseEntitlement = jest.fn();
 
 const currentStreakDays = 14;
 const longestStreakDays = 21;
@@ -25,6 +27,10 @@ jest.mock("../hooks/useProgress", () => ({
 
 jest.mock("@/features/settings", () => ({
   useSettings: () => mockUseSettings(),
+}));
+
+jest.mock("@/hooks/useEntitlement", () => ({
+  useEntitlement: () => mockUseEntitlement(),
 }));
 
 const progress = {
@@ -98,6 +104,7 @@ describe("ProgressScreen", () => {
     mockUseWeightContext.mockReturnValue(successQuery(weightContext));
     mockUseAddWeight.mockReturnValue({ mutate: jest.fn(), isPending: false });
     mockUseSettings.mockReturnValue({ data: { unitSystem: "imperial" } });
+    mockUseEntitlement.mockReturnValue({ isPremium: false, isLoading: false });
   });
 
   it("renders the progress summary and default chart", () => {
@@ -138,9 +145,35 @@ describe("ProgressScreen", () => {
     const screen = render(<ProgressScreen />);
 
     fireEvent.press(screen.getByText("Calories"));
-    fireEvent.press(screen.getByText("14 days"));
+    fireEvent.press(screen.getByLabelText("Select time period"));
+    fireEvent.press(screen.getByLabelText("14 days"));
 
     expect(mockUseMetricChart).toHaveBeenLastCalledWith("calories", "14d");
+  });
+
+  it("locks premium period options for free users and links to subscription settings", () => {
+    const screen = render(<ProgressScreen />);
+
+    fireEvent.press(screen.getByLabelText("Select time period"));
+    fireEvent.press(screen.getByLabelText("Month, premium required"));
+
+    expect(screen.getByText("Premium required")).toBeTruthy();
+    expect(screen.getByText("You have to be premium to view this option.")).toBeTruthy();
+
+    fireEvent.press(screen.getByText("View subscription plans"));
+
+    expect(router.push).toHaveBeenCalledWith("/(app)/settings/subscription");
+    expect(mockUseMetricChart).toHaveBeenLastCalledWith("weight", "7d");
+  });
+
+  it("lets premium users select long period options", () => {
+    mockUseEntitlement.mockReturnValue({ isPremium: true, isLoading: false });
+    const screen = render(<ProgressScreen />);
+
+    fireEvent.press(screen.getByLabelText("Select time period"));
+    fireEvent.press(screen.getByLabelText("Month"));
+
+    expect(mockUseMetricChart).toHaveBeenLastCalledWith("weight", "1m");
   });
 
   it("shows an upgrade prompt for long periods", () => {
@@ -174,6 +207,21 @@ describe("ProgressScreen", () => {
       expect.objectContaining({ day: expect.any(String), weightKg: expect.any(Number) }),
       expect.any(Object)
     );
+  });
+
+  it("resets to the default progress screen when the progress tab is pressed", () => {
+    const screen = render(<ProgressScreen />);
+    fireEvent.press(screen.getByText("Log this week’s weight"));
+
+    expect(screen.getByText("Log weight")).toBeTruthy();
+
+    act(() => {
+      emitTabRootReset("metrics");
+    });
+
+    expect(screen.getByText("Progress")).toBeTruthy();
+    expect(screen.getByText("Weight over time")).toBeTruthy();
+    expect(screen.queryByText("Log weight")).toBeNull();
   });
 
   it("navigates to the food logging tab", () => {

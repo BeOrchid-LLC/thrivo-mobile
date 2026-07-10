@@ -1,4 +1,6 @@
+import { createElement, type ReactNode } from "react";
 import { fireEvent, render } from "@testing-library/react-native";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { router } from "expo-router";
 import Dashboard from "../../../../app/(app)/dashboard";
 import type {
@@ -8,6 +10,7 @@ import type {
   StreakSummary,
   Water,
 } from "@/contracts";
+import { useFavoritesStore } from "@/stores";
 
 const mockUseMe = jest.fn();
 const mockUseDashboardCalories = jest.fn();
@@ -16,6 +19,8 @@ const mockUseDashboardStreak = jest.fn();
 const mockUseDashboardWater = jest.fn();
 const mockUseDashboardMealLog = jest.fn();
 const mockUseAddWater = jest.fn();
+const mockUseFavorites = jest.fn();
+const mockUseToggleFavorite = jest.fn();
 const mockPush = jest.fn();
 
 jest.mock("@/features/profile", () => ({
@@ -30,6 +35,15 @@ jest.mock("../hooks/useDashboard", () => ({
   useDashboardMealLog: () => mockUseDashboardMealLog(),
   useAddWater: () => mockUseAddWater(),
 }));
+
+jest.mock("@/features/food-logging", () => {
+  const actual = jest.requireActual("@/features/food-logging");
+  return {
+    ...actual,
+    useFavorites: () => mockUseFavorites(),
+    useToggleFavorite: () => mockUseToggleFavorite(),
+  };
+});
 
 const emptyCalories: DashboardCalories = {
   day: "2026-06-22",
@@ -100,9 +114,21 @@ const successQuery = <T,>(data: T) => ({
   refetch: jest.fn(),
 });
 
+// TodayMealLogSection renders EditFoodLogSheet, whose hooks (useUpdateFoodLog/
+// useDeleteFoodLog) need a real QueryClient in context even when the sheet is closed.
+function renderDashboard() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  const wrapper = ({ children }: { children: ReactNode }) =>
+    createElement(QueryClientProvider, { client: queryClient }, children);
+  return render(<Dashboard />, { wrapper });
+}
+
 describe("Dashboard graceful degradation", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    useFavoritesStore.setState({ favoriteIds: [] });
     (router as unknown as { push: jest.Mock }).push = mockPush;
     mockUseMe.mockReturnValue(successQuery({ name: "Ada Lovelace" }));
     mockUseDashboardCalories.mockReturnValue(successQuery(emptyCalories));
@@ -113,6 +139,8 @@ describe("Dashboard graceful degradation", () => {
       successQuery({ day: "2026-06-22", entries: [], isEmptyDay: true })
     );
     mockUseAddWater.mockReturnValue({ mutate: jest.fn(), isPending: false, error: null });
+    mockUseFavorites.mockReturnValue({ data: { items: [] } });
+    mockUseToggleFavorite.mockReturnValue(jest.fn());
   });
 
   it("renders static header content while dashboard sections are loading", () => {
@@ -123,7 +151,7 @@ describe("Dashboard graceful degradation", () => {
     mockUseDashboardWater.mockReturnValue(loadingQuery);
     mockUseDashboardMealLog.mockReturnValue(loadingQuery);
 
-    const screen = render(<Dashboard />);
+    const screen = renderDashboard();
 
     expect(screen.getByText("Hi, there")).toBeTruthy();
     expect(
@@ -137,7 +165,7 @@ describe("Dashboard graceful degradation", () => {
   });
 
   it("renders the cached first name immediately when profile data is available", () => {
-    const screen = render(<Dashboard />);
+    const screen = renderDashboard();
 
     expect(screen.getByText("Hi, Ada")).toBeTruthy();
   });
@@ -148,7 +176,7 @@ describe("Dashboard graceful degradation", () => {
     mockUseDashboardStreak.mockReturnValue(errorQuery);
     mockUseDashboardWater.mockReturnValue(errorQuery);
 
-    const screen = render(<Dashboard />);
+    const screen = renderDashboard();
 
     expect(screen.getByText("Hi, Ada")).toBeTruthy();
     expect(screen.getByText("Could not load calories")).toBeTruthy();
@@ -160,7 +188,7 @@ describe("Dashboard graceful degradation", () => {
   it("keeps the rest of the dashboard available when only the meal log fails", () => {
     mockUseDashboardMealLog.mockReturnValue(errorQuery);
 
-    const screen = render(<Dashboard />);
+    const screen = renderDashboard();
 
     expect(screen.getByText("of 1,800 daily target")).toBeTruthy();
     expect(screen.getByText("0 of 8 glasses")).toBeTruthy();
@@ -169,7 +197,7 @@ describe("Dashboard graceful degradation", () => {
   });
 
   it("renders the empty meal state and opens the log tab from the first-meal CTA", () => {
-    const screen = render(<Dashboard />);
+    const screen = renderDashboard();
 
     expect(screen.getByText("Nothing logged yet")).toBeTruthy();
 
@@ -183,8 +211,27 @@ describe("Dashboard graceful degradation", () => {
       successQuery({ day: "2026-06-22", entries: [loggedEntry], isEmptyDay: false })
     );
 
-    const screen = render(<Dashboard />);
+    const screen = renderDashboard();
 
     expect(screen.getByText("Greek yogurt")).toBeTruthy();
+  });
+
+  it("shows the logged time and a functional favorite heart on today's entries", () => {
+    const toggleFavorite = jest.fn();
+    mockUseToggleFavorite.mockReturnValue(toggleFavorite);
+    mockUseDashboardMealLog.mockReturnValue(
+      successQuery({ day: "2026-06-22", entries: [loggedEntry], isEmptyDay: false })
+    );
+
+    const screen = renderDashboard();
+
+    const expectedTime = new Date(loggedEntry.consumedAt).toLocaleTimeString([], {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+    expect(screen.getByText(new RegExp(expectedTime.replace(/\s/g, "\\s")))).toBeTruthy();
+    fireEvent.press(screen.getByLabelText("Add favorite"));
+
+    expect(toggleFavorite).toHaveBeenCalledWith(loggedEntry.foodItemId);
   });
 });

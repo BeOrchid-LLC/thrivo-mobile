@@ -20,6 +20,7 @@ import {
   Button,
   Card,
   Input,
+  PageHeader,
   Screen,
   SectionError,
   Segmented,
@@ -37,8 +38,12 @@ import {
 } from "@/lib";
 import { colors } from "@/theme";
 import { useSettings } from "@/features/settings";
+import { subscribeTabRootReset } from "@/navigation/tab-root-reset";
+import { useIsFavorite } from "@/stores";
 import { formatWater, roundTo, waterFromMl, waterToMl, waterUnitFor } from "@/utils";
 import type { FoodItem, FoodLogEntry, FoodSearchResult, PortionMeasure } from "@/contracts";
+import { EditFoodLogSheet } from "../components/EditFoodLogSheet";
+import { LogItemSheet } from "../components/LogItemSheet";
 import {
   useAddWaterLog,
   useBarcodeLookup,
@@ -49,6 +54,7 @@ import {
   useLogEstimate,
   useLogFood,
   useRecentFoods,
+  useToggleFavorite,
   useWater,
 } from "../hooks/useFoodLogging";
 
@@ -81,7 +87,18 @@ export function LogFoodScreen() {
   const day = useCurrentDay();
   const [segment, setSegment] = useState<Segment>("food");
   const [subview, setSubview] = useState<Subview>("main");
+  const [resetVersion, setResetVersion] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(
+    () =>
+      subscribeTabRootReset("log", () => {
+        setSegment("food");
+        setSubview("main");
+        setResetVersion((version) => version + 1);
+      }),
+    []
+  );
 
   const refresh = () => {
     setRefreshing(true);
@@ -126,6 +143,7 @@ export function LogFoodScreen() {
       />
       {segment === "food" ? (
         <FoodHome
+          key={resetVersion}
           day={day}
           onScan={() => setSubview("scan")}
           onDescribe={() => setSubview("describe")}
@@ -150,6 +168,8 @@ function FoodHome({
   const debouncedQuery = useDebouncedValue(query, 350);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [editingEntry, setEditingEntry] = useState<FoodLogEntry | null>(null);
+  const [loggingItem, setLoggingItem] = useState<FoodItem | FoodSearchResult | null>(null);
   const search = useFoodSearch(debouncedQuery);
   const recent = useRecentFoods();
   const favorites = useFavorites();
@@ -176,19 +196,9 @@ function FoodHome({
     );
   };
 
-  const logSearchResult = (food: FoodSearchResult) => {
-    logFood.mutate(
-      {
-        externalFood: food,
-        day,
-        servings: 1,
-        servingUnit: food.servingLabel,
-      },
-      {
-        onSuccess: () => setMessage(`${food.name} logged.`),
-        onError: () => setMessage("Could not log food. Try again."),
-      }
-    );
+  const openLogSheet = (food: FoodItem | FoodSearchResult) => {
+    setQuery("");
+    setLoggingItem(food);
   };
 
   return (
@@ -251,9 +261,8 @@ function FoodHome({
             <FoodResultRow
               key={item.externalId}
               item={item}
-              onLog={() => logSearchResult(item)}
+              onLog={() => openLogSheet(item)}
               loading={logFood.isPending}
-              showFavorite={false}
             />
           ))}
           {canSearch && !search.isLoading && !search.isError && results.length === 0 ? (
@@ -283,9 +292,7 @@ function FoodHome({
               key={item.id}
               item={item}
               onLog={() => logItem(item)}
-              onFavorite={() => undefined}
               loading={logFood.isPending}
-              showFavorite={false}
             />
           ))}
         </FoodListSection>
@@ -295,7 +302,7 @@ function FoodHome({
             Recent foods
           </Text>
           {recentItems.map((entry) => (
-            <RecentFoodRow key={entry.id} entry={entry} />
+            <RecentFoodRow key={entry.id} entry={entry} onPress={() => setEditingEntry(entry)} />
           ))}
         </View>
       ) : recent.isLoading ? (
@@ -332,13 +339,22 @@ function FoodHome({
               key={item.id}
               item={item}
               onLog={() => logItem(item)}
-              onFavorite={() => undefined}
               loading={logFood.isPending}
-              showFavorite={false}
             />
           ))}
         </View>
       ) : null}
+      <EditFoodLogSheet
+        entry={editingEntry}
+        visible={editingEntry !== null}
+        onClose={() => setEditingEntry(null)}
+      />
+      <LogItemSheet
+        item={loggingItem}
+        day={day}
+        visible={loggingItem !== null}
+        onClose={() => setLoggingItem(null)}
+      />
     </View>
   );
 }
@@ -453,13 +469,15 @@ function WaterHome({ day }: { day: string }) {
           })}
         </View>
         <View className="flex-row items-center gap-md">
-          <Input
-            value={manual}
-            onChangeText={setManual}
-            keyboardType="decimal-pad"
-            trailingText={waterUnit}
-            className="text-center"
-          />
+          <View className="flex-1">
+            <Input
+              value={manual}
+              onChangeText={setManual}
+              keyboardType="decimal-pad"
+              trailingText={waterUnit}
+              className="text-center"
+            />
+          </View>
           <Button
             label="Add"
             fullWidth={false}
@@ -601,7 +619,7 @@ function ScanBarcodeScreen({ day, onBack }: { day: string; onBack: () => void })
 
   return (
     <Screen scroll style={{ gap: 24 }}>
-      <HeaderBack
+      <PageHeader
         title="Scan Barcode"
         subtitle="Packaged foods - instant nutrition look up."
         onBack={onBack}
@@ -708,7 +726,6 @@ function ScanBarcodeScreen({ day, onBack }: { day: string; onBack: () => void })
                 servingUnit: food.servingLabel,
               })
             }
-            onFavorite={() => undefined}
             loading={logFood.isPending}
           />
         </Card>
@@ -743,7 +760,7 @@ function DescribeMealScreen({ day, onBack }: { day: string; onBack: () => void }
 
   return (
     <Screen scroll style={{ gap: 20 }}>
-      <HeaderBack
+      <PageHeader
         title="Describe a meal"
         subtitle="We'll help you estimate the calories."
         onBack={onBack}
@@ -870,18 +887,28 @@ function QuickAction({
 function FoodResultRow({
   item,
   onLog,
-  onFavorite,
   loading,
-  showFavorite = true,
 }: {
   item: FoodItem | FoodSearchResult;
   onLog: () => void;
-  onFavorite?: () => void;
   loading: boolean;
-  showFavorite?: boolean;
 }) {
+  // Ensures the local favorites store is synced wherever this row renders,
+  // regardless of navigation path (TanStack Query dedupes by key, so this
+  // costs nothing extra when a parent already called useFavorites()).
+  useFavorites();
+  const toggleFavorite = useToggleFavorite();
+  const foodItemId = "id" in item ? item.id : null;
+  const isFavorite = useIsFavorite(foodItemId);
+
   return (
-    <View className="flex-row items-center justify-between gap-md border-b border-gray-200 py-sm">
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Log ${item.name}`}
+      disabled={loading}
+      onPress={onLog}
+      className="flex-row items-center justify-between gap-md border-b border-gray-200 py-sm"
+    >
       <View className="flex-1">
         <Text variant="body" color="dark">
           {item.name}
@@ -892,32 +919,35 @@ function FoodResultRow({
         </Text>
       </View>
       <View className="flex-row gap-sm">
-        {showFavorite && onFavorite ? (
+        {foodItemId ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Add favorite"
-            onPress={onFavorite}
+            accessibilityLabel={isFavorite ? "Remove favorite" : "Add favorite"}
+            onPress={() => toggleFavorite(foodItemId)}
+            hitSlop={8}
           >
-            <Heart size={22} color={colors.primary} />
+            <Heart size={22} color={colors.primary} weight={isFavorite ? "fill" : "regular"} />
           </Pressable>
         ) : null}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Log food"
-          disabled={loading}
-          onPress={onLog}
-        >
-          <Plus size={22} color={colors.primary} />
-        </Pressable>
+        <Plus size={22} color={colors.primary} />
       </View>
-    </View>
+    </Pressable>
   );
 }
 
-function RecentFoodRow({ entry }: { entry: FoodLogEntry }) {
+function RecentFoodRow({ entry, onPress }: { entry: FoodLogEntry; onPress: () => void }) {
+  useFavorites();
+  const toggleFavorite = useToggleFavorite();
+  const isFavorite = useIsFavorite(entry.foodItemId);
+
   return (
-    <View className="flex-row items-center justify-between border-b border-gray-200 py-sm">
-      <View>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`View ${entry.name}`}
+      onPress={onPress}
+      className="flex-row items-center justify-between border-b border-gray-200 py-sm"
+    >
+      <View className="flex-1">
         <Text variant="body" color="dark">
           {entry.name}
         </Text>
@@ -925,15 +955,27 @@ function RecentFoodRow({ entry }: { entry: FoodLogEntry }) {
           {entry.nutrients.calories} kcal · {formatTime(entry.consumedAt)}
         </Text>
       </View>
-      <View className="items-end">
-        <Text variant="body" color="dark">
-          {entry.servings}
-        </Text>
-        <Text variant="caption" color="muted">
-          {entry.servingUnit ?? "serving"}
-        </Text>
+      <View className="flex-row items-center gap-md">
+        {entry.foodItemId ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={isFavorite ? "Remove favorite" : "Add favorite"}
+            onPress={() => toggleFavorite(entry.foodItemId as string)}
+            hitSlop={8}
+          >
+            <Heart size={22} color={colors.primary} weight={isFavorite ? "fill" : "regular"} />
+          </Pressable>
+        ) : null}
+        <View className="items-end">
+          <Text variant="body" color="dark">
+            {entry.servings}
+          </Text>
+          <Text variant="caption" color="muted">
+            {entry.servingUnit ?? "serving"}
+          </Text>
+        </View>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -1053,29 +1095,6 @@ function WaterSkeleton() {
         <SkeletonText className="w-1/3" />
         <FoodRowSkeleton count={2} />
       </View>
-    </View>
-  );
-}
-
-function HeaderBack({
-  title,
-  subtitle,
-  onBack,
-}: {
-  title: string;
-  subtitle: string;
-  onBack: () => void;
-}) {
-  return (
-    <View className="gap-xs">
-      <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={onBack}>
-        <Text variant="heading2" color="dark">
-          ← {title}
-        </Text>
-      </Pressable>
-      <Text variant="body" color="muted">
-        {subtitle}
-      </Text>
     </View>
   );
 }

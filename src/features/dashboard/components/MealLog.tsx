@@ -1,6 +1,8 @@
 import { Pressable, View } from "react-native";
-import { PlusCircle } from "phosphor-react-native";
+import { Heart, PlusCircle } from "phosphor-react-native";
 import { Text } from "@/components";
+import { useFavorites, useToggleFavorite } from "@/features/food-logging";
+import { useIsFavorite } from "@/stores";
 import { colors } from "@/theme";
 import type { FoodLogEntry } from "@/contracts";
 
@@ -8,10 +10,15 @@ interface MealLogProps {
   entries: FoodLogEntry[];
   onLogFood: () => void;
   onViewAll: () => void;
+  onEntryPress: (entry: FoodLogEntry) => void;
 }
 
-/** Today's logged foods in reverse consumed-time order. */
-export function MealLog({ entries, onLogFood, onViewAll }: MealLogProps) {
+function formatTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+}
+
+/** Today's logged foods in reverse consumed-time order. Tap a row to edit it. */
+export function MealLog({ entries, onLogFood, onViewAll, onEntryPress }: MealLogProps) {
   const totalCalories = entries.reduce((sum, entry) => sum + entry.nutrients.calories, 0);
 
   return (
@@ -36,20 +43,7 @@ export function MealLog({ entries, onLogFood, onViewAll }: MealLogProps) {
         </Pressable>
       </View>
       {entries.map((entry) => (
-        <View key={entry.id} className="flex-row justify-between gap-md">
-          <View className="flex-1">
-            <Text variant="body" color="dark">
-              {entry.name}
-            </Text>
-            <Text variant="caption" color="muted">
-              {entry.servings}
-              {entry.servingUnit ? ` ${entry.servingUnit}` : " serving"}
-            </Text>
-          </View>
-          <Text variant="body" color="dark">
-            {entry.nutrients.calories} kcal
-          </Text>
-        </View>
+        <MealLogRow key={entry.id} entry={entry} onPress={() => onEntryPress(entry)} />
       ))}
       <Pressable
         accessibilityRole="button"
@@ -62,5 +56,46 @@ export function MealLog({ entries, onLogFood, onViewAll }: MealLogProps) {
         </Text>
       </Pressable>
     </View>
+  );
+}
+
+function MealLogRow({ entry, onPress }: { entry: FoodLogEntry; onPress: () => void }) {
+  useFavorites();
+  const toggleFavorite = useToggleFavorite();
+  const isFavorite = useIsFavorite(entry.foodItemId);
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Edit ${entry.name}`}
+      onPress={onPress}
+      className="flex-row items-center justify-between gap-md"
+    >
+      <View className="flex-1">
+        <Text variant="body" color="dark">
+          {entry.name}
+        </Text>
+        <Text variant="caption" color="muted">
+          {entry.servings}
+          {entry.servingUnit ? ` ${entry.servingUnit}` : " serving"} ·{" "}
+          {formatTime(entry.consumedAt)}
+        </Text>
+      </View>
+      <View className="flex-row items-center gap-md">
+        {entry.foodItemId ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={isFavorite ? "Remove favorite" : "Add favorite"}
+            onPress={() => toggleFavorite(entry.foodItemId as string)}
+            hitSlop={8}
+          >
+            <Heart size={20} color={colors.primary} weight={isFavorite ? "fill" : "regular"} />
+          </Pressable>
+        ) : null}
+        <Text variant="body" color="dark">
+          {entry.nutrients.calories} kcal
+        </Text>
+      </View>
+    </Pressable>
   );
 }

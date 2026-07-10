@@ -1,4 +1,7 @@
 import { act, fireEvent, render, waitFor } from "@testing-library/react-native";
+import { emitTabRootReset } from "@/navigation/tab-root-reset";
+import { useFavoritesStore } from "@/stores";
+import { localDay } from "@/utils";
 import { LogFoodScreen } from "../screens/LogFoodScreen";
 
 const mockUseFoodSearch = jest.fn();
@@ -6,6 +9,10 @@ const mockUseRecentFoods = jest.fn();
 const mockUseFavorites = jest.fn();
 const mockUseLogFood = jest.fn();
 const mockUseAddFavorite = jest.fn();
+const mockUseRemoveFavorite = jest.fn();
+const mockUseToggleFavorite = jest.fn();
+const mockUseUpdateFoodLog = jest.fn();
+const mockUseDeleteFoodLog = jest.fn();
 const mockUseWater = jest.fn();
 const mockUseAddWaterLog = jest.fn();
 const mockUseDeleteWaterLog = jest.fn();
@@ -30,6 +37,11 @@ jest.mock("expo-camera", () => {
   };
 });
 
+jest.mock("@react-native-community/datetimepicker", () => {
+  const { View } = jest.requireActual("react-native");
+  return { __esModule: true, default: () => <View testID="time-picker" /> };
+});
+
 jest.mock("@/lib", () => ({
   isNetworkReachable: () => mockIsNetworkReachable(),
   queueBarcodeScan: (scan: unknown) => mockQueueBarcodeScan(scan),
@@ -43,6 +55,10 @@ jest.mock("../hooks/useFoodLogging", () => ({
   useFavorites: () => mockUseFavorites(),
   useLogFood: () => mockUseLogFood(),
   useAddFavorite: () => mockUseAddFavorite(),
+  useRemoveFavorite: () => mockUseRemoveFavorite(),
+  useToggleFavorite: () => mockUseToggleFavorite(),
+  useUpdateFoodLog: () => mockUseUpdateFoodLog(),
+  useDeleteFoodLog: () => mockUseDeleteFoodLog(),
   useWater: () => mockUseWater(),
   useAddWaterLog: () => mockUseAddWaterLog(),
   useDeleteWaterLog: () => mockUseDeleteWaterLog(),
@@ -67,6 +83,21 @@ const food = {
   servingOptions: [],
   isPersonal: false,
   isEstimated: false,
+};
+
+const recentEntry = {
+  id: "entry-1",
+  foodItemId: "food-1",
+  name: "Greek yogurt",
+  day: localDay(),
+  servings: 1,
+  servingUnit: null,
+  source: "search" as const,
+  barcode: null,
+  isEstimated: false,
+  nutrients: { calories: 120, proteinG: 18, carbsG: 8, fatG: 2 },
+  consumedAt: new Date().toISOString(),
+  loggedAt: new Date().toISOString(),
 };
 
 const searchResult = {
@@ -115,11 +146,31 @@ const successQuery = <T,>(data: T) => ({
 describe("LogFoodScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    useFavoritesStore.setState({ favoriteIds: [] });
     mockUseFoodSearch.mockReturnValue(successQuery({ items: [] }));
     mockUseRecentFoods.mockReturnValue(successQuery({ items: [] }));
     mockUseFavorites.mockReturnValue(successQuery({ items: [] }));
-    mockUseLogFood.mockReturnValue({ mutate: jest.fn(), isPending: false });
+    mockUseLogFood.mockReturnValue({
+      mutate: jest.fn(),
+      isPending: false,
+      error: null,
+      reset: jest.fn(),
+    });
     mockUseAddFavorite.mockReturnValue({ mutate: jest.fn() });
+    mockUseRemoveFavorite.mockReturnValue({ mutate: jest.fn() });
+    mockUseToggleFavorite.mockReturnValue(jest.fn());
+    mockUseUpdateFoodLog.mockReturnValue({
+      mutate: jest.fn(),
+      isPending: false,
+      error: null,
+      reset: jest.fn(),
+    });
+    mockUseDeleteFoodLog.mockReturnValue({
+      mutate: jest.fn(),
+      isPending: false,
+      error: null,
+      reset: jest.fn(),
+    });
     mockUseWater.mockReturnValue(successQuery(water));
     mockUseAddWaterLog.mockReturnValue({ mutate: jest.fn(), isPending: false });
     mockUseDeleteWaterLog.mockReturnValue({ mutate: jest.fn() });
@@ -138,15 +189,20 @@ describe("LogFoodScreen", () => {
     expect(screen.getByText("Nothing logged yet")).toBeTruthy();
   });
 
-  it("shows search results and logs a selected food snapshot", async () => {
+  it("opens the log sheet for a selected search result, clearing the search", async () => {
     const mutate = jest.fn();
     mockUseFoodSearch.mockReturnValue(successQuery({ items: [searchResult], cached: false }));
-    mockUseLogFood.mockReturnValue({ mutate, isPending: false });
+    mockUseLogFood.mockReturnValue({ mutate, isPending: false, error: null, reset: jest.fn() });
 
     const screen = render(<LogFoodScreen />);
     fireEvent.changeText(screen.getByPlaceholderText("Or, search by name..."), "Chic");
     await waitFor(() => expect(screen.getByText("Chicken breast, grilled")).toBeTruthy());
-    fireEvent.press(screen.getByLabelText("Log food"));
+    fireEvent.press(screen.getByLabelText("Log Chicken breast, grilled"));
+
+    // Search closes/clears once an item is selected for logging.
+    expect(screen.getByPlaceholderText("Or, search by name...").props.value).toBe("");
+
+    fireEvent.press(screen.getByText("Log food"));
 
     expect(mutate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -181,6 +237,70 @@ describe("LogFoodScreen", () => {
 
     expect(screen.getAllByText("Favorites").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Chicken breast, grilled").length).toBeGreaterThan(0);
+  });
+
+  it("shows favorited items with the filled heart state on the favorites screen", () => {
+    mockUseFavorites.mockReturnValue(successQuery({ items: [food] }));
+    act(() => {
+      useFavoritesStore.setState({ favoriteIds: [food.id] });
+    });
+
+    const screen = render(<LogFoodScreen />);
+    fireEvent.press(screen.getAllByText("Favorites")[0]);
+
+    expect(screen.getAllByLabelText("Remove favorite").length).toBeGreaterThan(0);
+    expect(screen.queryByLabelText("Add favorite")).toBeNull();
+  });
+
+  it("toggles favorite on a scanned food", () => {
+    const toggleFavorite = jest.fn();
+    mockUseToggleFavorite.mockReturnValue(toggleFavorite);
+    mockUseBarcodeLookup.mockReturnValue(successQuery({ food }));
+
+    const screen = render(<LogFoodScreen />);
+    fireEvent.press(screen.getByText("Scan barcode"));
+    fireEvent.press(screen.getByLabelText("Add favorite"));
+
+    expect(toggleFavorite).toHaveBeenCalledWith(food.id);
+  });
+
+  it("shows a filled heart and toggles off an already-favorited item", () => {
+    const toggleFavorite = jest.fn();
+    mockUseToggleFavorite.mockReturnValue(toggleFavorite);
+    mockUseFavorites.mockReturnValue(successQuery({ items: [food] }));
+    act(() => {
+      useFavoritesStore.setState({ favoriteIds: [food.id] });
+    });
+
+    const screen = render(<LogFoodScreen />);
+
+    fireEvent.press(screen.getAllByLabelText("Remove favorite")[0]);
+
+    expect(toggleFavorite).toHaveBeenCalledWith(food.id);
+  });
+
+  it("opens the edit sheet from a recent food row", () => {
+    mockUseRecentFoods.mockReturnValue(successQuery({ items: [recentEntry] }));
+
+    const screen = render(<LogFoodScreen />);
+    fireEvent.press(screen.getByLabelText("View Greek yogurt"));
+
+    expect(screen.getByText("Save changes")).toBeTruthy();
+  });
+
+  it("resets to the default food screen when the log tab is pressed", () => {
+    const screen = render(<LogFoodScreen />);
+    fireEvent.press(screen.getByText("Scan barcode"));
+
+    expect(screen.getByText("Scan Barcode")).toBeTruthy();
+
+    act(() => {
+      emitTabRootReset("log");
+    });
+
+    expect(screen.getByText("Log Food")).toBeTruthy();
+    expect(screen.getByText("Nothing logged yet")).toBeTruthy();
+    expect(screen.queryByText("Scan Barcode")).toBeNull();
   });
 
   it("captures a barcode from the camera scanner", () => {

@@ -1,7 +1,28 @@
-import { Tabs } from "expo-router";
+import { Tabs, router } from "expo-router";
 import type { Icon } from "phosphor-react-native";
-import { ChartLine, ForkKnife, Gear, House } from "phosphor-react-native";
+import { ChartLineUp, ChartPieSlice, Scan, UserGear } from "phosphor-react-native";
+import { emitTabRootReset } from "@/navigation/tab-root-reset";
+import type { AppTabParamList } from "@/navigation/types";
 import { colors } from "@/theme";
+
+type VisibleTab = keyof Pick<AppTabParamList, "dashboard" | "log" | "metrics" | "settings">;
+
+const tabRootHref: Record<VisibleTab, string> = {
+  dashboard: "/(app)/dashboard",
+  log: "/(app)/log",
+  metrics: "/(app)/metrics",
+  settings: "/(app)/settings",
+};
+
+function tabRootListeners(tab: VisibleTab) {
+  return {
+    tabPress: (event: { preventDefault: () => void }) => {
+      event.preventDefault();
+      emitTabRootReset(tab);
+      router.replace(tabRootHref[tab] as Parameters<typeof router.replace>[0]);
+    },
+  };
+}
 
 /** Phosphor tab icon, filled when the tab is active (Figma tab bar). */
 const tabIcon = (PhosphorIcon: Icon) => {
@@ -34,33 +55,37 @@ export default function AppLayout() {
     >
       <Tabs.Screen
         name="dashboard"
+        listeners={tabRootListeners("dashboard")}
         options={{
           title: "Dashboard",
-          tabBarIcon: tabIcon(House),
+          tabBarIcon: tabIcon(ChartPieSlice),
           tabBarAccessibilityLabel: "Dashboard",
         }}
       />
       <Tabs.Screen
         name="log"
+        listeners={tabRootListeners("log")}
         options={{
           title: "Log Food",
-          tabBarIcon: tabIcon(ForkKnife),
+          tabBarIcon: tabIcon(Scan),
           tabBarAccessibilityLabel: "Log food",
         }}
       />
       <Tabs.Screen
         name="metrics"
+        listeners={tabRootListeners("metrics")}
         options={{
           title: "Progress",
-          tabBarIcon: tabIcon(ChartLine),
+          tabBarIcon: tabIcon(ChartLineUp),
           tabBarAccessibilityLabel: "Progress",
         }}
       />
       <Tabs.Screen
         name="settings"
+        listeners={tabRootListeners("settings")}
         options={{
           title: "Settings",
-          tabBarIcon: tabIcon(Gear),
+          tabBarIcon: tabIcon(UserGear),
           tabBarAccessibilityLabel: "Settings",
         }}
       />

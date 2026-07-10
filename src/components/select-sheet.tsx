@@ -1,13 +1,16 @@
 import { useContext } from "react";
+import type { ReactNode } from "react";
 import { Modal, Pressable, View } from "react-native";
 import { SafeAreaInsetsContext } from "react-native-safe-area-context";
-import { Check, X } from "phosphor-react-native";
+import { Check, LockSimple, X } from "phosphor-react-native";
 import { colors } from "@/theme";
 import { Text } from "./Text";
 
 export interface SelectSheetOption<T extends string | number> {
   label: string;
   value: T;
+  locked?: boolean;
+  accessory?: ReactNode;
 }
 
 export interface SelectSheetProps<T extends string | number> {
@@ -16,6 +19,7 @@ export interface SelectSheetProps<T extends string | number> {
   value: T;
   visible: boolean;
   onChange: (value: T) => void;
+  onLockedPress?: (option: SelectSheetOption<T>) => void;
   onClose: () => void;
   disabled?: boolean;
 }
@@ -26,13 +30,19 @@ export function SelectSheet<T extends string | number>({
   value,
   visible,
   onChange,
+  onLockedPress,
   onClose,
   disabled = false,
 }: SelectSheetProps<T>) {
   const insets = useContext(SafeAreaInsetsContext) ?? { top: 0, right: 0, bottom: 0, left: 0 };
-  const select = (nextValue: T) => {
+  const select = (option: SelectSheetOption<T>) => {
     if (disabled) return;
-    onChange(nextValue);
+    if (option.locked) {
+      onClose();
+      onLockedPress?.(option);
+      return;
+    }
+    onChange(option.value);
     onClose();
   };
 
@@ -71,18 +81,29 @@ export function SelectSheet<T extends string | number>({
                 <Pressable
                   key={String(option.value)}
                   accessibilityRole="radio"
-                  accessibilityLabel={option.label}
+                  accessibilityLabel={
+                    option.locked ? `${option.label}, premium required` : option.label
+                  }
                   accessibilityState={{ selected, disabled }}
                   disabled={disabled}
-                  onPress={() => select(option.value)}
+                  onPress={() => select(option)}
                   className={`min-h-[54px] flex-row items-center justify-between px-lg py-md ${
                     selected ? "bg-primarySoft" : "bg-white"
                   } ${divider}`}
                 >
-                  <Text className={`text-[16px] ${selected ? "font-semibold" : "font-regular"}`}>
+                  <Text
+                    className={`text-[16px] ${
+                      selected ? "font-semibold" : "font-regular"
+                    } ${option.locked ? "text-gray-600" : ""}`}
+                  >
                     {option.label}
                   </Text>
-                  {selected ? <Check size={20} color={colors.primaryBright} /> : null}
+                  {option.accessory ??
+                    (option.locked ? (
+                      <LockSimple size={19} color={colors.gray[500]} />
+                    ) : selected ? (
+                      <Check size={20} color={colors.primaryBright} />
+                    ) : null)}
                 </Pressable>
               );
             })}

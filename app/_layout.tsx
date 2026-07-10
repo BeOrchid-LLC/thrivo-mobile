@@ -1,5 +1,5 @@
 import "../global.css";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -34,14 +34,19 @@ import {
   useSessionActions,
 } from "@/stores";
 
-// Start crash reporting + analytics before anything else so an early boot error
-// is still captured. No-ops in dev when their env vars are unset (fail fast in prod).
-monitoring.init();
-analytics.init();
-// Wire the API client's token/unauthenticated seams once, at module load.
+// Wire the API client's token/unauthenticated seams once, at module load - kept
+// synchronous (unlike the rest of boot init below) because RootNavigator's child
+// effects (useSessionInit's session-restore fetch) can fire before RootLayout's own
+// effects run, and that first fetch needs the 401 seam wired already.
 wireApiSeams();
-// Bridge device connectivity into React Query and register the resumable offline
-// writes, so food/water/weight logging works with no network and syncs on reconnect.
+// Bridge connectivity into React Query and register the resumable offline-write
+// defaults before anything can mount. Both are synchronous, in-memory, no native
+// SDK/disk I/O - so, unlike monitoring/analytics below, deferring them buys no
+// splash-hide performance and breaks an ordering guarantee: PersistQueryClientProvider
+// calls `resumePausedMutations()` as soon as its own restore effect finishes, with no
+// ordering relative to a sibling effect - if that ran first, resumed mutations (and
+// any mutation a screen fires before its own render picks up the defaults) would find
+// no mutationFn registered yet.
 initOnlineManager();
 registerOfflineMutations(queryClient);
 void SplashScreen.preventAutoHideAsync();
@@ -110,12 +115,6 @@ function RootNavigator({ fontsReady }: { fontsReady: boolean }) {
     status === "authenticated" && biometricEnabled && !isBiometricUnlocked && preferencesHydrated;
 
   useEffect(() => {
-    if (!fontsReady) return;
-    bootLog("font gate done; hiding native splash");
-    void SplashScreen.hideAsync();
-  }, [fontsReady]);
-
-  useEffect(() => {
     if (!ready || redirecting.current) return;
 
     const group = segments[0];
@@ -148,10 +147,6 @@ function RootNavigator({ fontsReady }: { fontsReady: boolean }) {
     segments,
     router,
   ]);
-
-  if (!fontsReady) {
-    return null;
-  }
 
   // Hold the branded splash until fonts + auth resolve so Inter never flashes
   // the fallback face and no screen renders before the guard decides the route.
@@ -202,8 +197,27 @@ function RootLayout() {
 
   const fontsReady = fontsLoaded || Boolean(fontError) || fontTimeoutReached;
 
+  // Deferred off the synchronous module-load path (previously ran before React
+  // rendered anything) so the first frame - and native splash hideAsync() - isn't
+  // blocked behind Sentry/PostHog native SDK init. Tradeoff: a crash/error in the
+  // brief window before this effect fires won't be captured by Sentry.
+  useEffect(() => {
+    monitoring.init();
+    analytics.init();
+  }, []);
+
+  const splashHidden = useRef(false);
+  const handleRootLayout = useCallback(() => {
+    if (splashHidden.current) return;
+    splashHidden.current = true;
+    // First frame is laid out (BrandSplash, since fonts/auth aren't ready yet),
+    // so the native splash can drop out with nothing blank behind it.
+    bootLog("first frame laid out; hiding native splash");
+    void SplashScreen.hideAsync();
+  }, []);
+
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={{ flex: 1 }} onLayout={handleRootLayout}>
       <SafeAreaProvider>
         <PersistQueryClientProvider
           client={queryClient}
