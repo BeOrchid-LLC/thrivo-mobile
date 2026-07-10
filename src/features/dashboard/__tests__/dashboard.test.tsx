@@ -1,4 +1,6 @@
+import { createElement, type ReactNode } from "react";
 import { fireEvent, render } from "@testing-library/react-native";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { router } from "expo-router";
 import Dashboard from "../../../../app/(app)/dashboard";
 import type {
@@ -100,6 +102,17 @@ const successQuery = <T,>(data: T) => ({
   refetch: jest.fn(),
 });
 
+// TodayMealLogSection renders EditFoodLogSheet, whose hooks (useUpdateFoodLog/
+// useDeleteFoodLog) need a real QueryClient in context even when the sheet is closed.
+function renderDashboard() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  const wrapper = ({ children }: { children: ReactNode }) =>
+    createElement(QueryClientProvider, { client: queryClient }, children);
+  return render(<Dashboard />, { wrapper });
+}
+
 describe("Dashboard graceful degradation", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -123,7 +136,7 @@ describe("Dashboard graceful degradation", () => {
     mockUseDashboardWater.mockReturnValue(loadingQuery);
     mockUseDashboardMealLog.mockReturnValue(loadingQuery);
 
-    const screen = render(<Dashboard />);
+    const screen = renderDashboard();
 
     expect(screen.getByText("Hi, there")).toBeTruthy();
     expect(
@@ -137,7 +150,7 @@ describe("Dashboard graceful degradation", () => {
   });
 
   it("renders the cached first name immediately when profile data is available", () => {
-    const screen = render(<Dashboard />);
+    const screen = renderDashboard();
 
     expect(screen.getByText("Hi, Ada")).toBeTruthy();
   });
@@ -148,7 +161,7 @@ describe("Dashboard graceful degradation", () => {
     mockUseDashboardStreak.mockReturnValue(errorQuery);
     mockUseDashboardWater.mockReturnValue(errorQuery);
 
-    const screen = render(<Dashboard />);
+    const screen = renderDashboard();
 
     expect(screen.getByText("Hi, Ada")).toBeTruthy();
     expect(screen.getByText("Could not load calories")).toBeTruthy();
@@ -160,7 +173,7 @@ describe("Dashboard graceful degradation", () => {
   it("keeps the rest of the dashboard available when only the meal log fails", () => {
     mockUseDashboardMealLog.mockReturnValue(errorQuery);
 
-    const screen = render(<Dashboard />);
+    const screen = renderDashboard();
 
     expect(screen.getByText("of 1,800 daily target")).toBeTruthy();
     expect(screen.getByText("0 of 8 glasses")).toBeTruthy();
@@ -169,7 +182,7 @@ describe("Dashboard graceful degradation", () => {
   });
 
   it("renders the empty meal state and opens the log tab from the first-meal CTA", () => {
-    const screen = render(<Dashboard />);
+    const screen = renderDashboard();
 
     expect(screen.getByText("Nothing logged yet")).toBeTruthy();
 
@@ -183,7 +196,7 @@ describe("Dashboard graceful degradation", () => {
       successQuery({ day: "2026-06-22", entries: [loggedEntry], isEmptyDay: false })
     );
 
-    const screen = render(<Dashboard />);
+    const screen = renderDashboard();
 
     expect(screen.getByText("Greek yogurt")).toBeTruthy();
   });

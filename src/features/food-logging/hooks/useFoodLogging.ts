@@ -10,7 +10,12 @@ import {
   type LogFoodVars,
 } from "@/api";
 import { localDay } from "@/utils";
-import type { EstimateFoodPayload, LogEstimatePayload, LogFoodPayload } from "@/contracts";
+import type {
+  EstimateFoodPayload,
+  LogEstimatePayload,
+  LogFoodPayload,
+  UpdateLogPayload,
+} from "@/contracts";
 import {
   addFavorite,
   deleteFoodLog,
@@ -99,8 +104,8 @@ export function useLogEstimate() {
 export function useUpdateFoodLog() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, servings }: { id: string; servings: number }) =>
-      updateFoodLog(id, { servings }),
+    mutationFn: ({ id, ...payload }: { id: string } & UpdateLogPayload) =>
+      updateFoodLog(id, payload),
     onSuccess: (data) => invalidateFoodLogViews(queryClient, data.totals.day),
   });
 }

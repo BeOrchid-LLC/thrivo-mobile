@@ -6,6 +6,7 @@ const mockUseRecentFoods = jest.fn();
 const mockUseFavorites = jest.fn();
 const mockUseLogFood = jest.fn();
 const mockUseAddFavorite = jest.fn();
+const mockUseRemoveFavorite = jest.fn();
 const mockUseWater = jest.fn();
 const mockUseAddWaterLog = jest.fn();
 const mockUseDeleteWaterLog = jest.fn();
@@ -43,6 +44,7 @@ jest.mock("../hooks/useFoodLogging", () => ({
   useFavorites: () => mockUseFavorites(),
   useLogFood: () => mockUseLogFood(),
   useAddFavorite: () => mockUseAddFavorite(),
+  useRemoveFavorite: () => mockUseRemoveFavorite(),
   useWater: () => mockUseWater(),
   useAddWaterLog: () => mockUseAddWaterLog(),
   useDeleteWaterLog: () => mockUseDeleteWaterLog(),
@@ -120,6 +122,7 @@ describe("LogFoodScreen", () => {
     mockUseFavorites.mockReturnValue(successQuery({ items: [] }));
     mockUseLogFood.mockReturnValue({ mutate: jest.fn(), isPending: false });
     mockUseAddFavorite.mockReturnValue({ mutate: jest.fn() });
+    mockUseRemoveFavorite.mockReturnValue({ mutate: jest.fn() });
     mockUseWater.mockReturnValue(successQuery(water));
     mockUseAddWaterLog.mockReturnValue({ mutate: jest.fn(), isPending: false });
     mockUseDeleteWaterLog.mockReturnValue({ mutate: jest.fn() });
@@ -181,6 +184,30 @@ describe("LogFoodScreen", () => {
 
     expect(screen.getAllByText("Favorites").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Chicken breast, grilled").length).toBeGreaterThan(0);
+  });
+
+  it("adds a scanned food to favorites", () => {
+    const mutate = jest.fn();
+    mockUseAddFavorite.mockReturnValue({ mutate });
+    mockUseBarcodeLookup.mockReturnValue(successQuery({ food }));
+
+    const screen = render(<LogFoodScreen />);
+    fireEvent.press(screen.getByText("Scan barcode"));
+    fireEvent.press(screen.getByLabelText("Add favorite"));
+
+    expect(mutate).toHaveBeenCalledWith(food.id);
+  });
+
+  it("removes a food from the favorites list", () => {
+    const mutate = jest.fn();
+    mockUseFavorites.mockReturnValue(successQuery({ items: [food] }));
+    mockUseRemoveFavorite.mockReturnValue({ mutate });
+
+    const screen = render(<LogFoodScreen />);
+
+    fireEvent.press(screen.getAllByLabelText("Remove favorite")[0]);
+
+    expect(mutate).toHaveBeenCalledWith(food.id);
   });
 
   it("captures a barcode from the camera scanner", () => {

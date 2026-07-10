@@ -8,10 +8,11 @@ interface MealLogProps {
   entries: FoodLogEntry[];
   onLogFood: () => void;
   onViewAll: () => void;
+  onEntryPress: (entry: FoodLogEntry) => void;
 }
 
-/** Today's logged foods in reverse consumed-time order. */
-export function MealLog({ entries, onLogFood, onViewAll }: MealLogProps) {
+/** Today's logged foods in reverse consumed-time order. Tap a row to edit it. */
+export function MealLog({ entries, onLogFood, onViewAll, onEntryPress }: MealLogProps) {
   const totalCalories = entries.reduce((sum, entry) => sum + entry.nutrients.calories, 0);
 
   return (
@@ -36,7 +37,13 @@ export function MealLog({ entries, onLogFood, onViewAll }: MealLogProps) {
         </Pressable>
       </View>
       {entries.map((entry) => (
-        <View key={entry.id} className="flex-row justify-between gap-md">
+        <Pressable
+          key={entry.id}
+          accessibilityRole="button"
+          accessibilityLabel={`Edit ${entry.name}`}
+          onPress={() => onEntryPress(entry)}
+          className="flex-row justify-between gap-md"
+        >
           <View className="flex-1">
             <Text variant="body" color="dark">
               {entry.name}
@@ -49,7 +56,7 @@ export function MealLog({ entries, onLogFood, onViewAll }: MealLogProps) {
           <Text variant="body" color="dark">
             {entry.nutrients.calories} kcal
           </Text>
-        </View>
+        </Pressable>
       ))}
       <Pressable
         accessibilityRole="button"

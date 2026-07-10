@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { router } from "expo-router";
 import { StyleSheet, View } from "react-native";
 import { ForkKnife } from "phosphor-react-native";
@@ -10,6 +11,8 @@ import {
   SkeletonText,
   Text,
 } from "@/components";
+import type { FoodLogEntry } from "@/contracts";
+import { EditFoodLogSheet } from "@/features/food-logging";
 import { colors } from "@/theme";
 import { MacroBars } from "./MacroBars";
 import { MealLog } from "./MealLog";
@@ -230,6 +233,7 @@ export function WaterSection() {
 
 export function TodayMealLogSection() {
   const foodLog = useDashboardMealLog();
+  const [editingEntry, setEditingEntry] = useState<FoodLogEntry | null>(null);
 
   if (foodLog.isLoading) {
     return (
@@ -265,7 +269,19 @@ export function TodayMealLogSection() {
   const entries = foodLog.data?.entries ?? [];
 
   return entries.length > 0 ? (
-    <MealLog entries={entries} onLogFood={goToLog} onViewAll={goToHistory} />
+    <>
+      <MealLog
+        entries={entries}
+        onLogFood={goToLog}
+        onViewAll={goToHistory}
+        onEntryPress={setEditingEntry}
+      />
+      <EditFoodLogSheet
+        entry={editingEntry}
+        visible={editingEntry !== null}
+        onClose={() => setEditingEntry(null)}
+      />
+    </>
   ) : (
     <View className="items-center gap-md rounded-[16px] bg-primaryBright/10 px-8 py-6">
       <View className="h-[52px] w-[52px] items-center justify-center rounded-pill bg-primarySoft">

@@ -41,6 +41,7 @@ import { useSettings } from "@/features/settings";
 import { formatWater, roundTo, waterFromMl, waterToMl, waterUnitFor } from "@/utils";
 import type { FoodItem, FoodLogEntry, FoodSearchResult, PortionMeasure } from "@/contracts";
 import {
+  useAddFavorite,
   useAddWaterLog,
   useBarcodeLookup,
   useDeleteWaterLog,
@@ -50,6 +51,7 @@ import {
   useLogEstimate,
   useLogFood,
   useRecentFoods,
+  useRemoveFavorite,
   useWater,
 } from "../hooks/useFoodLogging";
 
@@ -155,12 +157,23 @@ function FoodHome({
   const recent = useRecentFoods();
   const favorites = useFavorites();
   const logFood = useLogFood();
+  const addFavorite = useAddFavorite();
+  const removeFavorite = useRemoveFavorite();
 
   const hasQuery = query.trim().length > 0;
   const canSearch = query.trim().length >= 2;
   const results = search.data?.items ?? [];
   const recentItems = recent.data?.items ?? [];
   const favoriteItems = favorites.data?.items ?? [];
+  const favoritedIds = new Set(favoriteItems.map((item) => item.id));
+
+  const toggleFavorite = (foodItemId: string) => {
+    if (favoritedIds.has(foodItemId)) {
+      removeFavorite.mutate(foodItemId);
+    } else {
+      addFavorite.mutate(foodItemId);
+    }
+  };
 
   const logItem = (food: FoodItem) => {
     logFood.mutate(
@@ -284,9 +297,9 @@ function FoodHome({
               key={item.id}
               item={item}
               onLog={() => logItem(item)}
-              onFavorite={() => undefined}
+              onFavorite={() => toggleFavorite(item.id)}
               loading={logFood.isPending}
-              showFavorite={false}
+              isFavorite
             />
           ))}
         </FoodListSection>
@@ -296,7 +309,14 @@ function FoodHome({
             Recent foods
           </Text>
           {recentItems.map((entry) => (
-            <RecentFoodRow key={entry.id} entry={entry} />
+            <RecentFoodRow
+              key={entry.id}
+              entry={entry}
+              isFavorite={entry.foodItemId ? favoritedIds.has(entry.foodItemId) : false}
+              onFavorite={
+                entry.foodItemId ? () => toggleFavorite(entry.foodItemId as string) : undefined
+              }
+            />
           ))}
         </View>
       ) : recent.isLoading ? (
@@ -333,9 +353,9 @@ function FoodHome({
               key={item.id}
               item={item}
               onLog={() => logItem(item)}
-              onFavorite={() => undefined}
+              onFavorite={() => toggleFavorite(item.id)}
               loading={logFood.isPending}
-              showFavorite={false}
+              isFavorite
             />
           ))}
         </View>
@@ -546,7 +566,11 @@ function ScanBarcodeScreen({ day, onBack }: { day: string; onBack: () => void })
   const lookupBarcode = normalizeBarcode(barcode);
   const lookup = useBarcodeLookup(lookupBarcode);
   const logFood = useLogFood();
+  const favorites = useFavorites();
+  const addFavorite = useAddFavorite();
+  const removeFavorite = useRemoveFavorite();
   const food = lookup.data?.food;
+  const isFavorite = Boolean(food && favorites.data?.items.some((item) => item.id === food.id));
   const lastScanRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -709,7 +733,10 @@ function ScanBarcodeScreen({ day, onBack }: { day: string; onBack: () => void })
                 servingUnit: food.servingLabel,
               })
             }
-            onFavorite={() => undefined}
+            onFavorite={() =>
+              isFavorite ? removeFavorite.mutate(food.id) : addFavorite.mutate(food.id)
+            }
+            isFavorite={isFavorite}
             loading={logFood.isPending}
           />
         </Card>
@@ -874,12 +901,14 @@ function FoodResultRow({
   onFavorite,
   loading,
   showFavorite = true,
+  isFavorite = false,
 }: {
   item: FoodItem | FoodSearchResult;
   onLog: () => void;
   onFavorite?: () => void;
   loading: boolean;
   showFavorite?: boolean;
+  isFavorite?: boolean;
 }) {
   return (
     <View className="flex-row items-center justify-between gap-md border-b border-gray-200 py-sm">
@@ -896,10 +925,10 @@ function FoodResultRow({
         {showFavorite && onFavorite ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Add favorite"
+            accessibilityLabel={isFavorite ? "Remove favorite" : "Add favorite"}
             onPress={onFavorite}
           >
-            <Heart size={22} color={colors.primary} />
+            <Heart size={22} color={colors.primary} weight={isFavorite ? "fill" : "regular"} />
           </Pressable>
         ) : null}
         <Pressable
@@ -915,10 +944,18 @@ function FoodResultRow({
   );
 }
 
-function RecentFoodRow({ entry }: { entry: FoodLogEntry }) {
+function RecentFoodRow({
+  entry,
+  isFavorite = false,
+  onFavorite,
+}: {
+  entry: FoodLogEntry;
+  isFavorite?: boolean;
+  onFavorite?: () => void;
+}) {
   return (
     <View className="flex-row items-center justify-between border-b border-gray-200 py-sm">
-      <View>
+      <View className="flex-1">
         <Text variant="body" color="dark">
           {entry.name}
         </Text>
@@ -926,13 +963,24 @@ function RecentFoodRow({ entry }: { entry: FoodLogEntry }) {
           {entry.nutrients.calories} kcal · {formatTime(entry.consumedAt)}
         </Text>
       </View>
-      <View className="items-end">
-        <Text variant="body" color="dark">
-          {entry.servings}
-        </Text>
-        <Text variant="caption" color="muted">
-          {entry.servingUnit ?? "serving"}
-        </Text>
+      <View className="flex-row items-center gap-md">
+        {onFavorite ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={isFavorite ? "Remove favorite" : "Add favorite"}
+            onPress={onFavorite}
+          >
+            <Heart size={22} color={colors.primary} weight={isFavorite ? "fill" : "regular"} />
+          </Pressable>
+        ) : null}
+        <View className="items-end">
+          <Text variant="body" color="dark">
+            {entry.servings}
+          </Text>
+          <Text variant="caption" color="muted">
+            {entry.servingUnit ?? "serving"}
+          </Text>
+        </View>
       </View>
     </View>
   );
