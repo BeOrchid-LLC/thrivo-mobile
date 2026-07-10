@@ -13,9 +13,7 @@
     "updates": {
       "url": "https://u.expo.dev/d24d4616-0673-459c-9d34-ced491ef777e"
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.beorchid.thrivo",
@@ -38,6 +36,7 @@
         "expo-splash-screen",
         {
           "backgroundColor": "#F4F6F9",
+          "image": "./src/assets/splashscreen-blank.png",
           "dark": {
             "backgroundColor": "#F4F6F9"
           }

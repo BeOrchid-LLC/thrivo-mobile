@@ -7,6 +7,7 @@
     "dev:client": "expo start --dev-client",
     "android": "expo run:android",
     "ios": "expo run:ios",
+    "prebuild:android": "expo prebuild -p android --clean && node scripts/patch-android-splash-style.js",
     "web": "expo start --web",
     "update:dev": "eas update --branch development",
     "update:preview": "eas update --branch preview",
