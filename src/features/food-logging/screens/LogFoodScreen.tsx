@@ -38,10 +38,12 @@ import {
 } from "@/lib";
 import { colors } from "@/theme";
 import { useSettings } from "@/features/settings";
+import { useIsFavorite } from "@/stores";
 import { formatWater, roundTo, waterFromMl, waterToMl, waterUnitFor } from "@/utils";
 import type { FoodItem, FoodLogEntry, FoodSearchResult, PortionMeasure } from "@/contracts";
+import { EditFoodLogSheet } from "../components/EditFoodLogSheet";
+import { LogItemSheet } from "../components/LogItemSheet";
 import {
-  useAddFavorite,
   useAddWaterLog,
   useBarcodeLookup,
   useDeleteWaterLog,
@@ -51,7 +53,7 @@ import {
   useLogEstimate,
   useLogFood,
   useRecentFoods,
-  useRemoveFavorite,
+  useToggleFavorite,
   useWater,
 } from "../hooks/useFoodLogging";
 
@@ -153,27 +155,18 @@ function FoodHome({
   const debouncedQuery = useDebouncedValue(query, 350);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [editingEntry, setEditingEntry] = useState<FoodLogEntry | null>(null);
+  const [loggingItem, setLoggingItem] = useState<FoodItem | FoodSearchResult | null>(null);
   const search = useFoodSearch(debouncedQuery);
   const recent = useRecentFoods();
   const favorites = useFavorites();
   const logFood = useLogFood();
-  const addFavorite = useAddFavorite();
-  const removeFavorite = useRemoveFavorite();
 
   const hasQuery = query.trim().length > 0;
   const canSearch = query.trim().length >= 2;
   const results = search.data?.items ?? [];
   const recentItems = recent.data?.items ?? [];
   const favoriteItems = favorites.data?.items ?? [];
-  const favoritedIds = new Set(favoriteItems.map((item) => item.id));
-
-  const toggleFavorite = (foodItemId: string) => {
-    if (favoritedIds.has(foodItemId)) {
-      removeFavorite.mutate(foodItemId);
-    } else {
-      addFavorite.mutate(foodItemId);
-    }
-  };
 
   const logItem = (food: FoodItem) => {
     logFood.mutate(
@@ -190,19 +183,9 @@ function FoodHome({
     );
   };
 
-  const logSearchResult = (food: FoodSearchResult) => {
-    logFood.mutate(
-      {
-        externalFood: food,
-        day,
-        servings: 1,
-        servingUnit: food.servingLabel,
-      },
-      {
-        onSuccess: () => setMessage(`${food.name} logged.`),
-        onError: () => setMessage("Could not log food. Try again."),
-      }
-    );
+  const openLogSheet = (food: FoodItem | FoodSearchResult) => {
+    setQuery("");
+    setLoggingItem(food);
   };
 
   return (
@@ -265,9 +248,8 @@ function FoodHome({
             <FoodResultRow
               key={item.externalId}
               item={item}
-              onLog={() => logSearchResult(item)}
+              onLog={() => openLogSheet(item)}
               loading={logFood.isPending}
-              showFavorite={false}
             />
           ))}
           {canSearch && !search.isLoading && !search.isError && results.length === 0 ? (
@@ -297,9 +279,7 @@ function FoodHome({
               key={item.id}
               item={item}
               onLog={() => logItem(item)}
-              onFavorite={() => toggleFavorite(item.id)}
               loading={logFood.isPending}
-              isFavorite
             />
           ))}
         </FoodListSection>
@@ -309,14 +289,7 @@ function FoodHome({
             Recent foods
           </Text>
           {recentItems.map((entry) => (
-            <RecentFoodRow
-              key={entry.id}
-              entry={entry}
-              isFavorite={entry.foodItemId ? favoritedIds.has(entry.foodItemId) : false}
-              onFavorite={
-                entry.foodItemId ? () => toggleFavorite(entry.foodItemId as string) : undefined
-              }
-            />
+            <RecentFoodRow key={entry.id} entry={entry} onPress={() => setEditingEntry(entry)} />
           ))}
         </View>
       ) : recent.isLoading ? (
@@ -349,17 +322,21 @@ function FoodHome({
             Favorites
           </Text>
           {favorites.data.items.map((item) => (
-            <FoodResultRow
-              key={item.id}
-              item={item}
-              onLog={() => logItem(item)}
-              onFavorite={() => toggleFavorite(item.id)}
-              loading={logFood.isPending}
-              isFavorite
-            />
+            <FoodResultRow key={item.id} item={item} onLog={() => logItem(item)} loading={logFood.isPending} />
           ))}
         </View>
       ) : null}
+      <EditFoodLogSheet
+        entry={editingEntry}
+        visible={editingEntry !== null}
+        onClose={() => setEditingEntry(null)}
+      />
+      <LogItemSheet
+        item={loggingItem}
+        day={day}
+        visible={loggingItem !== null}
+        onClose={() => setLoggingItem(null)}
+      />
     </View>
   );
 }
@@ -568,11 +545,7 @@ function ScanBarcodeScreen({ day, onBack }: { day: string; onBack: () => void })
   const lookupBarcode = normalizeBarcode(barcode);
   const lookup = useBarcodeLookup(lookupBarcode);
   const logFood = useLogFood();
-  const favorites = useFavorites();
-  const addFavorite = useAddFavorite();
-  const removeFavorite = useRemoveFavorite();
   const food = lookup.data?.food;
-  const isFavorite = Boolean(food && favorites.data?.items.some((item) => item.id === food.id));
   const lastScanRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -735,10 +708,6 @@ function ScanBarcodeScreen({ day, onBack }: { day: string; onBack: () => void })
                 servingUnit: food.servingLabel,
               })
             }
-            onFavorite={() =>
-              isFavorite ? removeFavorite.mutate(food.id) : addFavorite.mutate(food.id)
-            }
-            isFavorite={isFavorite}
             loading={logFood.isPending}
           />
         </Card>
@@ -900,20 +869,28 @@ function QuickAction({
 function FoodResultRow({
   item,
   onLog,
-  onFavorite,
   loading,
-  showFavorite = true,
-  isFavorite = false,
 }: {
   item: FoodItem | FoodSearchResult;
   onLog: () => void;
-  onFavorite?: () => void;
   loading: boolean;
-  showFavorite?: boolean;
-  isFavorite?: boolean;
 }) {
+  // Ensures the local favorites store is synced wherever this row renders,
+  // regardless of navigation path (TanStack Query dedupes by key, so this
+  // costs nothing extra when a parent already called useFavorites()).
+  useFavorites();
+  const toggleFavorite = useToggleFavorite();
+  const foodItemId = "id" in item ? item.id : null;
+  const isFavorite = useIsFavorite(foodItemId);
+
   return (
-    <View className="flex-row items-center justify-between gap-md border-b border-gray-200 py-sm">
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Log ${item.name}`}
+      disabled={loading}
+      onPress={onLog}
+      className="flex-row items-center justify-between gap-md border-b border-gray-200 py-sm"
+    >
       <View className="flex-1">
         <Text variant="body" color="dark">
           {item.name}
@@ -924,39 +901,34 @@ function FoodResultRow({
         </Text>
       </View>
       <View className="flex-row gap-sm">
-        {showFavorite && onFavorite ? (
+        {foodItemId ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={isFavorite ? "Remove favorite" : "Add favorite"}
-            onPress={onFavorite}
+            onPress={() => toggleFavorite(foodItemId)}
+            hitSlop={8}
           >
             <Heart size={22} color={colors.primary} weight={isFavorite ? "fill" : "regular"} />
           </Pressable>
         ) : null}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Log food"
-          disabled={loading}
-          onPress={onLog}
-        >
-          <Plus size={22} color={colors.primary} />
-        </Pressable>
+        <Plus size={22} color={colors.primary} />
       </View>
-    </View>
+    </Pressable>
   );
 }
 
-function RecentFoodRow({
-  entry,
-  isFavorite = false,
-  onFavorite,
-}: {
-  entry: FoodLogEntry;
-  isFavorite?: boolean;
-  onFavorite?: () => void;
-}) {
+function RecentFoodRow({ entry, onPress }: { entry: FoodLogEntry; onPress: () => void }) {
+  useFavorites();
+  const toggleFavorite = useToggleFavorite();
+  const isFavorite = useIsFavorite(entry.foodItemId);
+
   return (
-    <View className="flex-row items-center justify-between border-b border-gray-200 py-sm">
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`View ${entry.name}`}
+      onPress={onPress}
+      className="flex-row items-center justify-between border-b border-gray-200 py-sm"
+    >
       <View className="flex-1">
         <Text variant="body" color="dark">
           {entry.name}
@@ -966,11 +938,12 @@ function RecentFoodRow({
         </Text>
       </View>
       <View className="flex-row items-center gap-md">
-        {onFavorite ? (
+        {entry.foodItemId ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={isFavorite ? "Remove favorite" : "Add favorite"}
-            onPress={onFavorite}
+            onPress={() => toggleFavorite(entry.foodItemId as string)}
+            hitSlop={8}
           >
             <Heart size={22} color={colors.primary} weight={isFavorite ? "fill" : "regular"} />
           </Pressable>
@@ -984,7 +957,7 @@ function RecentFoodRow({
           </Text>
         </View>
       </View>
-    </View>
+    </Pressable>
   );
 }
 

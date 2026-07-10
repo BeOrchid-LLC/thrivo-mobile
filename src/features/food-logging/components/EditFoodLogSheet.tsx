@@ -2,11 +2,18 @@ import { useContext, useEffect, useState } from "react";
 import { Alert, Modal, Pressable, TextInput, View } from "react-native";
 import { SafeAreaInsetsContext } from "react-native-safe-area-context";
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
-import { X } from "phosphor-react-native";
+import { Heart, X } from "phosphor-react-native";
 import { Button, FormError, Text } from "@/components";
+import { useIsFavorite } from "@/stores";
 import { colors } from "@/theme";
+import { isToday } from "@/utils";
 import type { FoodLogEntry } from "@/contracts";
-import { useDeleteFoodLog, useUpdateFoodLog } from "../hooks/useFoodLogging";
+import {
+  useDeleteFoodLog,
+  useFavorites,
+  useToggleFavorite,
+  useUpdateFoodLog,
+} from "../hooks/useFoodLogging";
 
 export interface EditFoodLogSheetProps {
   entry: FoodLogEntry | null;
@@ -18,11 +25,19 @@ function formatTime(date: Date): string {
   return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
-/** Bottom sheet for adjusting servings/time on an already-logged entry, or deleting it. */
+/**
+ * Bottom sheet for a logged entry. Today's entries get full editing
+ * (servings/time/delete); older entries (dashboard history, etc.) only get the
+ * favorite toggle - re-deriving their macros from a servings edit would touch
+ * an already-settled day's totals.
+ */
 export function EditFoodLogSheet({ entry, visible, onClose }: EditFoodLogSheetProps) {
   const insets = useContext(SafeAreaInsetsContext) ?? { top: 0, right: 0, bottom: 0, left: 0 };
   const updateLog = useUpdateFoodLog();
   const deleteLog = useDeleteFoodLog();
+  useFavorites(); // keeps the local favorites store synced
+  const toggleFavoriteId = useToggleFavorite();
+  const isFavorite = useIsFavorite(entry?.foodItemId);
 
   const [servings, setServings] = useState("1");
   const [consumedAt, setConsumedAt] = useState(new Date());
@@ -38,6 +53,11 @@ export function EditFoodLogSheet({ entry, visible, onClose }: EditFoodLogSheetPr
   }, [visible, entry?.id]);
 
   if (!entry) return null;
+
+  const editable = isToday(entry.day);
+  const toggleFavorite = () => {
+    if (entry.foodItemId) toggleFavoriteId(entry.foodItemId);
+  };
 
   const servingsValue = Number(servings);
   const hasValidServings = servingsValue > 0;
@@ -91,72 +111,107 @@ export function EditFoodLogSheet({ entry, visible, onClose }: EditFoodLogSheetPr
             <Text className="flex-1 font-semibold text-[18px]" numberOfLines={1}>
               {entry.name}
             </Text>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Close"
-              hitSlop={10}
-              onPress={onClose}
-              className="h-[36px] w-[36px] items-center justify-center rounded-full bg-light"
-            >
-              <X size={18} color={colors.gray[500]} />
-            </Pressable>
-          </View>
-
-          <View className="gap-sm">
-            <Text variant="caption" color="dark">
-              Servings
-            </Text>
             <View className="flex-row items-center gap-md">
-              <StepperButton
-                label="-"
-                onPress={() => setServings(String(Math.max(Number(servings) - 1, 1)))}
-              />
-              <TextInput
-                value={servings}
-                onChangeText={setServings}
-                keyboardType="numeric"
-                className="h-[48px] flex-1 rounded-md border border-gray-300 bg-white text-center text-[18px] text-dark"
-              />
-              <StepperButton label="+" onPress={() => setServings(String(Number(servings) + 1))} />
+              {entry.foodItemId ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={isFavorite ? "Remove favorite" : "Add favorite"}
+                  onPress={toggleFavorite}
+                >
+                  <Heart
+                    size={22}
+                    color={colors.primary}
+                    weight={isFavorite ? "fill" : "regular"}
+                  />
+                </Pressable>
+              ) : null}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Close"
+                hitSlop={10}
+                onPress={onClose}
+                className="h-[36px] w-[36px] items-center justify-center rounded-full bg-light"
+              >
+                <X size={18} color={colors.gray[500]} />
+              </Pressable>
             </View>
           </View>
 
-          <View className="gap-sm">
-            <Text variant="caption" color="dark">
-              Time logged
-            </Text>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Change time logged"
-              onPress={() => setShowTimePicker(true)}
-              className="h-[48px] items-center justify-center rounded-md border border-gray-300 bg-white"
-            >
-              <Text variant="body" color="dark">
-                {formatTime(consumedAt)}
+          {editable ? (
+            <>
+              <View className="gap-sm">
+                <Text variant="caption" color="dark">
+                  Servings
+                </Text>
+                <View className="flex-row items-center gap-md">
+                  <StepperButton
+                    label="-"
+                    onPress={() => setServings(String(Math.max(Number(servings) - 1, 1)))}
+                  />
+                  <TextInput
+                    value={servings}
+                    onChangeText={setServings}
+                    keyboardType="numeric"
+                    className="h-[48px] flex-1 rounded-md border border-gray-300 bg-white text-center text-[18px] text-dark"
+                  />
+                  <StepperButton
+                    label="+"
+                    onPress={() => setServings(String(Number(servings) + 1))}
+                  />
+                </View>
+              </View>
+
+              <View className="gap-sm">
+                <Text variant="caption" color="dark">
+                  Time logged
+                </Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Change time logged"
+                  onPress={() => setShowTimePicker(true)}
+                  className="h-[48px] items-center justify-center rounded-md border border-gray-300 bg-white"
+                >
+                  <Text variant="body" color="dark">
+                    {formatTime(consumedAt)}
+                  </Text>
+                </Pressable>
+              </View>
+
+              {!hasValidServings ? (
+                <FormError message="Servings must be a positive number." />
+              ) : null}
+              <FormError message={updateLog.error?.message ?? deleteLog.error?.message ?? null} />
+
+              <Button
+                label="Save changes"
+                onPress={save}
+                loading={updateLog.isPending}
+                disabled={!hasChanges || !hasValidServings || deleteLog.isPending}
+              />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Delete entry"
+                onPress={confirmDelete}
+                disabled={deleteLog.isPending || updateLog.isPending}
+                className="items-center py-sm"
+              >
+                <Text variant="body" color="error" className="font-semibold">
+                  {deleteLog.isPending ? "Deleting..." : "Delete entry"}
+                </Text>
+              </Pressable>
+            </>
+          ) : (
+            <View className="gap-xs">
+              <Text variant="body" color="muted">
+                {entry.servings}
+                {entry.servingUnit ? ` ${entry.servingUnit}` : " serving"} ·{" "}
+                {formatTime(new Date(entry.consumedAt))}
               </Text>
-            </Pressable>
-          </View>
-
-          {!hasValidServings ? <FormError message="Servings must be a positive number." /> : null}
-          <FormError message={updateLog.error?.message ?? deleteLog.error?.message ?? null} />
-
-          <Button
-            label="Save changes"
-            onPress={save}
-            loading={updateLog.isPending}
-            disabled={!hasChanges || !hasValidServings || deleteLog.isPending}
-          />
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Delete entry"
-            onPress={confirmDelete}
-            disabled={deleteLog.isPending || updateLog.isPending}
-            className="items-center py-sm"
-          >
-            <Text variant="body" color="error" className="font-semibold">
-              {deleteLog.isPending ? "Deleting..." : "Delete entry"}
-            </Text>
-          </Pressable>
+              <Text variant="caption" color="muted">
+                Editing is only available for entries logged today.
+              </Text>
+            </View>
+          )}
         </View>
       </View>
 

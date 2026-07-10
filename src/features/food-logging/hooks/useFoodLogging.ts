@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   invalidateFoodLogViews,
@@ -9,6 +10,7 @@ import {
   type LogEstimateVars,
   type LogFoodVars,
 } from "@/api";
+import { useFavoritesActions, useFavoriteIds } from "@/stores";
 import { localDay } from "@/utils";
 import type {
   EstimateFoodPayload,
@@ -66,12 +68,20 @@ export function useRecentFoods() {
   });
 }
 
+/** Fetches favorites AND keeps the device-local favorites store in sync. */
 export function useFavorites() {
-  return useQuery({
+  const query = useQuery({
     queryKey: queryKeys.foods.favorites(),
     queryFn: getFavorites,
     staleTime: 1000 * 60,
   });
+  const { setFavoriteIds } = useFavoritesActions();
+
+  useEffect(() => {
+    if (query.data) setFavoriteIds(query.data.items.map((item) => item.id));
+  }, [query.data, setFavoriteIds]);
+
+  return query;
 }
 
 export function useWater(day = localDay()) {
@@ -136,6 +146,28 @@ export function useRemoveFavorite() {
       void queryClient.invalidateQueries({ queryKey: queryKeys.foods.favorites() });
     },
   });
+}
+
+/**
+ * Single toggle for every favorite heart in the app. Updates the local
+ * favorites store immediately (instant feedback everywhere, not just the
+ * screen that was tapped) and rolls back if the server call fails.
+ */
+export function useToggleFavorite() {
+  const addFavorite = useAddFavorite();
+  const removeFavorite = useRemoveFavorite();
+  const favoriteIds = useFavoriteIds();
+  const { addFavoriteId, removeFavoriteId } = useFavoritesActions();
+
+  return (foodItemId: string) => {
+    if (favoriteIds.includes(foodItemId)) {
+      removeFavoriteId(foodItemId);
+      removeFavorite.mutate(foodItemId, { onError: () => addFavoriteId(foodItemId) });
+    } else {
+      addFavoriteId(foodItemId);
+      addFavorite.mutate(foodItemId, { onError: () => removeFavoriteId(foodItemId) });
+    }
+  };
 }
 
 export function useAddWaterLog(day = localDay()) {

@@ -27,3 +27,10 @@ export {
   useIsBiometricUnlocked,
   useBiometricUnlockActions,
 } from "./biometric-unlock.store";
+export {
+  useFavoritesStore,
+  useFavoriteIds,
+  useIsFavorite,
+  useFavoritesHydrated,
+  useFavoritesActions,
+} from "./favorites.store";

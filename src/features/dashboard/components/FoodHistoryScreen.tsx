@@ -1,14 +1,18 @@
+import { useState } from "react";
 import { router } from "expo-router";
-import { Lock } from "phosphor-react-native";
-import { View } from "react-native";
+import { Heart, Lock } from "phosphor-react-native";
+import { Pressable, View } from "react-native";
 import { Button, Card, SectionError, SkeletonText, Text } from "@/components";
-import type { HistoryDay as HistoryDayModel } from "@/contracts";
+import type { FoodLogEntry, HistoryDay as HistoryDayModel } from "@/contracts";
+import { EditFoodLogSheet, useFavorites, useToggleFavorite } from "@/features/food-logging";
+import { useIsFavorite } from "@/stores";
 import { colors } from "@/theme";
 import { useFoodLogHistory } from "../hooks/useDashboard";
 
 export function FoodHistoryScreen() {
   const history = useFoodLogHistory();
   const days = history.data?.days ?? [];
+  const [editingEntry, setEditingEntry] = useState<FoodLogEntry | null>(null);
 
   return (
     <View className="gap-lg">
@@ -42,10 +46,15 @@ export function FoodHistoryScreen() {
           day.isLocked ? (
             <LockedHistoryDay key={day.day} day={day.day} />
           ) : (
-            <HistoryDay key={day.day} day={day} />
+            <HistoryDay key={day.day} day={day} onEntryPress={setEditingEntry} />
           )
         )
       )}
+      <EditFoodLogSheet
+        entry={editingEntry}
+        visible={editingEntry !== null}
+        onClose={() => setEditingEntry(null)}
+      />
     </View>
   );
 }
@@ -66,34 +75,64 @@ function HistorySkeleton() {
   );
 }
 
-function HistoryDay({ day }: { day: HistoryDayModel }) {
+function HistoryDay({
+  day,
+  onEntryPress,
+}: {
+  day: HistoryDayModel;
+  onEntryPress: (entry: FoodLogEntry) => void;
+}) {
   return (
     <View className="gap-md">
       <Text variant="heading3" color="dark">
         {day.day}
       </Text>
       {day.entries.map((entry) => (
-        <View
-          key={entry.id}
-          className="flex-row justify-between gap-md border-b border-gray-200 pb-sm"
-        >
-          <View className="flex-1">
-            <Text variant="body" color="dark">
-              {entry.name}
-            </Text>
-            <Text variant="caption" color="muted">
-              {new Date(entry.consumedAt).toLocaleTimeString([], {
-                hour: "numeric",
-                minute: "2-digit",
-              })}
-            </Text>
-          </View>
-          <Text variant="body" color="dark">
-            {entry.nutrients.calories} kcal
-          </Text>
-        </View>
+        <HistoryEntryRow key={entry.id} entry={entry} onPress={() => onEntryPress(entry)} />
       ))}
     </View>
+  );
+}
+
+function HistoryEntryRow({ entry, onPress }: { entry: FoodLogEntry; onPress: () => void }) {
+  useFavorites();
+  const toggleFavorite = useToggleFavorite();
+  const isFavorite = useIsFavorite(entry.foodItemId);
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`View ${entry.name}`}
+      onPress={onPress}
+      className="flex-row items-center justify-between gap-md border-b border-gray-200 pb-sm"
+    >
+      <View className="flex-1">
+        <Text variant="body" color="dark">
+          {entry.name}
+        </Text>
+        <Text variant="caption" color="muted">
+          {new Date(entry.consumedAt).toLocaleTimeString([], {
+            hour: "numeric",
+            minute: "2-digit",
+          })}
+        </Text>
+      </View>
+      <View className="flex-row items-center gap-md">
+        {entry.foodItemId ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={isFavorite ? "Remove favorite" : "Add favorite"}
+            onPress={() => toggleFavorite(entry.foodItemId as string)}
+            hitSlop={8}
+          >
+            <Heart size={20} color={colors.primary} weight={isFavorite ? "fill" : "regular"} />
+          </Pressable>
+        ) : null}
+        <Text variant="body" color="dark">
+          {entry.nutrients.calories} kcal
+        </Text>
+      </View>
+    </Pressable>
   );
 }
 

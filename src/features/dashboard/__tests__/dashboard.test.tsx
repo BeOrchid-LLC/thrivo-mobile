@@ -10,6 +10,7 @@ import type {
   StreakSummary,
   Water,
 } from "@/contracts";
+import { useFavoritesStore } from "@/stores";
 
 const mockUseMe = jest.fn();
 const mockUseDashboardCalories = jest.fn();
@@ -18,6 +19,8 @@ const mockUseDashboardStreak = jest.fn();
 const mockUseDashboardWater = jest.fn();
 const mockUseDashboardMealLog = jest.fn();
 const mockUseAddWater = jest.fn();
+const mockUseFavorites = jest.fn();
+const mockUseToggleFavorite = jest.fn();
 const mockPush = jest.fn();
 
 jest.mock("@/features/profile", () => ({
@@ -32,6 +35,15 @@ jest.mock("../hooks/useDashboard", () => ({
   useDashboardMealLog: () => mockUseDashboardMealLog(),
   useAddWater: () => mockUseAddWater(),
 }));
+
+jest.mock("@/features/food-logging", () => {
+  const actual = jest.requireActual("@/features/food-logging");
+  return {
+    ...actual,
+    useFavorites: () => mockUseFavorites(),
+    useToggleFavorite: () => mockUseToggleFavorite(),
+  };
+});
 
 const emptyCalories: DashboardCalories = {
   day: "2026-06-22",
@@ -116,6 +128,7 @@ function renderDashboard() {
 describe("Dashboard graceful degradation", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    useFavoritesStore.setState({ favoriteIds: [] });
     (router as unknown as { push: jest.Mock }).push = mockPush;
     mockUseMe.mockReturnValue(successQuery({ name: "Ada Lovelace" }));
     mockUseDashboardCalories.mockReturnValue(successQuery(emptyCalories));
@@ -126,6 +139,8 @@ describe("Dashboard graceful degradation", () => {
       successQuery({ day: "2026-06-22", entries: [], isEmptyDay: true })
     );
     mockUseAddWater.mockReturnValue({ mutate: jest.fn(), isPending: false, error: null });
+    mockUseFavorites.mockReturnValue({ data: { items: [] } });
+    mockUseToggleFavorite.mockReturnValue(jest.fn());
   });
 
   it("renders static header content while dashboard sections are loading", () => {
@@ -199,5 +214,24 @@ describe("Dashboard graceful degradation", () => {
     const screen = renderDashboard();
 
     expect(screen.getByText("Greek yogurt")).toBeTruthy();
+  });
+
+  it("shows the logged time and a functional favorite heart on today's entries", () => {
+    const toggleFavorite = jest.fn();
+    mockUseToggleFavorite.mockReturnValue(toggleFavorite);
+    mockUseDashboardMealLog.mockReturnValue(
+      successQuery({ day: "2026-06-22", entries: [loggedEntry], isEmptyDay: false })
+    );
+
+    const screen = renderDashboard();
+
+    const expectedTime = new Date(loggedEntry.consumedAt).toLocaleTimeString([], {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+    expect(screen.getByText(new RegExp(expectedTime.replace(/\s/g, "\\s")))).toBeTruthy();
+    fireEvent.press(screen.getByLabelText("Add favorite"));
+
+    expect(toggleFavorite).toHaveBeenCalledWith(loggedEntry.foodItemId);
   });
 });
