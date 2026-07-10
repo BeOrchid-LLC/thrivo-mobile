@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Modal, Pressable, TextInput, View } from "react-native";
 import Svg, { Circle, Line, Path, Polyline } from "react-native-svg";
 import { ArrowLeft, Minus, Plus, TrendDown, Warning } from "phosphor-react-native";
@@ -23,6 +23,7 @@ import { colors } from "@/theme";
 import { formatWeight, roundTo, weightFromKg, weightToKg, weightUnitFor } from "@/utils";
 import type { ChartMetric, ChartPeriod, ChartPoint, ProgressResponse } from "@/contracts";
 import { useSettings } from "@/features/settings";
+import { subscribeTabRootReset } from "@/navigation/tab-root-reset";
 import { useAddWeight, useMetricChart, useProgress, useWeightContext } from "../hooks/useProgress";
 
 const metricOptions = [
@@ -47,11 +48,21 @@ type ProgressData = ProgressResponse["progress"];
 export function ProgressScreen() {
   const day = useCurrentDay();
   const [mode, setMode] = useState<ViewMode>("home");
+  const [resetVersion, setResetVersion] = useState(0);
+
+  useEffect(
+    () =>
+      subscribeTabRootReset("metrics", () => {
+        setMode("home");
+        setResetVersion((version) => version + 1);
+      }),
+    []
+  );
 
   return mode === "log-weight" ? (
     <LogWeightScreen day={day} onBack={() => setMode("home")} />
   ) : (
-    <ProgressHome day={day} onLogWeight={() => setMode("log-weight")} />
+    <ProgressHome key={resetVersion} day={day} onLogWeight={() => setMode("log-weight")} />
   );
 }
 

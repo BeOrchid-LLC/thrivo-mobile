@@ -1,6 +1,7 @@
-import { fireEvent, render } from "@testing-library/react-native";
+import { act, fireEvent, render } from "@testing-library/react-native";
 import { router } from "expo-router";
 import { ApiError } from "@/api/errors";
+import { emitTabRootReset } from "@/navigation/tab-root-reset";
 import { ProgressScreen } from "../screens/ProgressScreen";
 
 const mockUseProgress = jest.fn();
@@ -206,6 +207,21 @@ describe("ProgressScreen", () => {
       expect.objectContaining({ day: expect.any(String), weightKg: expect.any(Number) }),
       expect.any(Object)
     );
+  });
+
+  it("resets to the default progress screen when the progress tab is pressed", () => {
+    const screen = render(<ProgressScreen />);
+    fireEvent.press(screen.getByText("Log this week’s weight"));
+
+    expect(screen.getByText("Log weight")).toBeTruthy();
+
+    act(() => {
+      emitTabRootReset("metrics");
+    });
+
+    expect(screen.getByText("Progress")).toBeTruthy();
+    expect(screen.getByText("Weight over time")).toBeTruthy();
+    expect(screen.queryByText("Log weight")).toBeNull();
   });
 
   it("navigates to the food logging tab", () => {

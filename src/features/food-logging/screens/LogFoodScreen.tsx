@@ -38,6 +38,7 @@ import {
 } from "@/lib";
 import { colors } from "@/theme";
 import { useSettings } from "@/features/settings";
+import { subscribeTabRootReset } from "@/navigation/tab-root-reset";
 import { useIsFavorite } from "@/stores";
 import { formatWater, roundTo, waterFromMl, waterToMl, waterUnitFor } from "@/utils";
 import type { FoodItem, FoodLogEntry, FoodSearchResult, PortionMeasure } from "@/contracts";
@@ -86,7 +87,18 @@ export function LogFoodScreen() {
   const day = useCurrentDay();
   const [segment, setSegment] = useState<Segment>("food");
   const [subview, setSubview] = useState<Subview>("main");
+  const [resetVersion, setResetVersion] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(
+    () =>
+      subscribeTabRootReset("log", () => {
+        setSegment("food");
+        setSubview("main");
+        setResetVersion((version) => version + 1);
+      }),
+    []
+  );
 
   const refresh = () => {
     setRefreshing(true);
@@ -131,6 +143,7 @@ export function LogFoodScreen() {
       />
       {segment === "food" ? (
         <FoodHome
+          key={resetVersion}
           day={day}
           onScan={() => setSubview("scan")}
           onDescribe={() => setSubview("describe")}
@@ -322,7 +335,12 @@ function FoodHome({
             Favorites
           </Text>
           {favorites.data.items.map((item) => (
-            <FoodResultRow key={item.id} item={item} onLog={() => logItem(item)} loading={logFood.isPending} />
+            <FoodResultRow
+              key={item.id}
+              item={item}
+              onLog={() => logItem(item)}
+              loading={logFood.isPending}
+            />
           ))}
         </View>
       ) : null}

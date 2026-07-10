@@ -1,4 +1,5 @@
 import { act, fireEvent, render, waitFor } from "@testing-library/react-native";
+import { emitTabRootReset } from "@/navigation/tab-root-reset";
 import { useFavoritesStore } from "@/stores";
 import { localDay } from "@/utils";
 import { LogFoodScreen } from "../screens/LogFoodScreen";
@@ -285,6 +286,21 @@ describe("LogFoodScreen", () => {
     fireEvent.press(screen.getByLabelText("View Greek yogurt"));
 
     expect(screen.getByText("Save changes")).toBeTruthy();
+  });
+
+  it("resets to the default food screen when the log tab is pressed", () => {
+    const screen = render(<LogFoodScreen />);
+    fireEvent.press(screen.getByText("Scan barcode"));
+
+    expect(screen.getByText("Scan Barcode")).toBeTruthy();
+
+    act(() => {
+      emitTabRootReset("log");
+    });
+
+    expect(screen.getByText("Log Food")).toBeTruthy();
+    expect(screen.getByText("Nothing logged yet")).toBeTruthy();
+    expect(screen.queryByText("Scan Barcode")).toBeNull();
   });
 
   it("captures a barcode from the camera scanner", () => {
