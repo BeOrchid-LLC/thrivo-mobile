@@ -14,14 +14,8 @@ export default function History() {
   };
 
   return (
-    <Screen
-      scroll
-      edges={["top", "left", "right"]}
-      style={{ paddingTop: 32, paddingBottom: 16 }}
-      refreshing={refreshing}
-      onRefresh={refresh}
-    >
-      <FoodHistoryScreen />
+    <Screen edges={["top", "left", "right"]} style={{ paddingTop: 32, paddingBottom: 16 }}>
+      <FoodHistoryScreen refreshing={refreshing} onRefresh={refresh} />
     </Screen>
   );
 }
