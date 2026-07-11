@@ -198,20 +198,21 @@ export const ENDPOINTS = {
     path: "/foods/favorites",
     method: "GET",
     auth: true,
-    response: c.favoritesResponse,
+    response: c.favoritesListResponse,
   },
   FOOD_FAVORITE_ADD: {
     path: "/foods/favorites",
     method: "POST",
     auth: true,
     payload: c.addFavoritePayload,
-    response: c.favoritesResponse,
+    // R5-1: returns the single mutated item, not a full re-list.
+    response: c.favoriteMutationResponse,
   },
   FOOD_FAVORITE_REMOVE: {
     path: "/foods/favorites/:id",
     method: "DELETE",
     auth: true,
-    response: c.favoritesResponse,
+    response: c.favoriteMutationResponse,
   },
   FOOD_ESTIMATE: {
     path: "/foods/estimate",

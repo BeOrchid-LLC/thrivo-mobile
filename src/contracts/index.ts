@@ -52,7 +52,10 @@ export const dashboardCaloriesResponse = pkg.dashboardCaloriesResponseSchema.sha
 export const dashboardMacrosResponse = pkg.dashboardMacrosResponseSchema.shape.data;
 export const dashboardStreakResponse = pkg.dashboardStreakResponseSchema.shape.data;
 export const estimateFoodResponse = pkg.estimateFoodResponseSchema.shape.data;
-export const favoritesResponse = pkg.favoritesResponseSchema.shape.data;
+// R5-1: list and mutation responses diverged — add/remove now return the
+// single changed item (nullable on remove), not a full re-list.
+export const favoritesListResponse = pkg.favoritesListResponseSchema.shape.data;
+export const favoriteMutationResponse = pkg.favoriteMutationResponseSchema.shape.data;
 export const foodItemResponse = pkg.foodItemResponseSchema.shape.data;
 export const foodLogDayResponse = pkg.foodLogDayResponseSchema.shape.data;
 export const foodLogHistoryResponse = pkg.foodLogHistoryResponseSchema.shape.data;
@@ -89,7 +92,10 @@ export type DashboardCaloriesResponse = z.infer<
 export type DashboardMacrosResponse = z.infer<typeof pkg.dashboardMacrosResponseSchema.shape.data>;
 export type DashboardStreakResponse = z.infer<typeof pkg.dashboardStreakResponseSchema.shape.data>;
 export type EstimateFoodResponse = z.infer<typeof pkg.estimateFoodResponseSchema.shape.data>;
-export type FavoritesResponse = z.infer<typeof pkg.favoritesResponseSchema.shape.data>;
+export type FavoritesListResponse = z.infer<typeof pkg.favoritesListResponseSchema.shape.data>;
+export type FavoriteMutationResponse = z.infer<
+  typeof pkg.favoriteMutationResponseSchema.shape.data
+>;
 export type FoodItemResponse = z.infer<typeof pkg.foodItemResponseSchema.shape.data>;
 export type FoodLogDayResponse = z.infer<typeof pkg.foodLogDayResponseSchema.shape.data>;
 export type FoodLogHistoryResponse = z.infer<typeof pkg.foodLogHistoryResponseSchema.shape.data>;
