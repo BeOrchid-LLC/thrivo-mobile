@@ -10,7 +10,6 @@ import {
   Barcode,
   Heart,
   MagnifyingGlass,
-  Minus,
   Plus,
   TextAlignLeft,
   Warning,
@@ -26,6 +25,7 @@ import {
   Segmented,
   SkeletonBlock,
   SkeletonText,
+  StepperButton,
   Text,
 } from "@/components";
 import { queryClient, queryKeys } from "@/api";
@@ -1096,22 +1096,6 @@ function WaterSkeleton() {
         <FoodRowSkeleton count={2} />
       </View>
     </View>
-  );
-}
-
-function StepperButton({ label, onPress }: { label: string; onPress: () => void }) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      className="h-[28px] w-[28px] items-center justify-center rounded-sm border border-gray-200 bg-primarySoft"
-    >
-      {label === "-" ? (
-        <Minus size={16} color={colors.primary} />
-      ) : (
-        <Plus size={16} color={colors.primary} />
-      )}
-    </Pressable>
   );
 }
 
