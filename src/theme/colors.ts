@@ -12,6 +12,8 @@ export const colors = {
   primarySoft: "#E8F7EE", // light green tint — success badges / soft fills (V2 auth screens)
   primaryBright: "#27AE60", // brighter green — progress fill, success check (V2 screens)
   progressTrack: "#E0E6EE", // unfilled progress segment (V2 onboarding)
+  loggedGreen: "#90CFAE", // "logged" streak-calendar day fill (ProgressScreen)
+  loggedGreenBorder: "#64B889", // "logged" streak-calendar day border (ProgressScreen)
   dark: "#1A1A2E", // Figma: Gray 1 (primary text)
   light: "#F4F6F9", // page background / input fields
   accent: "#F39C12", // Figma: Orange

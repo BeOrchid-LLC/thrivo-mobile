@@ -145,7 +145,7 @@ export function WelcomeScreen() {
         <Text className="mt-md font-bold text-[28px] leading-[42px] tracking-[-0.5px] text-dark">
           THRIVO
         </Text>
-        <Text className="mt-sm text-center font-regular text-[16px] leading-[24px] text-[#737373]">
+        <Text className="mt-sm text-center font-regular text-[16px] leading-[24px] text-muted">
           Weight loss that actually works
         </Text>
       </View>

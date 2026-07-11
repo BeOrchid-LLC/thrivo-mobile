@@ -499,7 +499,7 @@ function StreakCalendar({
       </View>
       <View className="flex-row justify-center gap-md">
         <Legend color="bg-primary" label="Today" />
-        <Legend color="bg-[#90CFAE]" label="Logged" />
+        <Legend color="bg-loggedGreen" label="Logged" />
         <Legend color="bg-white" label="Upcoming" />
       </View>
     </Card>
@@ -514,7 +514,7 @@ function CalendarDayCell({
   const stateClass = day.today
     ? "border-primary bg-primary"
     : day.logged
-      ? "border-[#64B889] bg-[#90CFAE]"
+      ? "border-loggedGreenBorder bg-loggedGreen"
       : "border-gray-200 bg-white";
   const textColor = day.today ? "inverse" : day.logged ? "primary" : "muted";
 

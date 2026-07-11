@@ -19,7 +19,8 @@
     "lint": "eslint .",
     "format": "prettier --write 'src/**/*.{ts,tsx}' 'app/**/*.{ts,tsx}'",
     "format:check": "prettier --check 'src/**/*.{ts,tsx}' 'app/**/*.{ts,tsx}'",
-    "checks": "npm run typecheck && npm run lint && npm run format:check"
+    "check:no-raw-hex": "node scripts/check-no-raw-hex.js",
+    "checks": "npm run typecheck && npm run lint && npm run format:check && npm run check:no-raw-hex"
   },
   "dependencies": {
     "@beorchid-llc/thrivo-contracts": "^0.14.0",

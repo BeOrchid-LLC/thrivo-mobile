@@ -30,6 +30,13 @@ module.exports = defineConfig([
     },
   },
   {
+    // CommonJS build/CI scripts run directly under Node, not the RN/Expo runtime.
+    files: ["scripts/**/*.js"],
+    languageOptions: {
+      globals: { require: "readonly", module: "readonly", __dirname: "readonly", process: "readonly" },
+    },
+  },
+  {
     ignores: [
       "dist/*",
       ".expo/*",
