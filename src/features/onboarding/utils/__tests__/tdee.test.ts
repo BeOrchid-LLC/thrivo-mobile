@@ -62,6 +62,24 @@ describe("Phase 3 — TDEE (Mifflin-St Jeor)", () => {
       expect(b.maintenanceKcal).toBe(2124); // round(1370 × 1.55 = 2123.5)
       expect(b.dailyTargetKcal).toBe(2120); // round10(2124 + 0)
     });
+
+    it("rounds only the final TDEE, never the intermediate BMR (R6 I19)", () => {
+      // weightKg=68, heightCm=169, ageYears=28, male → raw BMR = 1601.25
+      // (fractional). Rounding BMR to 1601 *before* multiplying by the
+      // activity factor (the old bug) gives 2201; rounding only the product
+      // (correct — matches the backend's tdee.service) gives 2202. This
+      // input exists specifically to catch a regression to double-rounding.
+      const b = calorieTarget({
+        sex: "male",
+        weightKg: 68,
+        heightCm: 169,
+        ageYears: 28,
+        goal: "maintain",
+        activity: "light",
+      });
+      expect(b.bmr).toBe(1601); // display-only rounding of raw BMR (1601.25)
+      expect(b.maintenanceKcal).toBe(2202); // NOT 2201 (the double-rounded bug value)
+    });
   });
 
   describe("deriveMacroTargets", () => {

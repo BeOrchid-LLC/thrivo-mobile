@@ -74,12 +74,19 @@ export interface CalorieBreakdown {
 /**
  * Full breakdown so the target screen can show each line (BMR → ×activity →
  * ± goal → final). The final target is rounded to the nearest 10 kcal.
+ *
+ * BMR is rounded only for display (`bmr` below) — the activity-factor
+ * multiply below uses the unrounded value, then rounds once. Rounding BMR
+ * *before* the multiply (as this used to do) silently disagreed with the
+ * backend's persisted target by several kcal at some inputs (R6 I19); this
+ * order matches the backend's `tdee.service`.
  */
 export function calorieTarget(input: TargetInput): CalorieBreakdown {
   const activity = input.activity ?? DEFAULT_ACTIVITY;
   const activityFactor = ACTIVITY_FACTORS[activity];
-  const bmr = Math.round(bmrMifflinStJeor(input));
-  const maintenanceKcal = Math.round(bmr * activityFactor);
+  const rawBmr = bmrMifflinStJeor(input);
+  const bmr = Math.round(rawBmr);
+  const maintenanceKcal = Math.round(rawBmr * activityFactor);
   const adjustment = goalAdjustmentKcal(input.goal);
   return {
     bmr,
