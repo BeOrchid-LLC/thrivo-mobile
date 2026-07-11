@@ -14,6 +14,7 @@ import { useFavoritesActions, useFavoriteIds } from "@/stores";
 import { localDay } from "@/utils";
 import type {
   EstimateFoodPayload,
+  FavoritesListResponse,
   LogEstimatePayload,
   LogFoodPayload,
   UpdateLogPayload,
@@ -128,12 +129,23 @@ export function useDeleteFoodLog() {
   });
 }
 
+/**
+ * R5-1: add/remove now return the single mutated item instead of a full
+ * re-list, so the client patches the favorites cache in place — one round
+ * trip instead of re-fetching the whole list on every heart-tap. Prepending
+ * on add (and de-duping any existing copy) approximates the server's
+ * most-used/most-recent ordering closely enough for the gap until the next
+ * real refetch; the list query itself remains the source of truth.
+ */
 export function useAddFavorite() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (foodItemId: string) => addFavorite({ foodItemId }),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.foods.favorites() });
+    onSuccess: ({ item }) => {
+      if (!item) return;
+      queryClient.setQueryData<FavoritesListResponse>(queryKeys.foods.favorites(), (prev) =>
+        prev ? { items: [item, ...prev.items.filter((existing) => existing.id !== item.id)] } : prev
+      );
     },
   });
 }
@@ -142,8 +154,10 @@ export function useRemoveFavorite() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (foodItemId: string) => removeFavorite(foodItemId),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.foods.favorites() });
+    onSuccess: (_data, foodItemId) => {
+      queryClient.setQueryData<FavoritesListResponse>(queryKeys.foods.favorites(), (prev) =>
+        prev ? { items: prev.items.filter((existing) => existing.id !== foodItemId) } : prev
+      );
     },
   });
 }
