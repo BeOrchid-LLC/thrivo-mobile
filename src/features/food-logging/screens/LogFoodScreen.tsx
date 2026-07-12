@@ -703,7 +703,7 @@ function ScanBarcodeScreen({ day, onBack }: { day: string; onBack: () => void })
       {lookup.isError ? (
         <SectionError
           title="Could not look up barcode"
-          message="The decoded barcode is saved locally if you are offline. Try again when your connection returns."
+          message="Something went wrong looking that up. Try again in a moment."
           onRetry={() => void lookup.refetch()}
         />
       ) : null}
