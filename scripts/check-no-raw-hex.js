@@ -16,15 +16,13 @@ const FILE_EXT = /\.(ts|tsx)$/;
 const HEX_LITERAL = /#[0-9A-Fa-f]{3}\b|#[0-9A-Fa-f]{6}\b|#[0-9A-Fa-f]{8}\b/g;
 
 /**
- * Pre-existing hex usage this R6 pass didn't touch — each is a design decision
- * outside I21's scope (a generic non-brand shadow color, and two bespoke
- * one-off gradient colors that don't duplicate any existing token), not an
- * oversight. Tracked as follow-up debt rather than silently ignored; remove an
- * entry here as each is resolved.
+ * Pre-existing hex usage this R6 pass didn't touch. Reviewed 2026-07-12:
+ * start-free.tsx's colors were resolved into tokens (colors.primary,
+ * colors.gradientMid) and removed from this list. Segmented.tsx's shadow
+ * color stays a literal by design — see comment below.
  */
 const ALLOWLIST = new Set([
-  "src/components/Segmented.tsx", // shadowColor: "#000" — iOS shadow convention, not a design token
-  "app/(onboarding)/start-free.tsx", // bespoke trial-card gradient colors, not duplicates of any token
+  "src/components/Segmented.tsx", // shadowColor: "#000" — generic iOS shadow convention, not a brand/design token; reviewed 2026-07-12, kept as literal
 ]);
 
 /** @typedef {{ file: string, line: number, snippet: string }} Violation */

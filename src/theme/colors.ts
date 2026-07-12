@@ -11,6 +11,7 @@ export const colors = {
   primaryTint: "#EAF3DE",
   primarySoft: "#E8F7EE", // light green tint — success badges / soft fills (V2 auth screens)
   primaryBright: "#27AE60", // brighter green — progress fill, success check (V2 screens)
+  gradientMid: "#2D5B4A", // dark-green blend stop, dark → primaryBright gradient (trial-upsell card)
   progressTrack: "#E0E6EE", // unfilled progress segment (V2 onboarding)
   loggedGreen: "#90CFAE", // "logged" streak-calendar day fill (ProgressScreen)
   loggedGreenBorder: "#64B889", // "logged" streak-calendar day border (ProgressScreen)
