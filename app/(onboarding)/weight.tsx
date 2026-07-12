@@ -32,7 +32,8 @@ export default function WeightStep() {
   const updateSettings = useUpdateSettings();
   const needsTarget = draft.goal !== "maintain";
 
-  const initialUnit: Unit = (draft.unitSystem ?? settings.data?.unitSystem) === "imperial" ? "lb" : "kg";
+  const initialUnit: Unit =
+    (draft.unitSystem ?? settings.data?.unitSystem) === "imperial" ? "lb" : "kg";
   const [unit, setUnit] = useState<Unit>(initialUnit);
   const [current, setCurrent] = useState(toDisplay(draft.currentWeightKg, initialUnit));
   const [target, setTarget] = useState(toDisplay(draft.targetWeightKg, initialUnit));
