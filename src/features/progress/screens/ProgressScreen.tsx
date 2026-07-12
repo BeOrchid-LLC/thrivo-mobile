@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Modal, Pressable, TextInput, View } from "react-native";
 import Svg, { Circle, Line, Path, Polyline } from "react-native-svg";
-import { ArrowLeft, Minus, Plus, TrendDown, Warning } from "phosphor-react-native";
+import { ArrowLeft, TrendDown, Warning } from "phosphor-react-native";
 import { router } from "expo-router";
 import { queryClient, queryKeys } from "@/api";
 import {
@@ -14,6 +14,7 @@ import {
   SelectSheet,
   SkeletonBlock,
   SkeletonText,
+  StepperButton,
   Text,
 } from "@/components";
 import { isApiError } from "@/api/errors";
@@ -279,7 +280,7 @@ function LogWeightScreen({ day, onBack }: { day: string; onBack: () => void }) {
           Today’s weight
         </Text>
         <View className="flex-row items-center gap-md">
-          <Stepper
+          <StepperButton
             label="-"
             onPress={() => setWeight(String(roundTo(Math.max(numberValue - 0.5, 1), 1)))}
           />
@@ -290,7 +291,10 @@ function LogWeightScreen({ day, onBack }: { day: string; onBack: () => void }) {
             className="min-h-[48px] flex-1 rounded-md bg-gray-100 px-lg text-center font-semibold text-[16px] text-dark"
           />
           <Text color="primary">{weightUnit}</Text>
-          <Stepper label="+" onPress={() => setWeight(String(roundTo(numberValue + 0.5, 1)))} />
+          <StepperButton
+            label="+"
+            onPress={() => setWeight(String(roundTo(numberValue + 0.5, 1)))}
+          />
         </View>
         <Text color="muted">Tap the number to type the exact weight</Text>
       </View>
@@ -499,7 +503,7 @@ function StreakCalendar({
       </View>
       <View className="flex-row justify-center gap-md">
         <Legend color="bg-primary" label="Today" />
-        <Legend color="bg-[#90CFAE]" label="Logged" />
+        <Legend color="bg-loggedGreen" label="Logged" />
         <Legend color="bg-white" label="Upcoming" />
       </View>
     </Card>
@@ -514,7 +518,7 @@ function CalendarDayCell({
   const stateClass = day.today
     ? "border-primary bg-primary"
     : day.logged
-      ? "border-[#64B889] bg-[#90CFAE]"
+      ? "border-loggedGreenBorder bg-loggedGreen"
       : "border-gray-200 bg-white";
   const textColor = day.today ? "inverse" : day.logged ? "primary" : "muted";
 
@@ -554,22 +558,6 @@ function StatCard({
       </Text>
       <Text color="muted">{detail}</Text>
     </View>
-  );
-}
-
-function Stepper({ label, onPress }: { label: "-" | "+"; onPress: () => void }) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      className="h-[28px] w-[28px] items-center justify-center rounded-sm border border-gray-200 bg-primarySoft"
-    >
-      {label === "-" ? (
-        <Minus size={16} color={colors.primary} />
-      ) : (
-        <Plus size={16} color={colors.primary} />
-      )}
-    </Pressable>
   );
 }
 

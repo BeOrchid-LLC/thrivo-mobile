@@ -18,7 +18,7 @@ export function BrandSplash({ busy = false }: BrandSplashProps) {
   return (
     <LinearGradient
       // First stop is the page background token; second is a soft green tint.
-      colors={[colors.light, "#E8F7EE"]}
+      colors={[colors.light, colors.primarySoft]}
       style={{ flex: 1, alignItems: "center", justifyContent: "center" }}
     >
       <View className="h-[120px] items-center">

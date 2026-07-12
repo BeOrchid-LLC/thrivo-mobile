@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   invalidateFoodLogViews,
@@ -10,7 +10,7 @@ import {
   type LogEstimateVars,
   type LogFoodVars,
 } from "@/api";
-import { useFavoritesActions, useFavoriteIds } from "@/stores";
+import { useFavoritesActions, useFavoritesStore } from "@/stores";
 import { localDay } from "@/utils";
 import type {
   EstimateFoodPayload,
@@ -166,22 +166,40 @@ export function useRemoveFavorite() {
  * Single toggle for every favorite heart in the app. Updates the local
  * favorites store immediately (instant feedback everywhere, not just the
  * screen that was tapped) and rolls back if the server call fails.
+ *
+ * Reads `favoriteIds` via `getState()` at call time rather than subscribing
+ * to it (R6 I20) — this hook only needs the array at the moment of a tap, and
+ * subscribing to the whole array re-rendered every mounted caller (every
+ * diary/history row) on any favorite add/remove anywhere in the app. Callers
+ * that need to reflect the current favorited state on screen should use the
+ * scoped `useIsFavorite(id)` selector instead.
+ *
+ * The returned function is stabilized with `useCallback` so callers passing
+ * it into a memoized row component (e.g. FoodHistoryScreen's FlashList rows)
+ * don't bust that memoization on every unrelated re-render.
  */
 export function useToggleFavorite() {
   const addFavorite = useAddFavorite();
   const removeFavorite = useRemoveFavorite();
-  const favoriteIds = useFavoriteIds();
   const { addFavoriteId, removeFavoriteId } = useFavoritesActions();
 
-  return (foodItemId: string) => {
-    if (favoriteIds.includes(foodItemId)) {
-      removeFavoriteId(foodItemId);
-      removeFavorite.mutate(foodItemId, { onError: () => addFavoriteId(foodItemId) });
-    } else {
-      addFavoriteId(foodItemId);
-      addFavorite.mutate(foodItemId, { onError: () => removeFavoriteId(foodItemId) });
-    }
-  };
+  return useCallback(
+    (foodItemId: string) => {
+      if (useFavoritesStore.getState().favoriteIds.includes(foodItemId)) {
+        removeFavoriteId(foodItemId);
+        removeFavorite.mutate(foodItemId, { onError: () => addFavoriteId(foodItemId) });
+      } else {
+        addFavoriteId(foodItemId);
+        addFavorite.mutate(foodItemId, { onError: () => removeFavoriteId(foodItemId) });
+      }
+    },
+    // addFavorite/removeFavorite (whole useMutation results) are new objects every
+    // render; only their .mutate methods are called here and react-query guarantees
+    // those are stable, so depending on the objects themselves would defeat the point
+    // of this useCallback.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [addFavorite.mutate, removeFavorite.mutate, addFavoriteId, removeFavoriteId]
+  );
 }
 
 export function useAddWaterLog(day = localDay()) {

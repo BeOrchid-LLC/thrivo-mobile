@@ -1,60 +1,37 @@
-import type { Goal, Sex } from "@/contracts";
+import {
+  ACTIVITY_FACTORS,
+  GOAL_ADJUSTMENTS,
+  bmrMifflinStJeor,
+  calculateTdee,
+  macroSplitFromKcal,
+  type ActivityLevel,
+  type BmrInput,
+  type Goal,
+  type MacroSplit,
+} from "@beorchid-llc/thrivo-contracts";
 
 /**
  * Local calorie-target preview for onboarding (MOBILE_ARCHITECTURE §4 — "local
  * TDEE preview, must match server formula"). The server remains the source of
- * truth; this exists so the onboarding "aha" number is instant. The backend's
- * `tdee.service` uses the same **Mifflin-St Jeor** equation
- * (SYSTEM_DESIGN.md §"Server computes TDEE + daily target (Mifflin-St Jeor)").
+ * truth; this exists so the onboarding "aha" number is instant.
  *
- * Mifflin-St Jeor BMR (kcal/day), weight in kg, height in cm, age in years:
- *   male:   10·kg + 6.25·cm − 5·age + 5
- *   female: 10·kg + 6.25·cm − 5·age − 161
- * TDEE = BMR × activity factor; daily target = TDEE + goal adjustment.
+ * R6 (I19): the formula itself (Mifflin-St Jeor, activity factors, goal
+ * adjustment, macro split) now lives once in `@beorchid-llc/thrivo-contracts`
+ * — this module is a thin wrapper mapping the shared result onto the field
+ * names the onboarding target screen already renders (`activity`,
+ * `activityFactor`, `maintenanceKcal`), not a second implementation.
  */
 
-export type ActivityLevel = "sedentary" | "light" | "moderate" | "active" | "very_active";
-
-/** Standard Mifflin-St Jeor activity multipliers. */
-export const ACTIVITY_FACTORS: Record<ActivityLevel, number> = {
-  sedentary: 1.2,
-  light: 1.375,
-  moderate: 1.55,
-  active: 1.725,
-  very_active: 1.9,
-};
+export type { ActivityLevel, BmrInput };
+export { ACTIVITY_FACTORS, bmrMifflinStJeor };
 
 /** Onboarding collects no activity level, so the preview defaults to sedentary. */
 export const DEFAULT_ACTIVITY: ActivityLevel = "sedentary";
 
-export interface BmrInput {
-  sex: Sex;
-  weightKg: number;
-  heightCm: number;
-  ageYears: number;
-}
-
-/** Mifflin-St Jeor basal metabolic rate (kcal/day). */
-export function bmrMifflinStJeor({ sex, weightKg, heightCm, ageYears }: BmrInput): number {
-  const base = 10 * weightKg + 6.25 * heightCm - 5 * ageYears;
-  if (sex === "male") return base + 5;
-  if (sex === "female") return base - 161;
-  return base - 78;
-}
-
 /** Daily kcal delta for the goal: ~0.5 kg/week deficit for loss, surplus for gain. */
 export function goalAdjustmentKcal(goal: Goal): number {
-  switch (goal) {
-    case "lose":
-      return -500;
-    case "gain":
-      return 300;
-    case "maintain":
-      return 0;
-  }
+  return GOAL_ADJUSTMENTS[goal];
 }
-
-const round10 = (n: number): number => Math.round(n / 10) * 10;
 
 export interface TargetInput extends BmrInput {
   goal: Goal;
@@ -77,34 +54,23 @@ export interface CalorieBreakdown {
  */
 export function calorieTarget(input: TargetInput): CalorieBreakdown {
   const activity = input.activity ?? DEFAULT_ACTIVITY;
-  const activityFactor = ACTIVITY_FACTORS[activity];
-  const bmr = Math.round(bmrMifflinStJeor(input));
-  const maintenanceKcal = Math.round(bmr * activityFactor);
-  const adjustment = goalAdjustmentKcal(input.goal);
+  const result = calculateTdee({ ...input, activityLevel: activity });
   return {
-    bmr,
-    activity,
-    activityFactor,
-    maintenanceKcal,
-    goalAdjustmentKcal: adjustment,
-    dailyTargetKcal: round10(maintenanceKcal + adjustment),
+    bmr: result.bmr,
+    activity: result.activityLevel,
+    activityFactor: ACTIVITY_FACTORS[activity],
+    maintenanceKcal: result.tdeeKcal,
+    goalAdjustmentKcal: result.goalAdjustmentKcal,
+    dailyTargetKcal: result.dailyTargetKcal,
   };
 }
 
-export interface MacroTargets {
-  proteinG: number;
-  carbsG: number;
-  fatG: number;
-}
+export type MacroTargets = MacroSplit;
 
 /**
  * Split daily calories into macro grams using a balanced 30% protein / 40%
  * carbs / 30% fat ratio (4/4/9 kcal per gram).
  */
 export function deriveMacroTargets(kcal: number): MacroTargets {
-  return {
-    proteinG: Math.round((kcal * 0.3) / 4),
-    carbsG: Math.round((kcal * 0.4) / 4),
-    fatG: Math.round((kcal * 0.3) / 9),
-  };
+  return macroSplitFromKcal(kcal);
 }

@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import { router } from "expo-router";
 import { Heart, Lock } from "phosphor-react-native";
 import { Pressable, View } from "react-native";
+import { FlashList, type ListRenderItem } from "@shopify/flash-list";
 import { Button, Card, SectionError, SkeletonText, Text } from "@/components";
 import type { FoodLogEntry, HistoryDay as HistoryDayModel } from "@/contracts";
 import { EditFoodLogSheet, useFavorites, useToggleFavorite } from "@/features/food-logging";
@@ -9,13 +10,73 @@ import { useIsFavorite } from "@/stores";
 import { colors } from "@/theme";
 import { useFoodLogHistory } from "../hooks/useDashboard";
 
-export function FoodHistoryScreen() {
+export interface FoodHistoryScreenProps {
+  refreshing?: boolean;
+  onRefresh?: () => void;
+}
+
+type HistoryListItem =
+  | { type: "header"; day: string }
+  | { type: "locked"; day: string }
+  | { type: "entry"; day: string; entry: FoodLogEntry };
+
+function buildListItems(days: readonly HistoryDayModel[]): HistoryListItem[] {
+  const items: HistoryListItem[] = [];
+  for (const day of days) {
+    if (day.isLocked) {
+      items.push({ type: "locked", day: day.day });
+      continue;
+    }
+    items.push({ type: "header", day: day.day });
+    for (const entry of day.entries) {
+      items.push({ type: "entry", day: day.day, entry });
+    }
+  }
+  return items;
+}
+
+function keyExtractor(item: HistoryListItem): string {
+  return item.type === "entry" ? `entry-${item.entry.id}` : `${item.type}-${item.day}`;
+}
+
+function getItemType(item: HistoryListItem): string {
+  return item.type;
+}
+
+export function FoodHistoryScreen({ refreshing, onRefresh }: FoodHistoryScreenProps) {
   const history = useFoodLogHistory();
-  const days = history.data?.days ?? [];
+  useFavorites(); // fetch + sync the local favorites store ONCE per screen, not per row (R6 I20)
+  const toggleFavorite = useToggleFavorite();
+  const days = useMemo(() => history.data?.days ?? [], [history.data]);
   const [editingEntry, setEditingEntry] = useState<FoodLogEntry | null>(null);
 
+  const listItems = useMemo(() => buildListItems(days), [days]);
+  const stickyHeaderIndices = useMemo(
+    () =>
+      listItems.reduce<number[]>((acc, item, index) => {
+        if (item.type === "header") acc.push(index);
+        return acc;
+      }, []),
+    [listItems]
+  );
+
+  const renderItem = useCallback<ListRenderItem<HistoryListItem>>(
+    ({ item }) => {
+      if (item.type === "locked") return <LockedHistoryDay day={item.day} />;
+      if (item.type === "header") return <HistoryDayHeader day={item.day} />;
+      return (
+        <HistoryEntryRow
+          entry={item.entry}
+          toggleFavorite={toggleFavorite}
+          onPress={() => setEditingEntry(item.entry)}
+        />
+      );
+    },
+    [toggleFavorite]
+  );
+
   return (
-    <View className="gap-lg">
+    <View className="flex-1 gap-lg">
       <Text variant="heading2" color="dark">
         Food history
       </Text>
@@ -42,13 +103,16 @@ export function FoodHistoryScreen() {
           </Text>
         </Card>
       ) : (
-        days.map((day) =>
-          day.isLocked ? (
-            <LockedHistoryDay key={day.day} day={day.day} />
-          ) : (
-            <HistoryDay key={day.day} day={day} onEntryPress={setEditingEntry} />
-          )
-        )
+        <FlashList
+          style={{ flex: 1 }}
+          data={listItems}
+          renderItem={renderItem}
+          keyExtractor={keyExtractor}
+          getItemType={getItemType}
+          stickyHeaderIndices={stickyHeaderIndices}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+        />
       )}
       <EditFoodLogSheet
         entry={editingEntry}
@@ -75,28 +139,26 @@ function HistorySkeleton() {
   );
 }
 
-function HistoryDay({
-  day,
-  onEntryPress,
-}: {
-  day: HistoryDayModel;
-  onEntryPress: (entry: FoodLogEntry) => void;
-}) {
+/** Sticky — needs its own background so scrolling entries don't show through underneath it. */
+function HistoryDayHeader({ day }: { day: string }) {
   return (
-    <View className="gap-md">
+    <View className="bg-white pb-sm pt-md">
       <Text variant="heading3" color="dark">
-        {day.day}
+        {day}
       </Text>
-      {day.entries.map((entry) => (
-        <HistoryEntryRow key={entry.id} entry={entry} onPress={() => onEntryPress(entry)} />
-      ))}
     </View>
   );
 }
 
-function HistoryEntryRow({ entry, onPress }: { entry: FoodLogEntry; onPress: () => void }) {
-  useFavorites();
-  const toggleFavorite = useToggleFavorite();
+const HistoryEntryRow = memo(function HistoryEntryRow({
+  entry,
+  toggleFavorite,
+  onPress,
+}: {
+  entry: FoodLogEntry;
+  toggleFavorite: (foodItemId: string) => void;
+  onPress: () => void;
+}) {
   const isFavorite = useIsFavorite(entry.foodItemId);
 
   return (
@@ -134,7 +196,7 @@ function HistoryEntryRow({ entry, onPress }: { entry: FoodLogEntry; onPress: () 
       </View>
     </Pressable>
   );
-}
+});
 
 function LockedHistoryDay({ day }: { day: string }) {
   return (

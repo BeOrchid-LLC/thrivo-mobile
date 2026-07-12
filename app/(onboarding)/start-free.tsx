@@ -64,9 +64,9 @@ export default function StartFreeStep() {
         </>
       }
     >
-      <View className="overflow-hidden rounded-[20px] border-[1.333px] border-[#0b8d42]">
+      <View className="overflow-hidden rounded-[20px] border-[1.333px] border-primary">
         <LinearGradient
-          colors={[colors.dark, "#2D5B4A", colors.primaryBright]}
+          colors={[colors.dark, colors.gradientMid, colors.primaryBright]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={{ padding: 24 }}
