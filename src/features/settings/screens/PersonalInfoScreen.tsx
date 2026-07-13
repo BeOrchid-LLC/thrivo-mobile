@@ -99,7 +99,9 @@ export function PersonalInfoScreen() {
     setFullName(user.name);
     setGoal(user.goal ?? "lose");
     setCurrentWeight(
-      user.weightKg ? String(roundTo(weightFromKg(Number.parseFloat(user.weightKg), unitSystem))) : ""
+      user.weightKg
+        ? String(roundTo(weightFromKg(Number.parseFloat(user.weightKg), unitSystem)))
+        : ""
     );
     setTargetWeight(
       user.targetWeightKg
@@ -107,7 +109,9 @@ export function PersonalInfoScreen() {
         : ""
     );
     setHeight(
-      user.heightCm ? String(roundTo(heightFromCm(Number.parseFloat(user.heightCm), unitSystem))) : ""
+      user.heightCm
+        ? String(roundTo(heightFromCm(Number.parseFloat(user.heightCm), unitSystem)))
+        : ""
     );
     setSex(user.sex ?? "female");
   }, [unitSystem, user]);

@@ -257,11 +257,7 @@ export function SettingsScreen() {
               <CaretRight size={18} color={colors.gray[500]} />
             </View>
           }
-          onPress={
-            settingsLoading
-              ? undefined
-              : () => setEditingSelect("units")
-          }
+          onPress={settingsLoading ? undefined : () => setEditingSelect("units")}
         />
         {profile.isError ? (
           <SectionError

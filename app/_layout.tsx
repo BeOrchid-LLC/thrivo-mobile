@@ -138,15 +138,7 @@ function RootNavigator({ fontsReady }: { fontsReady: boolean }) {
         redirecting.current = false;
       }, 0);
     }
-  }, [
-    ready,
-    status,
-    isOnboarded,
-    isOnboardingSkipped,
-    isBiometricLocked,
-    segments,
-    router,
-  ]);
+  }, [ready, status, isOnboarded, isOnboardingSkipped, isBiometricLocked, segments, router]);
 
   // Hold the branded splash until fonts + auth resolve so Inter never flashes
   // the fallback face and no screen renders before the guard decides the route.

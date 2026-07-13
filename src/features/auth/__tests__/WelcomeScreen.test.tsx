@@ -2,11 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import { router } from "expo-router";
 import { storageKeys } from "@/lib/storage";
-import {
-  useBiometricUnlockStore,
-  usePreferencesStore,
-  useSessionStore,
-} from "@/stores";
+import { useBiometricUnlockStore, usePreferencesStore, useSessionStore } from "@/stores";
 import { WelcomeScreen } from "../screens/WelcomeScreen";
 
 const mockGoogleMutate = jest.fn();

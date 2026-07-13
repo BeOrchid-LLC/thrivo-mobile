@@ -14,6 +14,5 @@ export const useBiometricUnlockStore = create<BiometricUnlockState>((set) => ({
   },
 }));
 
-export const useIsBiometricUnlocked = () =>
-  useBiometricUnlockStore((s) => s.isBiometricUnlocked);
+export const useIsBiometricUnlocked = () => useBiometricUnlockStore((s) => s.isBiometricUnlocked);
 export const useBiometricUnlockActions = () => useBiometricUnlockStore((s) => s.actions);

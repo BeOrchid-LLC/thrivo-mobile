@@ -25,6 +25,7 @@ import {
   deleteWater,
   estimateFood,
   getFavorites,
+  getFoodDetail,
   getFoodLogDay,
   getRecentFoods,
   getWater,
@@ -50,6 +51,15 @@ export function useBarcodeLookup(barcode: string | null) {
     queryFn: () => lookupFood(barcode ?? ""),
     enabled: Boolean(barcode),
     staleTime: 1000 * 60 * 10,
+  });
+}
+
+/** Fetches a catalog food's current serving options, e.g. to seed a unit switcher. */
+export function useFoodDetail(foodItemId: string | null, enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.foods.detail(foodItemId ?? ""),
+    queryFn: () => getFoodDetail(foodItemId as string),
+    enabled: enabled && Boolean(foodItemId),
   });
 }
 

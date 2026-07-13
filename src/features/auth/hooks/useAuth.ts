@@ -195,7 +195,13 @@ export function useAppleSignIn() {
         : undefined;
 
       const tokens = await appleSignIn(idToken, name);
-      return applyTokens(tokens.accessToken, tokens.refreshToken, setSession, setBiometricUnlocked, queryClient);
+      return applyTokens(
+        tokens.accessToken,
+        tokens.refreshToken,
+        setSession,
+        setBiometricUnlocked,
+        queryClient
+      );
     },
   });
 

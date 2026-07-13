@@ -69,6 +69,17 @@ const portions: { label: string; value: PortionMeasure }[] = [
   { label: "Piece", value: "piece" },
 ];
 
+// Switching units shouldn't leave a stale quantity from the previous unit behind
+// (e.g. 900 grams -> Serving landing on "900 servings") - reset to a sensible
+// per-unit default instead.
+const DEFAULT_QUANTITY_BY_MEASURE: Record<PortionMeasure, string> = {
+  weight: "100",
+  serving: "1",
+  cup: "1",
+  tbsp: "1",
+  piece: "1",
+};
+
 function useDebouncedValue<T>(value: T, delayMs: number): T {
   const [debounced, setDebounced] = useState(value);
   useEffect(() => {
@@ -167,7 +178,6 @@ function FoodHome({
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebouncedValue(query, 350);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
   const [editingEntry, setEditingEntry] = useState<FoodLogEntry | null>(null);
   const [loggingItem, setLoggingItem] = useState<FoodItem | FoodSearchResult | null>(null);
   const search = useFoodSearch(debouncedQuery);
@@ -180,21 +190,6 @@ function FoodHome({
   const results = search.data?.items ?? [];
   const recentItems = recent.data?.items ?? [];
   const favoriteItems = favorites.data?.items ?? [];
-
-  const logItem = (food: FoodItem) => {
-    logFood.mutate(
-      {
-        foodItemId: food.id,
-        day,
-        servings: 1,
-        servingUnit: food.servingLabel,
-      },
-      {
-        onSuccess: () => setMessage(`${food.name} logged.`),
-        onError: () => setMessage("Could not log food. Try again."),
-      }
-    );
-  };
 
   const openLogSheet = (food: FoodItem | FoodSearchResult) => {
     setQuery("");
@@ -233,11 +228,6 @@ function FoodHome({
         autoCapitalize="none"
         leadingIcon={<MagnifyingGlass size={20} color={colors.gray[500]} />}
       />
-      {message ? (
-        <Text variant="caption" color={message.includes("Could not") ? "error" : "primary"}>
-          {message}
-        </Text>
-      ) : null}
       {hasQuery ? (
         <Card className="gap-md">
           <Text variant="body" color="dark">
@@ -291,7 +281,7 @@ function FoodHome({
             <FoodResultRow
               key={item.id}
               item={item}
-              onLog={() => logItem(item)}
+              onLog={() => openLogSheet(item)}
               loading={logFood.isPending}
             />
           ))}
@@ -338,7 +328,7 @@ function FoodHome({
             <FoodResultRow
               key={item.id}
               item={item}
-              onLog={() => logItem(item)}
+              onLog={() => openLogSheet(item)}
               loading={logFood.isPending}
             />
           ))}
@@ -366,7 +356,7 @@ function WaterHome({ day }: { day: string }) {
   const deleteWater = useDeleteWaterLog(day);
   const unitSystem = settings.data?.unitSystem ?? "metric";
   const waterUnit = waterUnitFor(unitSystem);
-  const quickAddMl = [100, 250, 500];
+  const quickAddGlasses = [1, 2, 3];
   const [manual, setManual] = useState(
     unitSystem === "imperial" ? String(roundTo(waterFromMl(250, unitSystem), 1)) : "250"
   );
@@ -438,14 +428,16 @@ function WaterHome({ day }: { day: string }) {
           Quick add
         </Text>
         <View className="flex-row gap-md">
-          {quickAddMl.map((amountMl) => {
+          {quickAddGlasses.map((n) => {
+            const amountMl = data.glassMl * n;
             const amount = roundTo(
               waterFromMl(amountMl, unitSystem),
               unitSystem === "imperial" ? 1 : 0
             );
+            const isDefault = n === 1;
             return (
               <Pressable
-                key={amountMl}
+                key={n}
                 accessibilityRole="button"
                 disabled={addWater.isPending}
                 onPress={() =>
@@ -455,14 +447,14 @@ function WaterHome({ day }: { day: string }) {
                   })
                 }
                 className={`min-h-[64px] flex-1 items-center justify-center rounded-md ${
-                  amountMl === 250 ? "bg-primarySoft" : "bg-gray-100"
+                  isDefault ? "bg-primarySoft" : "bg-gray-100"
                 }`}
               >
-                <Text variant="heading3" color={amountMl === 250 ? "primary" : "muted"}>
-                  {amount}
+                <Text variant="heading3" color={isDefault ? "primary" : "muted"}>
+                  {n} {n === 1 ? "glass" : "glasses"}
                 </Text>
-                <Text variant="body" color={amountMl === 250 ? "primary" : "muted"}>
-                  {waterUnit}
+                <Text variant="body" color={isDefault ? "primary" : "muted"}>
+                  {amount} {waterUnit}
                 </Text>
               </Pressable>
             );
@@ -506,47 +498,54 @@ function WaterHome({ day }: { day: string }) {
         <Text variant="heading3" color="muted">
           {"Today's log"}
         </Text>
-        {data.entries.map((entry) => (
-          <View
-            key={entry.id}
-            className="flex-row items-center justify-between border-b border-gray-200 py-sm"
-          >
-            <View>
-              <Text variant="body" color="dark">
-                Glass of water
-              </Text>
-              <Text variant="caption" color="muted">
-                {formatTime(entry.recordedAt)}
-              </Text>
-            </View>
-            <View className="flex-row items-center gap-md">
-              <View className="items-end">
+        {data.entries.map((entry) => {
+          const glassCount = entry.amountMl / data.glassMl;
+          const entryLabel =
+            Number.isInteger(glassCount) && glassCount > 0
+              ? `${glassCount} Glass${glassCount === 1 ? "" : "es"} of water`
+              : "Water logged";
+          return (
+            <View
+              key={entry.id}
+              className="flex-row items-center justify-between border-b border-gray-200 py-sm"
+            >
+              <View>
                 <Text variant="body" color="dark">
-                  {roundTo(
-                    waterFromMl(entry.amountMl, unitSystem),
-                    unitSystem === "imperial" ? 1 : 0
-                  )}
+                  {entryLabel}
                 </Text>
                 <Text variant="caption" color="muted">
-                  {waterUnit}
+                  {formatTime(entry.recordedAt)}
                 </Text>
               </View>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Delete water entry"
-                disabled={deleteWater.isPending}
-                onPress={() =>
-                  deleteWater.mutate(entry.id, {
-                    onSuccess: () => setMessage("Water entry deleted."),
-                    onError: () => setMessage("Could not delete water. Try again."),
-                  })
-                }
-              >
-                <XCircle size={22} color={colors.gray[500]} />
-              </Pressable>
+              <View className="flex-row items-center gap-md">
+                <View className="items-end">
+                  <Text variant="body" color="dark">
+                    {roundTo(
+                      waterFromMl(entry.amountMl, unitSystem),
+                      unitSystem === "imperial" ? 1 : 0
+                    )}
+                  </Text>
+                  <Text variant="caption" color="muted">
+                    {waterUnit}
+                  </Text>
+                </View>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Delete water entry"
+                  disabled={deleteWater.isPending}
+                  onPress={() =>
+                    deleteWater.mutate(entry.id, {
+                      onSuccess: () => setMessage("Water entry deleted."),
+                      onError: () => setMessage("Could not delete water. Try again."),
+                    })
+                  }
+                >
+                  <XCircle size={22} color={colors.gray[500]} />
+                </Pressable>
+              </View>
             </View>
-          </View>
-        ))}
+          );
+        })}
       </View>
     </View>
   );
@@ -703,7 +702,7 @@ function ScanBarcodeScreen({ day, onBack }: { day: string; onBack: () => void })
       {lookup.isError ? (
         <SectionError
           title="Could not look up barcode"
-          message="The decoded barcode is saved locally if you are offline. Try again when your connection returns."
+          message="Something went wrong looking that up. Try again in a moment."
           onRetry={() => void lookup.refetch()}
         />
       ) : null}
@@ -758,6 +757,11 @@ function DescribeMealScreen({ day, onBack }: { day: string; onBack: () => void }
     [ingredients, measure, method, name, quantityValue]
   );
 
+  const handleMeasureChange = (next: PortionMeasure) => {
+    setMeasure(next);
+    setQuantity(DEFAULT_QUANTITY_BY_MEASURE[next]);
+  };
+
   return (
     <Screen scroll style={{ gap: 20 }}>
       <PageHeader
@@ -787,7 +791,7 @@ function DescribeMealScreen({ day, onBack }: { day: string; onBack: () => void }
         <Text variant="caption" color="dark">
           Portion measure
         </Text>
-        <Segmented value={measure} onChange={setMeasure} options={portions} />
+        <Segmented value={measure} onChange={handleMeasureChange} options={portions} />
       </View>
       <View className="flex-row items-center gap-md">
         <StepperButton

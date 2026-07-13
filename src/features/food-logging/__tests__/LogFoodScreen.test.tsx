@@ -13,6 +13,7 @@ const mockUseRemoveFavorite = jest.fn();
 const mockUseToggleFavorite = jest.fn();
 const mockUseUpdateFoodLog = jest.fn();
 const mockUseDeleteFoodLog = jest.fn();
+const mockUseFoodDetail = jest.fn();
 const mockUseWater = jest.fn();
 const mockUseAddWaterLog = jest.fn();
 const mockUseDeleteWaterLog = jest.fn();
@@ -59,6 +60,7 @@ jest.mock("../hooks/useFoodLogging", () => ({
   useToggleFavorite: () => mockUseToggleFavorite(),
   useUpdateFoodLog: () => mockUseUpdateFoodLog(),
   useDeleteFoodLog: () => mockUseDeleteFoodLog(),
+  useFoodDetail: (...args: unknown[]) => mockUseFoodDetail(...args),
   useWater: () => mockUseWater(),
   useAddWaterLog: () => mockUseAddWaterLog(),
   useDeleteWaterLog: () => mockUseDeleteWaterLog(),
@@ -171,6 +173,7 @@ describe("LogFoodScreen", () => {
       error: null,
       reset: jest.fn(),
     });
+    mockUseFoodDetail.mockReturnValue({ data: undefined, isLoading: false });
     mockUseWater.mockReturnValue(successQuery(water));
     mockUseAddWaterLog.mockReturnValue({ mutate: jest.fn(), isPending: false });
     mockUseDeleteWaterLog.mockReturnValue({ mutate: jest.fn() });
@@ -229,6 +232,20 @@ describe("LogFoodScreen", () => {
     );
   });
 
+  it("resets the described-meal quantity to a per-unit default when the portion measure changes", () => {
+    const screen = render(<LogFoodScreen />);
+    fireEvent.press(screen.getByText("Describe it"));
+
+    // Default measure is "weight", default quantity "150".
+    expect(screen.getByDisplayValue("150")).toBeTruthy();
+
+    fireEvent.press(screen.getByText("Serving"));
+    expect(screen.getByDisplayValue("1")).toBeTruthy();
+
+    fireEvent.press(screen.getByText("Weight"));
+    expect(screen.getByDisplayValue("100")).toBeTruthy();
+  });
+
   it("opens a favorites-only state from the quick action", () => {
     mockUseFavorites.mockReturnValue(successQuery({ items: [food] }));
 
@@ -237,6 +254,27 @@ describe("LogFoodScreen", () => {
 
     expect(screen.getAllByText("Favorites").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Chicken breast, grilled").length).toBeGreaterThan(0);
+  });
+
+  it("opens the log sheet for a favorited item instead of logging it immediately", () => {
+    const mutate = jest.fn();
+    mockUseFavorites.mockReturnValue(successQuery({ items: [food] }));
+    mockUseLogFood.mockReturnValue({ mutate, isPending: false, error: null, reset: jest.fn() });
+
+    const screen = render(<LogFoodScreen />);
+    fireEvent.press(screen.getAllByText("Favorites")[0]);
+    fireEvent.press(screen.getAllByLabelText("Log Chicken breast, grilled")[0]);
+
+    // Logging must not happen until the sheet's own "Log food" action is pressed.
+    expect(mutate).not.toHaveBeenCalled();
+    expect(screen.getByText("Log food")).toBeTruthy();
+
+    fireEvent.press(screen.getByText("Log food"));
+
+    expect(mutate).toHaveBeenCalledWith(
+      expect.objectContaining({ foodItemId: food.id, servings: 1 }),
+      expect.any(Object)
+    );
   });
 
   it("shows favorited items with the filled heart state on the favorites screen", () => {
@@ -341,11 +379,12 @@ describe("LogFoodScreen", () => {
 
     const screen = render(<LogFoodScreen />);
     fireEvent.press(screen.getByText("Water"));
-    fireEvent.press(screen.getAllByText("250")[0]);
+    fireEvent.press(screen.getByText("1 glass"));
     fireEvent.press(screen.getByLabelText("Delete water entry"));
 
     expect(screen.getByText(/980/)).toBeTruthy();
     expect(screen.getByText("Drink up")).toBeTruthy();
+    expect(screen.getByText("1 Glass of water")).toBeTruthy();
     expect(add).toHaveBeenCalledWith(250, expect.any(Object));
     expect(remove).toHaveBeenCalledWith("water-1", expect.any(Object));
   });

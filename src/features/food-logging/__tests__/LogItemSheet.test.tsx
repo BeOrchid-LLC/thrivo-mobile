@@ -29,7 +29,11 @@ const foodItem: FoodItem = {
   servingLabel: "100g",
   servingGrams: 100,
   nutrients: { calories: 165, proteinG: 31, carbsG: 0, fatG: 4 },
-  servingOptions: [],
+  servingOptions: [
+    { id: null, measure: "serving", label: "100g", grams: 100, isDefault: true },
+    { id: "grams", measure: "weight", label: "grams", grams: 1, isDefault: false },
+    { id: "serving-cup", measure: "cup", label: "1 cup, diced", grams: 140, isDefault: false },
+  ],
   isPersonal: false,
   isEstimated: false,
 };
@@ -79,6 +83,52 @@ describe("LogItemSheet", () => {
 
     expect(mutate).toHaveBeenCalledWith(
       expect.objectContaining({ foodItemId: foodItem.id, day: "2026-07-10", servings: 2 }),
+      expect.any(Object)
+    );
+  });
+
+  it("resets quantity to 1 and sends the chosen servingId when switching to a named unit", () => {
+    const mutate = jest.fn();
+    mockUseLogFood.mockReturnValue({ mutate, isPending: false, error: null, reset: jest.fn() });
+
+    const screen = render(
+      <LogItemSheet item={foodItem} day="2026-07-10" visible onClose={jest.fn()} />
+    );
+    fireEvent.press(screen.getByText("+")); // servings: 1 -> 2, to prove the switch resets it
+    fireEvent.press(screen.getByText("Unit"));
+    fireEvent.press(screen.getByText("1 cup, diced"));
+
+    expect(screen.getByDisplayValue("1")).toBeTruthy();
+
+    fireEvent.press(screen.getByText("Log food"));
+
+    expect(mutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        foodItemId: foodItem.id,
+        servings: 1,
+        servingId: "serving-cup",
+        servingUnit: "1 cup, diced",
+      }),
+      expect.any(Object)
+    );
+  });
+
+  it("resets quantity to the food's reference grams when switching to the grams unit", () => {
+    const mutate = jest.fn();
+    mockUseLogFood.mockReturnValue({ mutate, isPending: false, error: null, reset: jest.fn() });
+
+    const screen = render(
+      <LogItemSheet item={foodItem} day="2026-07-10" visible onClose={jest.fn()} />
+    );
+    fireEvent.press(screen.getByText("Unit"));
+    fireEvent.press(screen.getByText("grams"));
+
+    expect(screen.getByDisplayValue("100")).toBeTruthy();
+
+    fireEvent.press(screen.getByText("Log food"));
+
+    expect(mutate).toHaveBeenCalledWith(
+      expect.objectContaining({ servings: 100, servingId: "grams", servingUnit: "grams" }),
       expect.any(Object)
     );
   });
