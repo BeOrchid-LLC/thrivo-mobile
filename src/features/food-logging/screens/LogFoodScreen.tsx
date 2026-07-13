@@ -69,6 +69,17 @@ const portions: { label: string; value: PortionMeasure }[] = [
   { label: "Piece", value: "piece" },
 ];
 
+// Switching units shouldn't leave a stale quantity from the previous unit behind
+// (e.g. 900 grams -> Serving landing on "900 servings") - reset to a sensible
+// per-unit default instead.
+const DEFAULT_QUANTITY_BY_MEASURE: Record<PortionMeasure, string> = {
+  weight: "100",
+  serving: "1",
+  cup: "1",
+  tbsp: "1",
+  piece: "1",
+};
+
 function useDebouncedValue<T>(value: T, delayMs: number): T {
   const [debounced, setDebounced] = useState(value);
   useEffect(() => {
@@ -746,6 +757,11 @@ function DescribeMealScreen({ day, onBack }: { day: string; onBack: () => void }
     [ingredients, measure, method, name, quantityValue]
   );
 
+  const handleMeasureChange = (next: PortionMeasure) => {
+    setMeasure(next);
+    setQuantity(DEFAULT_QUANTITY_BY_MEASURE[next]);
+  };
+
   return (
     <Screen scroll style={{ gap: 20 }}>
       <PageHeader
@@ -775,7 +791,7 @@ function DescribeMealScreen({ day, onBack }: { day: string; onBack: () => void }
         <Text variant="caption" color="dark">
           Portion measure
         </Text>
-        <Segmented value={measure} onChange={setMeasure} options={portions} />
+        <Segmented value={measure} onChange={handleMeasureChange} options={portions} />
       </View>
       <View className="flex-row items-center gap-md">
         <StepperButton

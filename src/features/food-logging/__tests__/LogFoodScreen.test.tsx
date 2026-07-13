@@ -232,6 +232,20 @@ describe("LogFoodScreen", () => {
     );
   });
 
+  it("resets the described-meal quantity to a per-unit default when the portion measure changes", () => {
+    const screen = render(<LogFoodScreen />);
+    fireEvent.press(screen.getByText("Describe it"));
+
+    // Default measure is "weight", default quantity "150".
+    expect(screen.getByDisplayValue("150")).toBeTruthy();
+
+    fireEvent.press(screen.getByText("Serving"));
+    expect(screen.getByDisplayValue("1")).toBeTruthy();
+
+    fireEvent.press(screen.getByText("Weight"));
+    expect(screen.getByDisplayValue("100")).toBeTruthy();
+  });
+
   it("opens a favorites-only state from the quick action", () => {
     mockUseFavorites.mockReturnValue(successQuery({ items: [food] }));
 
