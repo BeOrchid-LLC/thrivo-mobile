@@ -239,6 +239,27 @@ describe("LogFoodScreen", () => {
     expect(screen.getAllByText("Chicken breast, grilled").length).toBeGreaterThan(0);
   });
 
+  it("opens the log sheet for a favorited item instead of logging it immediately", () => {
+    const mutate = jest.fn();
+    mockUseFavorites.mockReturnValue(successQuery({ items: [food] }));
+    mockUseLogFood.mockReturnValue({ mutate, isPending: false, error: null, reset: jest.fn() });
+
+    const screen = render(<LogFoodScreen />);
+    fireEvent.press(screen.getAllByText("Favorites")[0]);
+    fireEvent.press(screen.getAllByLabelText("Log Chicken breast, grilled")[0]);
+
+    // Logging must not happen until the sheet's own "Log food" action is pressed.
+    expect(mutate).not.toHaveBeenCalled();
+    expect(screen.getByText("Log food")).toBeTruthy();
+
+    fireEvent.press(screen.getByText("Log food"));
+
+    expect(mutate).toHaveBeenCalledWith(
+      expect.objectContaining({ foodItemId: food.id, servings: 1 }),
+      expect.any(Object)
+    );
+  });
+
   it("shows favorited items with the filled heart state on the favorites screen", () => {
     mockUseFavorites.mockReturnValue(successQuery({ items: [food] }));
     act(() => {

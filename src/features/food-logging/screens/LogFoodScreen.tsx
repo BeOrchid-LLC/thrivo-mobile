@@ -167,7 +167,6 @@ function FoodHome({
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebouncedValue(query, 350);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
   const [editingEntry, setEditingEntry] = useState<FoodLogEntry | null>(null);
   const [loggingItem, setLoggingItem] = useState<FoodItem | FoodSearchResult | null>(null);
   const search = useFoodSearch(debouncedQuery);
@@ -180,21 +179,6 @@ function FoodHome({
   const results = search.data?.items ?? [];
   const recentItems = recent.data?.items ?? [];
   const favoriteItems = favorites.data?.items ?? [];
-
-  const logItem = (food: FoodItem) => {
-    logFood.mutate(
-      {
-        foodItemId: food.id,
-        day,
-        servings: 1,
-        servingUnit: food.servingLabel,
-      },
-      {
-        onSuccess: () => setMessage(`${food.name} logged.`),
-        onError: () => setMessage("Could not log food. Try again."),
-      }
-    );
-  };
 
   const openLogSheet = (food: FoodItem | FoodSearchResult) => {
     setQuery("");
@@ -233,11 +217,6 @@ function FoodHome({
         autoCapitalize="none"
         leadingIcon={<MagnifyingGlass size={20} color={colors.gray[500]} />}
       />
-      {message ? (
-        <Text variant="caption" color={message.includes("Could not") ? "error" : "primary"}>
-          {message}
-        </Text>
-      ) : null}
       {hasQuery ? (
         <Card className="gap-md">
           <Text variant="body" color="dark">
@@ -291,7 +270,7 @@ function FoodHome({
             <FoodResultRow
               key={item.id}
               item={item}
-              onLog={() => logItem(item)}
+              onLog={() => openLogSheet(item)}
               loading={logFood.isPending}
             />
           ))}
@@ -338,7 +317,7 @@ function FoodHome({
             <FoodResultRow
               key={item.id}
               item={item}
-              onLog={() => logItem(item)}
+              onLog={() => openLogSheet(item)}
               loading={logFood.isPending}
             />
           ))}
