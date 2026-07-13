@@ -1,15 +1,22 @@
-import { useEffect, useState } from "react";
-import { Alert, Pressable, TextInput, View } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { Alert, Pressable, View } from "react-native";
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { Heart } from "phosphor-react-native";
-import { BottomSheetShell, Button, FormError, StepperButton, Text } from "@/components";
+import { BottomSheetShell, Button, FormError, Text } from "@/components";
 import { useIsFavorite } from "@/stores";
 import { colors } from "@/theme";
 import { isToday } from "@/utils";
 import type { FoodLogEntry } from "@/contracts";
+import { QuantityUnitField } from "./QuantityUnitField";
+import {
+  buildServingChoices,
+  defaultQuantityFor,
+  resolveUpdateServingFields,
+} from "../utils/servingChoices";
 import {
   useDeleteFoodLog,
   useFavorites,
+  useFoodDetail,
   useToggleFavorite,
   useUpdateFoodLog,
 } from "../hooks/useFoodLogging";
@@ -40,19 +47,45 @@ export function EditFoodLogSheet({ entry, visible, onClose }: EditFoodLogSheetPr
   const [servings, setServings] = useState("1");
   const [consumedAt, setConsumedAt] = useState(new Date());
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [selectedChoiceKey, setSelectedChoiceKey] = useState("default");
+  const [unitChanged, setUnitChanged] = useState(false);
+
+  const editable = Boolean(entry && isToday(entry.day));
+  // Only fetch/offer unit-switching for today's editable entries with a catalog
+  // link - historical entries and manual/external entries with no foodItemId
+  // keep quantity-only editing (no serving options to switch between).
+  const detail = useFoodDetail(entry?.foodItemId ?? null, visible && editable);
+  const choices = useMemo(
+    () => (detail.data ? buildServingChoices(detail.data) : []),
+    [detail.data]
+  );
+  const selectedChoice = choices.find((choice) => choice.key === selectedChoiceKey) ?? choices[0];
 
   useEffect(() => {
     if (!visible || !entry) return;
     setServings(String(entry.servings));
     setConsumedAt(new Date(entry.consumedAt));
+    setUnitChanged(false);
     updateLog.reset();
     deleteLog.reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, entry?.id]);
 
+  // The logged entry only stores a free-text servingUnit snapshot, not which
+  // exact serving id was chosen - best-effort match it against the food's
+  // current options once they load, falling back to the default option.
+  useEffect(() => {
+    if (!visible || !entry || choices.length === 0) return;
+    const savedLabel = entry.servingUnit?.trim().toLowerCase();
+    const matched = savedLabel
+      ? choices.find((choice) => choice.label.trim().toLowerCase() === savedLabel)
+      : null;
+    setSelectedChoiceKey((matched ?? choices[0]).key);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, entry?.id, choices]);
+
   if (!entry) return null;
 
-  const editable = isToday(entry.day);
   const toggleFavorite = () => {
     if (entry.foodItemId) toggleFavoriteId(entry.foodItemId);
   };
@@ -61,7 +94,14 @@ export function EditFoodLogSheet({ entry, visible, onClose }: EditFoodLogSheetPr
   const hasValidServings = servingsValue > 0;
   const hasChanges =
     (hasValidServings && servingsValue !== entry.servings) ||
-    consumedAt.toISOString() !== entry.consumedAt;
+    consumedAt.toISOString() !== entry.consumedAt ||
+    unitChanged;
+
+  const onSelectChoice = (choice: (typeof choices)[number]) => {
+    setSelectedChoiceKey(choice.key);
+    setUnitChanged(true);
+    setServings(defaultQuantityFor(choice, detail.data?.servingGrams ?? null));
+  };
 
   const onTimePicked = (event: DateTimePickerEvent, date?: Date) => {
     setShowTimePicker(false);
@@ -70,12 +110,12 @@ export function EditFoodLogSheet({ entry, visible, onClose }: EditFoodLogSheetPr
   };
 
   const save = () => {
+    const servingFields =
+      unitChanged && selectedChoice
+        ? resolveUpdateServingFields(selectedChoice, servingsValue)
+        : { servings: hasValidServings ? servingsValue : undefined };
     updateLog.mutate(
-      {
-        id: entry.id,
-        servings: hasValidServings ? servingsValue : undefined,
-        consumedAt: consumedAt.toISOString(),
-      },
+      { id: entry.id, consumedAt: consumedAt.toISOString(), ...servingFields },
       { onSuccess: onClose }
     );
   };
@@ -121,31 +161,13 @@ export function EditFoodLogSheet({ entry, visible, onClose }: EditFoodLogSheetPr
     >
       {editable ? (
         <>
-          <View className="gap-sm">
-            <Text variant="caption" color="dark">
-              Servings
-            </Text>
-            <View className="flex-row items-center gap-md">
-              <StepperButton
-                label="-"
-                size="lg"
-                glyph="text"
-                onPress={() => setServings(String(Math.max(Number(servings) - 1, 1)))}
-              />
-              <TextInput
-                value={servings}
-                onChangeText={setServings}
-                keyboardType="numeric"
-                className="h-[48px] flex-1 rounded-md border border-gray-300 bg-white text-center text-[18px] text-dark"
-              />
-              <StepperButton
-                label="+"
-                size="lg"
-                glyph="text"
-                onPress={() => setServings(String(Number(servings) + 1))}
-              />
-            </View>
-          </View>
+          <QuantityUnitField
+            quantity={servings}
+            onQuantityChange={setServings}
+            choices={choices}
+            selectedKey={selectedChoiceKey}
+            onSelectChoice={onSelectChoice}
+          />
 
           <View className="gap-sm">
             <Text variant="caption" color="dark">

@@ -1,6 +1,6 @@
 import { Alert } from "react-native";
 import { fireEvent, render } from "@testing-library/react-native";
-import type { FoodLogEntry } from "@/contracts";
+import type { FoodItem, FoodLogEntry } from "@/contracts";
 import { useFavoritesStore } from "@/stores";
 import { localDay } from "@/utils";
 import { EditFoodLogSheet } from "../components/EditFoodLogSheet";
@@ -9,12 +9,14 @@ const mockUseUpdateFoodLog = jest.fn();
 const mockUseDeleteFoodLog = jest.fn();
 const mockUseFavorites = jest.fn();
 const mockUseToggleFavorite = jest.fn();
+const mockUseFoodDetail = jest.fn();
 
 jest.mock("../hooks/useFoodLogging", () => ({
   useUpdateFoodLog: () => mockUseUpdateFoodLog(),
   useDeleteFoodLog: () => mockUseDeleteFoodLog(),
   useFavorites: () => mockUseFavorites(),
   useToggleFavorite: () => mockUseToggleFavorite(),
+  useFoodDetail: (...args: unknown[]) => mockUseFoodDetail(...args),
 }));
 
 jest.mock("@react-native-community/datetimepicker", () => {
@@ -39,6 +41,24 @@ const entry: FoodLogEntry = {
 
 const oldEntry: FoodLogEntry = { ...entry, id: "entry-2", day: "2020-01-01" };
 
+const foodItem: FoodItem = {
+  id: "food-1",
+  name: "Greek yogurt",
+  brand: null,
+  barcode: null,
+  source: "authoritative",
+  servingLabel: "1 serving",
+  servingGrams: 170,
+  nutrients: { calories: 120, proteinG: 18, carbsG: 8, fatG: 2 },
+  servingOptions: [
+    { id: null, measure: "serving", label: "1 serving", grams: 170, isDefault: true },
+    { id: "grams", measure: "weight", label: "grams", grams: 1, isDefault: false },
+    { id: "serving-cup", measure: "cup", label: "1 cup", grams: 245, isDefault: false },
+  ],
+  isPersonal: false,
+  isEstimated: false,
+};
+
 describe("EditFoodLogSheet", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -57,6 +77,7 @@ describe("EditFoodLogSheet", () => {
     });
     mockUseFavorites.mockReturnValue({ data: { items: [] } });
     mockUseToggleFavorite.mockReturnValue(jest.fn());
+    mockUseFoodDetail.mockReturnValue({ data: undefined, isLoading: false });
   });
 
   it("renders nothing when there is no entry", () => {
@@ -85,6 +106,45 @@ describe("EditFoodLogSheet", () => {
       expect.objectContaining({ id: entry.id, servings: 2 }),
       expect.any(Object)
     );
+  });
+
+  it("offers a unit switcher seeded from the saved label and resets quantity on switch", () => {
+    const mutate = jest.fn();
+    mockUseUpdateFoodLog.mockReturnValue({
+      mutate,
+      isPending: false,
+      error: null,
+      reset: jest.fn(),
+    });
+    mockUseFoodDetail.mockReturnValue({ data: foodItem, isLoading: false });
+    const cupEntry: FoodLogEntry = { ...entry, servingUnit: "1 cup" };
+
+    const screen = render(<EditFoodLogSheet entry={cupEntry} visible onClose={jest.fn()} />);
+
+    // Best-effort matched against the saved "1 cup" label.
+    expect(screen.getByText("1 cup")).toBeTruthy();
+
+    fireEvent.press(screen.getByText("Unit"));
+    fireEvent.press(screen.getByText("grams"));
+
+    expect(screen.getByDisplayValue("170")).toBeTruthy();
+
+    fireEvent.press(screen.getByText("Save changes"));
+
+    expect(mutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: cupEntry.id,
+        servings: 170,
+        servingId: "grams",
+        servingUnit: "grams",
+      }),
+      expect.any(Object)
+    );
+  });
+
+  it("does not fetch food detail for historical (non-editable) entries", () => {
+    render(<EditFoodLogSheet entry={oldEntry} visible onClose={jest.fn()} />);
+    expect(mockUseFoodDetail).toHaveBeenCalledWith(oldEntry.foodItemId, false);
   });
 
   it("asks for confirmation and deletes the entry", () => {

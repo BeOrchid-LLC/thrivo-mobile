@@ -13,6 +13,7 @@ const mockUseRemoveFavorite = jest.fn();
 const mockUseToggleFavorite = jest.fn();
 const mockUseUpdateFoodLog = jest.fn();
 const mockUseDeleteFoodLog = jest.fn();
+const mockUseFoodDetail = jest.fn();
 const mockUseWater = jest.fn();
 const mockUseAddWaterLog = jest.fn();
 const mockUseDeleteWaterLog = jest.fn();
@@ -59,6 +60,7 @@ jest.mock("../hooks/useFoodLogging", () => ({
   useToggleFavorite: () => mockUseToggleFavorite(),
   useUpdateFoodLog: () => mockUseUpdateFoodLog(),
   useDeleteFoodLog: () => mockUseDeleteFoodLog(),
+  useFoodDetail: (...args: unknown[]) => mockUseFoodDetail(...args),
   useWater: () => mockUseWater(),
   useAddWaterLog: () => mockUseAddWaterLog(),
   useDeleteWaterLog: () => mockUseDeleteWaterLog(),
@@ -171,6 +173,7 @@ describe("LogFoodScreen", () => {
       error: null,
       reset: jest.fn(),
     });
+    mockUseFoodDetail.mockReturnValue({ data: undefined, isLoading: false });
     mockUseWater.mockReturnValue(successQuery(water));
     mockUseAddWaterLog.mockReturnValue({ mutate: jest.fn(), isPending: false });
     mockUseDeleteWaterLog.mockReturnValue({ mutate: jest.fn() });
