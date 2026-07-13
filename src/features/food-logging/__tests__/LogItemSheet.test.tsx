@@ -15,6 +15,10 @@ jest.mock("../hooks/useFoodLogging", () => ({
   useFavorites: () => mockUseFavorites(),
 }));
 
+jest.mock("@/lib", () => ({
+  isNetworkReachable: jest.fn(async () => true),
+}));
+
 jest.mock("@react-native-community/datetimepicker", () => {
   const { View } = jest.requireActual("react-native");
   return { __esModule: true, default: () => <View testID="time-picker" /> };
@@ -83,6 +87,22 @@ describe("LogItemSheet", () => {
 
     expect(mutate).toHaveBeenCalledWith(
       expect.objectContaining({ foodItemId: foodItem.id, day: "2026-07-10", servings: 2 }),
+      expect.any(Object)
+    );
+  });
+
+  it("logs fractional servings", () => {
+    const mutate = jest.fn();
+    mockUseLogFood.mockReturnValue({ mutate, isPending: false, error: null, reset: jest.fn() });
+
+    const screen = render(
+      <LogItemSheet item={foodItem} day="2026-07-10" visible onClose={jest.fn()} />
+    );
+    fireEvent.changeText(screen.getByDisplayValue("1"), "0.5");
+    fireEvent.press(screen.getByText("Log food"));
+
+    expect(mutate).toHaveBeenCalledWith(
+      expect.objectContaining({ foodItemId: foodItem.id, day: "2026-07-10", servings: 0.5 }),
       expect.any(Object)
     );
   });

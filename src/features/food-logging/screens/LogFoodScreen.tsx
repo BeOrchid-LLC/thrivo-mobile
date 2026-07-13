@@ -44,6 +44,7 @@ import { formatWater, roundTo, waterFromMl, waterToMl, waterUnitFor } from "@/ut
 import type { FoodItem, FoodLogEntry, FoodSearchResult, PortionMeasure } from "@/contracts";
 import { EditFoodLogSheet } from "../components/EditFoodLogSheet";
 import { LogItemSheet } from "../components/LogItemSheet";
+import { parsePositiveQuantity, stepQuantity } from "../utils/quantity";
 import {
   useAddWaterLog,
   useBarcodeLookup,
@@ -94,6 +95,11 @@ function normalizeBarcode(value: string): string | null {
   return /^\d{8,14}$/.test(normalized) ? normalized : null;
 }
 
+function formatManualWaterInput(ml: number, unitSystem: "metric" | "imperial"): string {
+  const value = roundTo(waterFromMl(ml, unitSystem), unitSystem === "imperial" ? 1 : 0);
+  return String(value);
+}
+
 export function LogFoodScreen() {
   const day = useCurrentDay();
   const [segment, setSegment] = useState<Segment>("food");
@@ -138,7 +144,7 @@ export function LogFoodScreen() {
     >
       <View className="gap-xs">
         <Text variant="heading2" color="dark">
-          Log Food
+          {segment === "food" ? "Log Food" : "Log Water"}
         </Text>
         <Text variant="body" color="muted">
           What are you logging today?
@@ -357,9 +363,8 @@ function WaterHome({ day }: { day: string }) {
   const unitSystem = settings.data?.unitSystem ?? "metric";
   const waterUnit = waterUnitFor(unitSystem);
   const quickAddGlasses = [1, 2, 3];
-  const [manual, setManual] = useState(
-    unitSystem === "imperial" ? String(roundTo(waterFromMl(250, unitSystem), 1)) : "250"
-  );
+  const [manual, setManual] = useState(formatManualWaterInput(250, unitSystem));
+  const [manualUnitSystem, setManualUnitSystem] = useState(unitSystem);
   const [message, setMessage] = useState<string | null>(null);
   const data = water.data;
   const manualAmount = Number(manual);
@@ -369,6 +374,17 @@ function WaterHome({ day }: { day: string }) {
     manualAmount > 0 &&
     manualAmountMl > 0 &&
     manualAmountMl <= 5000;
+
+  useEffect(() => {
+    if (manualUnitSystem === unitSystem) return;
+    const previousAmount = Number(manual);
+    const previousMl =
+      Number.isFinite(previousAmount) && previousAmount > 0
+        ? Math.round(waterToMl(previousAmount, manualUnitSystem))
+        : 250;
+    setManual(formatManualWaterInput(previousMl, unitSystem));
+    setManualUnitSystem(unitSystem);
+  }, [manual, manualUnitSystem, unitSystem]);
 
   if (water.isLoading) {
     return <WaterSkeleton />;
@@ -559,9 +575,9 @@ function ScanBarcodeScreen({ day, onBack }: { day: string; onBack: () => void })
   const [scanned, setScanned] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [permission, requestPermission] = useCameraPermissions();
+  const [loggingItem, setLoggingItem] = useState<FoodItem | null>(null);
   const lookupBarcode = normalizeBarcode(barcode);
   const lookup = useBarcodeLookup(lookupBarcode);
-  const logFood = useLogFood();
   const food = lookup.data?.food;
   const lastScanRef = useRef<string | null>(null);
 
@@ -715,20 +731,15 @@ function ScanBarcodeScreen({ day, onBack }: { day: string; onBack: () => void })
       ) : null}
       {food ? (
         <Card className="gap-md">
-          <FoodResultRow
-            item={food}
-            onLog={() =>
-              logFood.mutate({
-                foodItemId: food.id,
-                day,
-                servings: 1,
-                servingUnit: food.servingLabel,
-              })
-            }
-            loading={logFood.isPending}
-          />
+          <FoodResultRow item={food} onLog={() => setLoggingItem(food)} loading={false} />
         </Card>
       ) : null}
+      <LogItemSheet
+        item={loggingItem}
+        day={day}
+        visible={loggingItem !== null}
+        onClose={() => setLoggingItem(null)}
+      />
     </Screen>
   );
 }
@@ -743,8 +754,8 @@ function DescribeMealScreen({ day, onBack }: { day: string; onBack: () => void }
   const estimate = useEstimateFood();
   const logEstimate = useLogEstimate();
   const estimateResult = estimate.data?.estimate;
-  const quantityValue = Number(quantity);
-  const canEstimate = name.trim().length > 0 && Number.isFinite(quantityValue) && quantityValue > 0;
+  const quantityValue = parsePositiveQuantity(quantity);
+  const canEstimate = name.trim().length > 0 && quantityValue !== null;
 
   const payload = useMemo(
     () => ({
@@ -752,7 +763,7 @@ function DescribeMealScreen({ day, onBack }: { day: string; onBack: () => void }
       ingredients,
       cookingMethod: method || undefined,
       portionMeasure: measure,
-      quantity: quantityValue,
+      quantity: quantityValue ?? 0,
     }),
     [ingredients, measure, method, name, quantityValue]
   );
@@ -760,6 +771,32 @@ function DescribeMealScreen({ day, onBack }: { day: string; onBack: () => void }
   const handleMeasureChange = (next: PortionMeasure) => {
     setMeasure(next);
     setQuantity(DEFAULT_QUANTITY_BY_MEASURE[next]);
+  };
+
+  const runEstimate = () => {
+    setMessage(null);
+    estimate.mutate(payload, {
+      onError: () => setMessage("Could not estimate this meal. Try again."),
+    });
+  };
+
+  const logEstimatedMeal = () => {
+    setMessage(null);
+    void isNetworkReachable().then((online) => {
+      if (!online) setMessage("Saved offline. We'll sync this meal when you're back online.");
+    });
+    logEstimate.mutate(
+      {
+        ...payload,
+        day,
+        nutrients: estimateResult!.nutrients,
+        servingUnit: estimateResult!.servingUnit,
+      },
+      {
+        onSuccess: () => setMessage("Estimate logged."),
+        onError: () => setMessage("Could not log estimate. Try again."),
+      }
+    );
   };
 
   return (
@@ -794,20 +831,17 @@ function DescribeMealScreen({ day, onBack }: { day: string; onBack: () => void }
         <Segmented value={measure} onChange={handleMeasureChange} options={portions} />
       </View>
       <View className="flex-row items-center gap-md">
-        <StepperButton
-          label="-"
-          onPress={() => setQuantity(String(Math.max((Number(quantity) || 1) - 1, 1)))}
-        />
+        <StepperButton label="-" onPress={() => setQuantity(stepQuantity(quantity, -1))} />
         <TextInput
           value={quantity}
           onChangeText={setQuantity}
-          keyboardType="numeric"
+          keyboardType="decimal-pad"
           className="h-[48px] flex-1 rounded-md border border-gray-300 bg-white text-center text-[18px] text-dark"
         />
         <Text variant="body" color="primary">
           {measure === "weight" ? "grams" : measure}
         </Text>
-        <StepperButton label="+" onPress={() => setQuantity(String((Number(quantity) || 0) + 1))} />
+        <StepperButton label="+" onPress={() => setQuantity(stepQuantity(quantity, 1))} />
       </View>
       {!canEstimate ? (
         <Text variant="caption" color="error">
@@ -818,11 +852,7 @@ function DescribeMealScreen({ day, onBack }: { day: string; onBack: () => void }
         label="Estimate"
         loading={estimate.isPending}
         disabled={!canEstimate}
-        onPress={() =>
-          estimate.mutate(payload, {
-            onError: () => setMessage("Could not estimate this meal. Try again."),
-          })
-        }
+        onPress={runEstimate}
       />
       {message ? (
         <Text variant="caption" color={message.includes("Could not") ? "error" : "primary"}>
@@ -843,24 +873,7 @@ function DescribeMealScreen({ day, onBack }: { day: string; onBack: () => void }
             </Text>
           </View>
           <MacroCards nutrients={estimateResult.nutrients} />
-          <Button
-            label="Log estimate"
-            loading={logEstimate.isPending}
-            onPress={() =>
-              logEstimate.mutate(
-                {
-                  ...payload,
-                  day,
-                  nutrients: estimateResult.nutrients,
-                  servingUnit: estimateResult.servingUnit,
-                },
-                {
-                  onSuccess: () => setMessage("Estimate logged."),
-                  onError: () => setMessage("Could not log estimate. Try again."),
-                }
-              )
-            }
-          />
+          <Button label="Log estimate" loading={logEstimate.isPending} onPress={logEstimatedMeal} />
         </View>
       ) : null}
     </Screen>
@@ -927,7 +940,10 @@ function FoodResultRow({
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={isFavorite ? "Remove favorite" : "Add favorite"}
-            onPress={() => toggleFavorite(foodItemId)}
+            onPress={(event) => {
+              event?.stopPropagation?.();
+              toggleFavorite(foodItemId);
+            }}
             hitSlop={8}
           >
             <Heart size={22} color={colors.primary} weight={isFavorite ? "fill" : "regular"} />
@@ -964,7 +980,10 @@ function RecentFoodRow({ entry, onPress }: { entry: FoodLogEntry; onPress: () =>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={isFavorite ? "Remove favorite" : "Add favorite"}
-            onPress={() => toggleFavorite(entry.foodItemId as string)}
+            onPress={(event) => {
+              event?.stopPropagation?.();
+              toggleFavorite(entry.foodItemId as string);
+            }}
             hitSlop={8}
           >
             <Heart size={22} color={colors.primary} weight={isFavorite ? "fill" : "regular"} />
