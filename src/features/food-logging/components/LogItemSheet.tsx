@@ -1,11 +1,17 @@
-import { useEffect, useState } from "react";
-import { Pressable, TextInput, View } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { Pressable, View } from "react-native";
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { Heart } from "phosphor-react-native";
-import { BottomSheetShell, Button, FormError, StepperButton, Text } from "@/components";
+import { BottomSheetShell, Button, FormError, Text } from "@/components";
 import { useFavoritesActions, useIsFavorite } from "@/stores";
 import { colors } from "@/theme";
 import type { FoodItem, FoodSearchResult, LogMutationResponse } from "@/contracts";
+import { QuantityUnitField } from "./QuantityUnitField";
+import {
+  buildServingChoices,
+  defaultQuantityFor,
+  resolveCreateServingFields,
+} from "../utils/servingChoices";
 import {
   useAddFavorite,
   useFavorites,
@@ -42,16 +48,23 @@ export function LogItemSheet({ item, day, visible, onClose }: LogItemSheetProps)
   const [consumedAt, setConsumedAt] = useState(new Date());
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [favoriteChecked, setFavoriteChecked] = useState(false);
+  const [selectedChoiceKey, setSelectedChoiceKey] = useState("default");
 
   const catalogFoodItemId = item && "id" in item ? item.id : null;
   const alreadyFavorite = useIsFavorite(catalogFoodItemId);
   const itemKey = item ? ("id" in item ? item.id : item.externalId) : null;
+
+  // Guaranteed non-empty whenever `item` is set - buildServingChoices always
+  // returns at least the item's own fixed serving.
+  const choices = useMemo(() => (item ? buildServingChoices(item) : []), [item]);
+  const selectedChoice = choices.find((choice) => choice.key === selectedChoiceKey) ?? choices[0];
 
   useEffect(() => {
     if (!visible || !item) return;
     setServings("1");
     setConsumedAt(new Date());
     setFavoriteChecked(alreadyFavorite);
+    setSelectedChoiceKey(choices[0]?.key ?? "default");
     logFood.reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, itemKey]);
@@ -60,6 +73,11 @@ export function LogItemSheet({ item, day, visible, onClose }: LogItemSheetProps)
 
   const servingsValue = Number(servings);
   const hasValidServings = servingsValue > 0;
+
+  const onSelectChoice = (choice: (typeof choices)[number]) => {
+    setSelectedChoiceKey(choice.key);
+    setServings(defaultQuantityFor(choice, item.servingGrams));
+  };
 
   const onTimePicked = (event: DateTimePickerEvent, date?: Date) => {
     setShowTimePicker(false);
@@ -70,9 +88,9 @@ export function LogItemSheet({ item, day, visible, onClose }: LogItemSheetProps)
   const save = () => {
     const base = {
       day,
-      servings: servingsValue,
-      servingUnit: item.servingLabel,
       consumedAt: consumedAt.toISOString(),
+      // selectedChoice can't actually be undefined here (see choices comment above).
+      ...resolveCreateServingFields(item, selectedChoice!, servingsValue),
     };
     logFood.mutate(
       "id" in item ? { ...base, foodItemId: item.id } : { ...base, externalFood: item },
@@ -123,31 +141,13 @@ export function LogItemSheet({ item, day, visible, onClose }: LogItemSheetProps)
         ) : null
       }
     >
-      <View className="gap-sm">
-        <Text variant="caption" color="dark">
-          Servings
-        </Text>
-        <View className="flex-row items-center gap-md">
-          <StepperButton
-            label="-"
-            size="lg"
-            glyph="text"
-            onPress={() => setServings(String(Math.max(Number(servings) - 1, 1)))}
-          />
-          <TextInput
-            value={servings}
-            onChangeText={setServings}
-            keyboardType="numeric"
-            className="h-[48px] flex-1 rounded-md border border-gray-300 bg-white text-center text-[18px] text-dark"
-          />
-          <StepperButton
-            label="+"
-            size="lg"
-            glyph="text"
-            onPress={() => setServings(String(Number(servings) + 1))}
-          />
-        </View>
-      </View>
+      <QuantityUnitField
+        quantity={servings}
+        onQuantityChange={setServings}
+        choices={choices}
+        selectedKey={selectedChoiceKey}
+        onSelectChoice={onSelectChoice}
+      />
 
       <View className="gap-sm">
         <Text variant="caption" color="dark">
