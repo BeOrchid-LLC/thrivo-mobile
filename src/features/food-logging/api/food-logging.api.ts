@@ -14,7 +14,8 @@ export const lookupFood = (barcode: string) => callApi("FOOD_LOOKUP", { query: {
 
 export const searchFoods = (q: string) => callApi("FOOD_SEARCH", { query: { q } });
 
-export const getFoodDetail = (id: string) => callApi("FOOD_DETAIL", { params: { id } });
+export const getFoodDetail = async (id: string) =>
+  (await callApi("FOOD_DETAIL", { params: { id } })).food;
 
 export const createFood = (payload: UpsertFoodPayload) => callApi("FOOD_CREATE", { payload });
 
