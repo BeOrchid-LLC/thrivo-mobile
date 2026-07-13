@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
-import { Modal, Pressable, TextInput, View } from "react-native";
+import { Modal, Pressable, ScrollView, TextInput, View } from "react-native";
 import Svg, { Circle, Line, Path, Polyline } from "react-native-svg";
-import { ArrowLeft, TrendDown, Warning } from "phosphor-react-native";
+import { ArrowLeft, Lock, TrendDown, Warning } from "phosphor-react-native";
 import { router } from "expo-router";
 import { queryClient, queryKeys } from "@/api";
 import {
   Button,
+  BottomSheetShell,
   Card,
   Screen,
   SectionError,
-  Segmented,
   SelectInput,
   SelectSheet,
   SkeletonBlock,
@@ -21,9 +21,10 @@ import { isApiError } from "@/api/errors";
 import { useCurrentDay } from "@/hooks/useCurrentDay";
 import { useEntitlement } from "@/hooks/useEntitlement";
 import { colors } from "@/theme";
-import { formatWeight, roundTo, weightFromKg, weightToKg, weightUnitFor } from "@/utils";
+import { formatWeight, localDay, roundTo, weightFromKg, weightToKg, weightUnitFor } from "@/utils";
 import type { ChartMetric, ChartPeriod, ChartPoint, ProgressResponse } from "@/contracts";
 import { useSettings } from "@/features/settings";
+import { useFoodLogDay } from "@/features/food-logging";
 import { subscribeTabRootReset } from "@/navigation/tab-root-reset";
 import { useAddWeight, useMetricChart, useProgress, useWeightContext } from "../hooks/useProgress";
 
@@ -31,6 +32,9 @@ const metricOptions = [
   { label: "Calories", value: "calories" },
   { label: "Water", value: "water" },
   { label: "Weight", value: "weight" },
+  { label: "Protein", value: "protein" },
+  { label: "Carbs", value: "carbs" },
+  { label: "Fat", value: "fat" },
 ] as const satisfies readonly { label: string; value: ChartMetric }[];
 
 const periodOptions = [
@@ -70,8 +74,10 @@ export function ProgressScreen() {
 function ProgressHome({ day, onLogWeight }: { day: string; onLogWeight: () => void }) {
   const [metric, setMetric] = useState<ChartMetric>("weight");
   const [period, setPeriod] = useState<ChartPeriod>("7d");
+  const [metricSelectOpen, setMetricSelectOpen] = useState(false);
   const [periodSelectOpen, setPeriodSelectOpen] = useState(false);
   const [premiumModalOpen, setPremiumModalOpen] = useState(false);
+  const [selectedCalendarDay, setSelectedCalendarDay] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const progress = useProgress(day);
   const chart = useMetricChart(metric, period, day);
@@ -81,6 +87,8 @@ function ProgressHome({ day, onLogWeight }: { day: string; onLogWeight: () => vo
   const lockPremiumPeriods = !entitlement.isLoading && !entitlement.isPremium;
   const selectedPeriodLabel =
     periodOptions.find((option) => option.value === period)?.label ?? "Select period";
+  const selectedMetricLabel =
+    metricOptions.find((option) => option.value === metric)?.label ?? "Select metric";
   const selectablePeriodOptions = periodOptions.map((option) => ({
     label: option.label,
     value: option.value,
@@ -124,7 +132,12 @@ function ProgressHome({ day, onLogWeight }: { day: string; onLogWeight: () => vo
         <Text variant="heading3" color="dark">
           {labelForMetric(metric)} over time
         </Text>
-        <Segmented options={metricOptions} value={metric} onChange={setMetric} />
+        <SelectInput
+          label="Metric"
+          value={selectedMetricLabel}
+          accessibilityLabel="Select progress metric"
+          onPress={() => setMetricSelectOpen(true)}
+        />
         <SelectInput
           label="Time period"
           value={selectedPeriodLabel}
@@ -153,7 +166,11 @@ function ProgressHome({ day, onLogWeight }: { day: string; onLogWeight: () => vo
                 className="border-0 p-0"
               />
             ) : (
-              <MetricChart points={chart.data?.chart.points ?? []} />
+              <MetricChart
+                points={chart.data?.chart.points ?? []}
+                metric={chart.data?.chart.metric ?? metric}
+                unit={chart.data?.chart.unit}
+              />
             )}
           </Card>
         )}
@@ -181,6 +198,7 @@ function ProgressHome({ day, onLogWeight }: { day: string; onLogWeight: () => vo
           days={data.calendar.days}
           currentStreakDays={data.summary.currentStreakDays}
           longestStreakDays={data.summary.longestStreakDays}
+          onSelectDay={setSelectedCalendarDay}
         />
       ) : (
         <CalendarSkeleton />
@@ -189,6 +207,14 @@ function ProgressHome({ day, onLogWeight }: { day: string; onLogWeight: () => vo
         label="Log something you ate"
         variant="secondary"
         onPress={() => router.push("/(app)/log")}
+      />
+      <SelectSheet
+        title="Metric"
+        options={metricOptions}
+        value={metric}
+        visible={metricSelectOpen}
+        onChange={setMetric}
+        onClose={() => setMetricSelectOpen(false)}
       />
       <SelectSheet
         title="Time period"
@@ -206,6 +232,11 @@ function ProgressHome({ day, onLogWeight }: { day: string; onLogWeight: () => vo
           setPremiumModalOpen(false);
           router.push("/(app)/settings/subscription");
         }}
+      />
+      <CalendarDayLogSheet
+        day={selectedCalendarDay}
+        visible={selectedCalendarDay !== null}
+        onClose={() => setSelectedCalendarDay(null)}
       />
     </Screen>
   );
@@ -236,6 +267,113 @@ function PremiumPeriodModal({
         </View>
       </View>
     </Modal>
+  );
+}
+
+function CalendarDayLogSheet({
+  day,
+  visible,
+  onClose,
+}: {
+  day: string | null;
+  visible: boolean;
+  onClose: () => void;
+}) {
+  const queryDay = day ?? localDay();
+  const logDay = useFoodLogDay(queryDay, visible && Boolean(day));
+  const detail = logDay.data;
+
+  return (
+    <BottomSheetShell
+      visible={visible}
+      onClose={onClose}
+      title={day ? formatDayTitle(day) : "Food logs"}
+      subtitle={
+        detail && !detail.isLocked ? (
+          <Text variant="caption" color="muted">
+            {detail.totals.calories.toLocaleString()} kcal · {Math.round(detail.totals.proteinG)}g
+            protein · {detail.entries.length} logged
+          </Text>
+        ) : null
+      }
+    >
+      {logDay.isLoading ? (
+        <View className="gap-md">
+          <SkeletonText size="heading" className="w-2/3" />
+          <SkeletonText className="w-1/2" />
+          <SkeletonText className="w-3/4" />
+        </View>
+      ) : logDay.isError ? (
+        <SectionError
+          title="Could not load this day"
+          message="Try opening the date again."
+          onRetry={() => void logDay.refetch()}
+          className="border-0 p-0"
+        />
+      ) : detail?.isLocked ? (
+        <View className="items-center gap-md py-md">
+          <View className="h-[52px] w-[52px] items-center justify-center rounded-full bg-gray-100">
+            <Lock size={26} color={colors.gray[500]} />
+          </View>
+          <Text variant="heading3" color="dark" className="text-center">
+            Subscribe to see older logs
+          </Text>
+          <Text color="muted" className="text-center">
+            Free history includes the most recent {detail.historyLimitDays} days.
+          </Text>
+          <Button
+            label="View plans"
+            onPress={() => {
+              onClose();
+              router.push("/(app)/settings/subscription");
+            }}
+          />
+        </View>
+      ) : detail?.isEmptyDay ? (
+        <View className="items-center gap-sm py-md">
+          <Text variant="heading3" color="dark">
+            Nothing logged
+          </Text>
+          <Text color="muted" className="text-center">
+            Food you log for this day will appear here.
+          </Text>
+        </View>
+      ) : detail ? (
+        <ScrollView className="max-h-[420px]" showsVerticalScrollIndicator={false}>
+          <View className="gap-md pb-sm">
+            <View className="flex-row flex-wrap gap-sm">
+              <MiniTotal
+                label="Calories"
+                value={`${detail.totals.calories.toLocaleString()} kcal`}
+              />
+              <MiniTotal label="Protein" value={`${Math.round(detail.totals.proteinG)}g`} />
+              <MiniTotal label="Carbs" value={`${Math.round(detail.totals.carbsG)}g`} />
+              <MiniTotal label="Fat" value={`${Math.round(detail.totals.fatG)}g`} />
+            </View>
+            <View className="gap-md">
+              {detail.entries.map((entry) => (
+                <View key={entry.id} className="border-b border-gray-200 pb-sm">
+                  <View className="flex-row justify-between gap-md">
+                    <View className="flex-1">
+                      <Text variant="body" color="dark">
+                        {entry.name}
+                      </Text>
+                      <Text variant="caption" color="muted">
+                        {formatEntryTime(entry.consumedAt)} · {entry.servings.toLocaleString()}{" "}
+                        {entry.servingUnit ?? "serving"}
+                      </Text>
+                    </View>
+                    <Text variant="body" color="dark">
+                      {entry.nutrients.calories.toLocaleString()} kcal
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </View>
+        </ScrollView>
+      ) : null}
+    </BottomSheetShell>
   );
 }
 
@@ -425,16 +563,30 @@ function CalendarSkeleton() {
   );
 }
 
-function MetricChart({ points }: { points: ChartPoint[] }) {
+function MetricChart({
+  points,
+  metric,
+  unit,
+}: {
+  points: ChartPoint[];
+  metric: ChartMetric;
+  unit?: "kcal" | "ml" | "kg" | "g";
+}) {
   const valid = points.filter((point) => point.value !== null) as {
     date: string;
     value: number;
   }[];
   const path = useMemo(() => chartPolyline(valid), [valid]);
   if (valid.length === 0) return <Text color="muted">No chart data yet.</Text>;
+  const latest = valid[valid.length - 1];
 
   return (
     <View className="gap-sm">
+      <Text variant="caption" color="muted">
+        {latest
+          ? `${labelForMetric(metric)} trend, latest ${formatChartValue(latest.value, metric, unit)}`
+          : `${labelForMetric(metric)} trend`}
+      </Text>
       <Svg width="100%" height={180} viewBox="0 0 320 180">
         <Line x1="0" y1="150" x2="320" y2="150" stroke={colors.gray[300]} strokeWidth="1" />
         <Line x1="0" y1="95" x2="320" y2="95" stroke={colors.gray[200]} strokeWidth="1" />
@@ -470,10 +622,12 @@ function StreakCalendar({
   days,
   currentStreakDays,
   longestStreakDays,
+  onSelectDay,
 }: {
   days: { day: string; dayOfMonth: number; logged: boolean; today: boolean; inMonth: boolean }[];
   currentStreakDays: number;
   longestStreakDays: number;
+  onSelectDay: (day: string) => void;
 }) {
   const rows = chunk(days, 7);
 
@@ -496,7 +650,7 @@ function StreakCalendar({
         {rows.map((row, rowIndex) => (
           <View key={`week-${rowIndex}`} className="flex-row justify-between">
             {row.map((day) => (
-              <CalendarDayCell key={day.day} day={day} />
+              <CalendarDayCell key={day.day} day={day} onPress={() => onSelectDay(day.day)} />
             ))}
           </View>
         ))}
@@ -512,8 +666,10 @@ function StreakCalendar({
 
 function CalendarDayCell({
   day,
+  onPress,
 }: {
-  day: { dayOfMonth: number; logged: boolean; today: boolean; inMonth: boolean };
+  day: { day: string; dayOfMonth: number; logged: boolean; today: boolean; inMonth: boolean };
+  onPress: () => void;
 }) {
   const stateClass = day.today
     ? "border-primary bg-primary"
@@ -523,7 +679,10 @@ function CalendarDayCell({
   const textColor = day.today ? "inverse" : day.logged ? "primary" : "muted";
 
   return (
-    <View
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`View logs for ${day.day}`}
+      onPress={onPress}
       className={`h-[36px] w-[36px] items-center justify-center rounded-md border ${stateClass} ${
         day.inMonth ? "" : "opacity-60"
       }`}
@@ -531,7 +690,7 @@ function CalendarDayCell({
       <Text color={textColor} className={day.today ? "font-semibold" : ""}>
         {day.dayOfMonth}
       </Text>
-    </View>
+    </Pressable>
   );
 }
 
@@ -557,6 +716,19 @@ function StatCard({
         {value}
       </Text>
       <Text color="muted">{detail}</Text>
+    </View>
+  );
+}
+
+function MiniTotal({ label, value }: { label: string; value: string }) {
+  return (
+    <View className="min-h-[62px] flex-1 basis-[46%] rounded-md bg-gray-100 p-sm">
+      <Text variant="caption" color="muted">
+        {label}
+      </Text>
+      <Text variant="body" color="dark" className="font-semibold">
+        {value}
+      </Text>
     </View>
   );
 }
@@ -611,7 +783,30 @@ function chunk<T>(items: T[], size: number): T[][] {
 function labelForMetric(metric: ChartMetric) {
   if (metric === "calories") return "Calories";
   if (metric === "water") return "Water";
+  if (metric === "protein") return "Protein";
+  if (metric === "carbs") return "Carbs";
+  if (metric === "fat") return "Fat";
   return "Weight";
+}
+
+function formatChartValue(value: number, metric: ChartMetric, unit?: "kcal" | "ml" | "kg" | "g") {
+  const rounded = metric === "weight" ? roundTo(value, 1) : Math.round(value);
+  return `${rounded.toLocaleString()} ${unit ?? (metric === "calories" ? "kcal" : metric === "water" ? "ml" : metric === "weight" ? "kg" : "g")}`;
+}
+
+function formatDayTitle(day: string) {
+  return new Intl.DateTimeFormat("en", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${day}T00:00:00.000Z`));
+}
+
+function formatEntryTime(value: string) {
+  return new Intl.DateTimeFormat([], { hour: "numeric", minute: "2-digit" }).format(
+    new Date(value)
+  );
 }
 
 function statusLabel(status: string | undefined) {

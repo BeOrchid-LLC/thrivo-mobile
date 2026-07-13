@@ -23,7 +23,9 @@ export const addFavoritePayload = pkg.addFavoritePayloadSchema;
 export const addWaterPayload = pkg.addWaterPayloadSchema;
 export const addWeightPayload = pkg.addWeightPayloadSchema;
 export const cancelSubscriptionPayload = pkg.cancelSubscriptionPayloadSchema;
-export const chartMetric = pkg.chartMetricSchema;
+// Compatibility shim until the published contracts package includes the Progress
+// macro-chart + day-detail fields added in this workspace.
+export const chartMetric = z.enum(["calories", "water", "weight", "protein", "carbs", "fat"]);
 export const chartPeriod = pkg.chartPeriodSchema;
 export const estimateFoodPayload = pkg.estimateFoodPayloadSchema;
 export const logEstimatePayload = pkg.logEstimatePayloadSchema;
@@ -52,7 +54,16 @@ export const verifyUploadResult = pkg.verifyUploadResultSchema;
 
 // `*ResponseSchema` are full `{ success, data, … }` envelopes; `callApi` validates
 // the unwrapped `data`, so expose `.shape.data` under the app's response names.
-export const chartResponse = pkg.chartResponseSchema.shape.data;
+export const chartResponse = z.object({
+  chart: z.object({
+    metric: chartMetric,
+    period: pkg.chartPeriodSchema,
+    unit: z.enum(["kcal", "ml", "kg", "g"]),
+    from: pkg.localDaySchema,
+    to: pkg.localDaySchema,
+    points: z.array(pkg.chartPointSchema),
+  }),
+});
 export const dashboardCaloriesResponse = pkg.dashboardCaloriesResponseSchema.shape.data;
 export const dashboardMacrosResponse = pkg.dashboardMacrosResponseSchema.shape.data;
 export const dashboardStreakResponse = pkg.dashboardStreakResponseSchema.shape.data;
@@ -62,7 +73,12 @@ export const estimateFoodResponse = pkg.estimateFoodResponseSchema.shape.data;
 export const favoritesListResponse = pkg.favoritesListResponseSchema.shape.data;
 export const favoriteMutationResponse = pkg.favoriteMutationResponseSchema.shape.data;
 export const foodItemResponse = pkg.foodItemResponseSchema.shape.data;
-export const foodLogDayResponse = pkg.foodLogDayResponseSchema.shape.data;
+export const foodLogDayResponse = pkg.foodLogDayResponseSchema.shape.data.extend({
+  isLocked: z.boolean(),
+  lockReason: z.enum(["free_history_limit"]).nullable(),
+  historyLimitDays: z.number().int(),
+  totals: pkg.dailyTotalsSchema,
+});
 export const foodLogHistoryResponse = pkg.foodLogHistoryResponseSchema.shape.data;
 export const foodLookupResponse = pkg.foodLookupResponseSchema.shape.data;
 export const logMutationResponse = pkg.logMutationResponseSchema.shape.data;
@@ -80,6 +96,7 @@ export type ActivationIntent = z.infer<typeof pkg.activationIntentSchema>;
 export type ActivityLevel = z.infer<typeof pkg.activityLevelSchema>;
 export type AddFavoritePayload = z.infer<typeof pkg.addFavoritePayloadSchema>;
 export type CalendarDay = z.infer<typeof pkg.calendarDaySchema>;
+export type ChartMetric = z.infer<typeof chartMetric>;
 export type ChartPoint = z.infer<typeof pkg.chartPointSchema>;
 export type Goal = z.infer<typeof pkg.goalSchema>;
 export type ProgressSummary = z.infer<typeof pkg.progressSummarySchema>;
@@ -90,7 +107,7 @@ export type User = pkg.UserProfile;
 export type ErrorEnvelope = pkg.ApiError;
 
 // Response types mirror the unwrapped `data` (see value aliases above).
-export type ChartResponse = z.infer<typeof pkg.chartResponseSchema.shape.data>;
+export type ChartResponse = z.infer<typeof chartResponse>;
 export type DashboardCaloriesResponse = z.infer<
   typeof pkg.dashboardCaloriesResponseSchema.shape.data
 >;
@@ -102,7 +119,7 @@ export type FavoriteMutationResponse = z.infer<
   typeof pkg.favoriteMutationResponseSchema.shape.data
 >;
 export type FoodItemResponse = z.infer<typeof pkg.foodItemResponseSchema.shape.data>;
-export type FoodLogDayResponse = z.infer<typeof pkg.foodLogDayResponseSchema.shape.data>;
+export type FoodLogDayResponse = z.infer<typeof foodLogDayResponse>;
 export type FoodLogHistoryResponse = z.infer<typeof pkg.foodLogHistoryResponseSchema.shape.data>;
 export type FoodLookupResponse = z.infer<typeof pkg.foodLookupResponseSchema.shape.data>;
 export type LogMutationResponse = z.infer<typeof pkg.logMutationResponseSchema.shape.data>;

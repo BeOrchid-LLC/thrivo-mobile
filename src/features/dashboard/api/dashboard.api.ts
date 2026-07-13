@@ -14,7 +14,7 @@ export const getDashboardWater = async (day = localDay()) =>
   (await callApi("WATER_GET", { query: { date: day } })).water;
 
 export const getMealLogDay = async (day = localDay()) =>
-  await callApi("FOOD_LOG_DAY", { query: { date: day } });
+  await callApi("FOOD_LOG_DAY", { query: { date: day, today: localDay() } });
 
 // `today` anchors the free-history lock boundary to the device's local day
 // instead of server-UTC (R1/I3) — without it, users near midnight and off UTC

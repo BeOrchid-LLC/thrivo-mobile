@@ -31,7 +31,7 @@ export const updateFoodLog = (id: string, payload: UpdateLogPayload) =>
 export const deleteFoodLog = (id: string) => callApi("FOOD_LOG_DELETE", { params: { id } });
 
 export const getFoodLogDay = (day = localDay()) =>
-  callApi("FOOD_LOG_DAY", { query: { date: day } });
+  callApi("FOOD_LOG_DAY", { query: { date: day, today: localDay() } });
 
 export const getRecentFoods = () => callApi("FOOD_RECENT");
 

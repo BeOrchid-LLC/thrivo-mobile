@@ -63,10 +63,11 @@ export function useFoodDetail(foodItemId: string | null, enabled: boolean) {
   });
 }
 
-export function useFoodLogDay(day = localDay()) {
+export function useFoodLogDay(day = localDay(), enabled = true) {
   return useQuery({
     queryKey: queryKeys.foods.logDay(day),
     queryFn: () => getFoodLogDay(day),
+    enabled,
     staleTime: 1000 * 60,
   });
 }
