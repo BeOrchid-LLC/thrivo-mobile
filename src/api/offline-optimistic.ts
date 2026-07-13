@@ -17,7 +17,7 @@ export function applyWaterOptimistic(
     remainingMl: Math.max(previous.targetMl - totalMl, 0),
     progressPercent:
       previous.targetMl > 0 ? Math.min(Math.round((totalMl / previous.targetMl) * 100), 100) : 0,
-    glasses: Math.floor(totalMl / previous.glassMl),
+    glasses: Math.round(totalMl / previous.glassMl),
     entries: [
       {
         id: `optimistic-${idempotencyKey}`,

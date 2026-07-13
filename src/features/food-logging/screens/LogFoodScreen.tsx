@@ -366,7 +366,7 @@ function WaterHome({ day }: { day: string }) {
   const deleteWater = useDeleteWaterLog(day);
   const unitSystem = settings.data?.unitSystem ?? "metric";
   const waterUnit = waterUnitFor(unitSystem);
-  const quickAddMl = [100, 250, 500];
+  const quickAddGlasses = [1, 2, 3];
   const [manual, setManual] = useState(
     unitSystem === "imperial" ? String(roundTo(waterFromMl(250, unitSystem), 1)) : "250"
   );
@@ -438,14 +438,16 @@ function WaterHome({ day }: { day: string }) {
           Quick add
         </Text>
         <View className="flex-row gap-md">
-          {quickAddMl.map((amountMl) => {
+          {quickAddGlasses.map((n) => {
+            const amountMl = data.glassMl * n;
             const amount = roundTo(
               waterFromMl(amountMl, unitSystem),
               unitSystem === "imperial" ? 1 : 0
             );
+            const isDefault = n === 1;
             return (
               <Pressable
-                key={amountMl}
+                key={n}
                 accessibilityRole="button"
                 disabled={addWater.isPending}
                 onPress={() =>
@@ -455,14 +457,14 @@ function WaterHome({ day }: { day: string }) {
                   })
                 }
                 className={`min-h-[64px] flex-1 items-center justify-center rounded-md ${
-                  amountMl === 250 ? "bg-primarySoft" : "bg-gray-100"
+                  isDefault ? "bg-primarySoft" : "bg-gray-100"
                 }`}
               >
-                <Text variant="heading3" color={amountMl === 250 ? "primary" : "muted"}>
-                  {amount}
+                <Text variant="heading3" color={isDefault ? "primary" : "muted"}>
+                  {n} {n === 1 ? "glass" : "glasses"}
                 </Text>
-                <Text variant="body" color={amountMl === 250 ? "primary" : "muted"}>
-                  {waterUnit}
+                <Text variant="body" color={isDefault ? "primary" : "muted"}>
+                  {amount} {waterUnit}
                 </Text>
               </Pressable>
             );
@@ -506,47 +508,54 @@ function WaterHome({ day }: { day: string }) {
         <Text variant="heading3" color="muted">
           {"Today's log"}
         </Text>
-        {data.entries.map((entry) => (
-          <View
-            key={entry.id}
-            className="flex-row items-center justify-between border-b border-gray-200 py-sm"
-          >
-            <View>
-              <Text variant="body" color="dark">
-                Glass of water
-              </Text>
-              <Text variant="caption" color="muted">
-                {formatTime(entry.recordedAt)}
-              </Text>
-            </View>
-            <View className="flex-row items-center gap-md">
-              <View className="items-end">
+        {data.entries.map((entry) => {
+          const glassCount = entry.amountMl / data.glassMl;
+          const entryLabel =
+            Number.isInteger(glassCount) && glassCount > 0
+              ? `${glassCount} Glass${glassCount === 1 ? "" : "es"} of water`
+              : "Water logged";
+          return (
+            <View
+              key={entry.id}
+              className="flex-row items-center justify-between border-b border-gray-200 py-sm"
+            >
+              <View>
                 <Text variant="body" color="dark">
-                  {roundTo(
-                    waterFromMl(entry.amountMl, unitSystem),
-                    unitSystem === "imperial" ? 1 : 0
-                  )}
+                  {entryLabel}
                 </Text>
                 <Text variant="caption" color="muted">
-                  {waterUnit}
+                  {formatTime(entry.recordedAt)}
                 </Text>
               </View>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Delete water entry"
-                disabled={deleteWater.isPending}
-                onPress={() =>
-                  deleteWater.mutate(entry.id, {
-                    onSuccess: () => setMessage("Water entry deleted."),
-                    onError: () => setMessage("Could not delete water. Try again."),
-                  })
-                }
-              >
-                <XCircle size={22} color={colors.gray[500]} />
-              </Pressable>
+              <View className="flex-row items-center gap-md">
+                <View className="items-end">
+                  <Text variant="body" color="dark">
+                    {roundTo(
+                      waterFromMl(entry.amountMl, unitSystem),
+                      unitSystem === "imperial" ? 1 : 0
+                    )}
+                  </Text>
+                  <Text variant="caption" color="muted">
+                    {waterUnit}
+                  </Text>
+                </View>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Delete water entry"
+                  disabled={deleteWater.isPending}
+                  onPress={() =>
+                    deleteWater.mutate(entry.id, {
+                      onSuccess: () => setMessage("Water entry deleted."),
+                      onError: () => setMessage("Could not delete water. Try again."),
+                    })
+                  }
+                >
+                  <XCircle size={22} color={colors.gray[500]} />
+                </Pressable>
+              </View>
             </View>
-          </View>
-        ))}
+          );
+        })}
       </View>
     </View>
   );

@@ -341,11 +341,12 @@ describe("LogFoodScreen", () => {
 
     const screen = render(<LogFoodScreen />);
     fireEvent.press(screen.getByText("Water"));
-    fireEvent.press(screen.getAllByText("250")[0]);
+    fireEvent.press(screen.getByText("1 glass"));
     fireEvent.press(screen.getByLabelText("Delete water entry"));
 
     expect(screen.getByText(/980/)).toBeTruthy();
     expect(screen.getByText("Drink up")).toBeTruthy();
+    expect(screen.getByText("1 Glass of water")).toBeTruthy();
     expect(add).toHaveBeenCalledWith(250, expect.any(Object));
     expect(remove).toHaveBeenCalledWith("water-1", expect.any(Object));
   });

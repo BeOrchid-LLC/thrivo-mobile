@@ -217,7 +217,7 @@ export function WaterSection() {
     );
   }
 
-  const glasses = water.data.glasses ?? Math.floor(water.data.totalMl / GLASS_ML);
+  const glasses = water.data.glasses ?? Math.round(water.data.totalMl / GLASS_ML);
   const targetGlasses = water.data.targetGlasses ?? Math.round(water.data.targetMl / GLASS_ML);
 
   return (
