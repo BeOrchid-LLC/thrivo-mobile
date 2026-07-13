@@ -35,10 +35,15 @@ export const startTrialPayload = pkg.startTrialPayloadSchema;
 export const subscriptionSchema = pkg.subscriptionStateSchema;
 export const subscriptionStatusSchema = pkg.publicSubscriptionStatusSchema;
 export const updateLogPayload = pkg.updateLogPayloadSchema;
-export const updateProfilePayload = pkg.updateProfilePayloadSchema;
+// Keep the mobile client compatible with the nullable reset accepted by the
+// backend while the published contracts package is being bumped.
+export const updateProfilePayload = pkg.updateProfilePayloadSchema.extend({
+  manualDailyTargetKcal: z.number().int().positive().nullable().optional(),
+});
 export const updateUserSettingsPayload = pkg.updateUserSettingsPayloadSchema;
 export const upsertFoodPayload = pkg.upsertFoodPayloadSchema;
 export const userSchema = pkg.userProfileSchema;
+export type UpdateProfilePayload = z.infer<typeof updateProfilePayload>;
 export const errorEnvelope = pkg.apiErrorSchema;
 
 // `*ResultSchema` are already the inner data shape — alias directly.

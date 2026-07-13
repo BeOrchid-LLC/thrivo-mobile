@@ -1,4 +1,9 @@
-import { isValidAgeYears, isValidHeightCm, isValidWeightKg } from "../utils/validation";
+import {
+  isValidAgeYears,
+  isValidHeightCm,
+  isValidWeightKg,
+  parsePositiveInteger,
+} from "../utils/validation";
 
 describe("onboarding numeric validation (contract-backed)", () => {
   it("rejects NaN from non-numeric input", () => {
@@ -23,5 +28,12 @@ describe("onboarding numeric validation (contract-backed)", () => {
     expect(isValidWeightKg(70)).toBe(true);
     expect(isValidHeightCm(175)).toBe(true);
     expect(isValidAgeYears(28)).toBe(true);
+  });
+
+  it("strictly parses positive whole calorie targets", () => {
+    expect(parsePositiveInteger("2000")).toBe(2000);
+    expect(parsePositiveInteger("0.5")).toBeUndefined();
+    expect(parsePositiveInteger("")).toBeUndefined();
+    expect(parsePositiveInteger("2e3")).toBeUndefined();
   });
 });
