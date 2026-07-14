@@ -6,6 +6,7 @@ import { router } from "expo-router";
 import {
   Bell,
   CaretRight,
+  CheckCircle,
   Clock,
   FileText,
   FingerprintSimple,
@@ -23,6 +24,7 @@ import { useSubscription } from "@/features/subscription";
 import { authenticateBiometric, isBiometricAvailable } from "@/lib/biometric";
 import { useBiometricAuthEnabled, usePreferencesActions } from "@/stores";
 import { colors } from "@/theme";
+import { getOnboardingProgress } from "@/features/onboarding/utils/progress";
 import { useSettings } from "../hooks/useSettings";
 import { useUpdateSettings } from "../hooks/useUpdateSettings";
 
@@ -258,6 +260,41 @@ export function SettingsScreen() {
             </View>
           }
           onPress={settingsLoading ? undefined : () => setEditingSelect("units")}
+        />
+        {profile.isLoading ? (
+          <Row
+            icon={<SkeletonText size="body" className="w-6" />}
+            title="Onboarding"
+            subtitle={<SkeletonText size="caption" className="w-1/2" />}
+          />
+        ) : user?.isOnboarded ? (
+          <Row
+            icon={<CheckCircle size={24} weight="fill" color={colors.successBright} />}
+            title="Onboarding complete"
+            subtitle="All setup steps are complete"
+          />
+        ) : (
+          <Row
+            icon={<CheckCircle size={24} color={colors.gray[400]} />}
+            title="Onboarding"
+            subtitle={`${getOnboardingProgress(user!).completedSteps} of ${getOnboardingProgress(user!).totalSteps} complete`}
+            action={<CaretRight size={18} color={colors.gray[500]} />}
+            onPress={() => router.push("/(app)/settings/onboarding")}
+          />
+        )}
+        <Row
+          icon={<Ruler size={24} color={colors.dark} />}
+          title="Targets and activity"
+          subtitle="Activity level and calorie target"
+          action={<CaretRight size={18} color={colors.gray[500]} />}
+          onPress={() => router.push("/(app)/settings/targets")}
+        />
+        <Row
+          icon={<Clock size={24} color={colors.dark} />}
+          title="Meal reminders"
+          subtitle="Reminder times and timezone"
+          action={<CaretRight size={18} color={colors.gray[500]} />}
+          onPress={() => router.push("/(app)/settings/reminders")}
         />
         {profile.isError ? (
           <SectionError

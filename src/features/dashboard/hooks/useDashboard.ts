@@ -1,9 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { invalidateWaterViews, queryKeys } from "@/api";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/api";
 import type { Water } from "@/contracts";
+import { useAddWaterLog } from "@/features/food-logging";
 import { localDay } from "@/utils";
 import {
-  addWater,
   getDashboardCalories,
   getDashboardMacros,
   getDashboardStreak,
@@ -62,17 +62,18 @@ export function useFoodLogHistory() {
   });
 }
 
-/** Logs one glass and refreshes the dashboard + water queries. */
+/** Logs one glass using the same offline/idempotent water write as the log tab. */
 export function useAddWater() {
   const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: () => {
-      const day = localDay();
-      const cached = queryClient.getQueryData<Water>(queryKeys.metrics.waterByDay(day));
-      return addWater(cached?.glassMl ?? GLASS_ML);
-    },
-    onSuccess: () => {
-      invalidateWaterViews(queryClient, localDay());
-    },
-  });
+  const day = localDay();
+  const addWater = useAddWaterLog(day);
+  const cached = queryClient.getQueryData<Water>(queryKeys.metrics.waterByDay(day));
+  const amountMl = cached?.glassMl ?? GLASS_ML;
+
+  return {
+    ...addWater,
+    mutate: (options?: Parameters<typeof addWater.mutate>[1]) => addWater.mutate(amountMl, options),
+    mutateAsync: (options?: Parameters<typeof addWater.mutateAsync>[1]) =>
+      addWater.mutateAsync(amountMl, options),
+  };
 }

@@ -25,7 +25,7 @@ export interface OnboardingDraft {
   sex?: Sex;
   unitSystem?: UnitSystem;
   activityLevel?: ActivityLevel;
-  manualDailyTargetKcal?: number;
+  manualDailyTargetKcal?: number | null;
   notifyTimes?: string[];
   timezone?: string;
   onboardingStep?: number;

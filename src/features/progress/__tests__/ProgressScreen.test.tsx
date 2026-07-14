@@ -10,6 +10,7 @@ const mockUseWeightContext = jest.fn();
 const mockUseAddWeight = jest.fn();
 const mockUseSettings = jest.fn();
 const mockUseEntitlement = jest.fn();
+const mockUseFoodLogDay = jest.fn();
 
 const currentStreakDays = 14;
 const longestStreakDays = 21;
@@ -27,6 +28,10 @@ jest.mock("../hooks/useProgress", () => ({
 
 jest.mock("@/features/settings", () => ({
   useSettings: () => mockUseSettings(),
+}));
+
+jest.mock("@/features/food-logging", () => ({
+  useFoodLogDay: () => mockUseFoodLogDay(),
 }));
 
 jest.mock("@/hooks/useEntitlement", () => ({
@@ -105,6 +110,17 @@ describe("ProgressScreen", () => {
     mockUseAddWeight.mockReturnValue({ mutate: jest.fn(), isPending: false });
     mockUseSettings.mockReturnValue({ data: { unitSystem: "imperial" } });
     mockUseEntitlement.mockReturnValue({ isPremium: false, isLoading: false });
+    mockUseFoodLogDay.mockReturnValue(
+      successQuery({
+        day: "2026-06-18",
+        entries: [],
+        isEmptyDay: true,
+        isLocked: false,
+        lockReason: null,
+        historyLimitDays: 7,
+        totals: { day: "2026-06-18", calories: 0, proteinG: 0, carbsG: 0, fatG: 0 },
+      })
+    );
   });
 
   it("renders the progress summary and default chart", () => {
@@ -144,7 +160,8 @@ describe("ProgressScreen", () => {
   it("switches metric tabs and period selections", () => {
     const screen = render(<ProgressScreen />);
 
-    fireEvent.press(screen.getByText("Calories"));
+    fireEvent.press(screen.getByLabelText("Select progress metric"));
+    fireEvent.press(screen.getByLabelText("Calories"));
     fireEvent.press(screen.getByLabelText("Select time period"));
     fireEvent.press(screen.getByLabelText("14 days"));
 
@@ -229,5 +246,40 @@ describe("ProgressScreen", () => {
     fireEvent.press(screen.getByText("Log something you ate"));
 
     expect(router.push).toHaveBeenCalledWith("/(app)/log");
+  });
+
+  it("opens a food-log sheet when a calendar date is pressed", () => {
+    mockUseFoodLogDay.mockReturnValue(
+      successQuery({
+        day: "2026-06-18",
+        entries: [
+          {
+            id: "food-log-1",
+            foodItemId: null,
+            name: "Greek yogurt",
+            day: "2026-06-18",
+            servings: 1,
+            servingUnit: "cup",
+            source: "manual",
+            barcode: null,
+            isEstimated: false,
+            nutrients: { calories: 130, proteinG: 12, carbsG: 14, fatG: 4 },
+            consumedAt: "2026-06-18T08:00:00.000Z",
+            loggedAt: "2026-06-18T08:05:00.000Z",
+          },
+        ],
+        isEmptyDay: false,
+        isLocked: false,
+        lockReason: null,
+        historyLimitDays: 7,
+        totals: { day: "2026-06-18", calories: 130, proteinG: 12, carbsG: 14, fatG: 4 },
+      })
+    );
+
+    const screen = render(<ProgressScreen />);
+    fireEvent.press(screen.getByLabelText("View logs for 2026-06-18"));
+
+    expect(screen.getByText("Greek yogurt")).toBeTruthy();
+    expect(screen.getAllByText("130 kcal").length).toBeGreaterThan(0);
   });
 });

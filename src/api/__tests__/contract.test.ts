@@ -84,6 +84,7 @@ describe("Phase 2 — endpoints contract", () => {
           unitSystem: "metric",
           pushNotificationsEnabled: true,
           dailyFoodLogReminderEnabled: true,
+          emailFoodLogReminderEnabled: false,
           dailyFoodLogReminderTime: "08:00",
           weightCheckReminderEnabled: true,
           weightCheckReminderDay: "friday",

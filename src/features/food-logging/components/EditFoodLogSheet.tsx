@@ -13,6 +13,7 @@ import {
   defaultQuantityFor,
   resolveUpdateServingFields,
 } from "../utils/servingChoices";
+import { parsePositiveQuantity } from "../utils/quantity";
 import {
   useDeleteFoodLog,
   useFavorites,
@@ -90,8 +91,8 @@ export function EditFoodLogSheet({ entry, visible, onClose }: EditFoodLogSheetPr
     if (entry.foodItemId) toggleFavoriteId(entry.foodItemId);
   };
 
-  const servingsValue = Number(servings);
-  const hasValidServings = servingsValue > 0;
+  const servingsValue = parsePositiveQuantity(servings);
+  const hasValidServings = servingsValue !== null;
   const hasChanges =
     (hasValidServings && servingsValue !== entry.servings) ||
     consumedAt.toISOString() !== entry.consumedAt ||
@@ -112,8 +113,8 @@ export function EditFoodLogSheet({ entry, visible, onClose }: EditFoodLogSheetPr
   const save = () => {
     const servingFields =
       unitChanged && selectedChoice
-        ? resolveUpdateServingFields(selectedChoice, servingsValue)
-        : { servings: hasValidServings ? servingsValue : undefined };
+        ? resolveUpdateServingFields(selectedChoice, servingsValue!)
+        : { servings: servingsValue ?? undefined };
     updateLog.mutate(
       { id: entry.id, consumedAt: consumedAt.toISOString(), ...servingFields },
       { onSuccess: onClose }

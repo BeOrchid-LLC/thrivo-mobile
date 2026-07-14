@@ -22,6 +22,7 @@ import {
   weightToKg,
   weightUnitFor,
 } from "@/utils";
+import { parsePositiveInteger } from "@/features/onboarding/utils/validation";
 import { useSettings } from "../hooks/useSettings";
 
 function initialsFrom(name: string): string {
@@ -91,6 +92,7 @@ export function PersonalInfoScreen() {
   const [currentWeight, setCurrentWeight] = useState("");
   const [targetWeight, setTargetWeight] = useState("");
   const [height, setHeight] = useState("");
+  const [age, setAge] = useState("");
   const [sex, setSex] = useState<Sex>("female");
   const [editingSelect, setEditingSelect] = useState<"goal" | "sex" | null>(null);
 
@@ -108,6 +110,7 @@ export function PersonalInfoScreen() {
         ? String(roundTo(weightFromKg(Number.parseFloat(user.targetWeightKg), unitSystem)))
         : ""
     );
+    setAge(user.age ? String(user.age) : "");
     setHeight(
       user.heightCm
         ? String(roundTo(heightFromCm(Number.parseFloat(user.heightCm), unitSystem)))
@@ -121,6 +124,7 @@ export function PersonalInfoScreen() {
       firstName: fullName.trim(),
       goal,
       sex,
+      ageYears: parsePositiveInteger(age),
       currentWeightKg:
         parsePositive(currentWeight) !== undefined
           ? roundTo(weightToKg(parsePositive(currentWeight)!, unitSystem))
@@ -206,6 +210,14 @@ export function PersonalInfoScreen() {
         keyboardType="decimal-pad"
         trailingText={weightUnit}
       />
+      <Input
+        label="Age"
+        value={age}
+        onChangeText={setAge}
+        keyboardType="number-pad"
+        trailingText="years"
+      />
+
       <Input
         label="Height"
         value={height}

@@ -86,7 +86,10 @@ function MealLogRow({ entry, onPress }: { entry: FoodLogEntry; onPress: () => vo
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={isFavorite ? "Remove favorite" : "Add favorite"}
-            onPress={() => toggleFavorite(entry.foodItemId as string)}
+            onPress={(event) => {
+              event?.stopPropagation?.();
+              toggleFavorite(entry.foodItemId as string);
+            }}
             hitSlop={8}
           >
             <Heart size={20} color={colors.primary} weight={isFavorite ? "fill" : "regular"} />

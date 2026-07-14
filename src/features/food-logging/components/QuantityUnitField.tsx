@@ -2,6 +2,7 @@ import { useState } from "react";
 import { TextInput, View } from "react-native";
 import { SelectInput, SelectSheet, StepperButton, Text } from "@/components";
 import type { ServingChoice } from "../utils/servingChoices";
+import { stepQuantity } from "../utils/quantity";
 
 export interface QuantityUnitFieldProps {
   quantity: string;
@@ -40,12 +41,12 @@ export function QuantityUnitField({
           size="lg"
           glyph="text"
           disabled={disabled}
-          onPress={() => onQuantityChange(String(Math.max(Number(quantity) - 1, 1)))}
+          onPress={() => onQuantityChange(stepQuantity(quantity, -1))}
         />
         <TextInput
           value={quantity}
           onChangeText={onQuantityChange}
-          keyboardType="numeric"
+          keyboardType="decimal-pad"
           editable={!disabled}
           className="h-[48px] flex-1 rounded-md border border-gray-300 bg-white text-center text-[18px] text-dark"
         />
@@ -54,7 +55,7 @@ export function QuantityUnitField({
           size="lg"
           glyph="text"
           disabled={disabled}
-          onPress={() => onQuantityChange(String(Number(quantity) + 1))}
+          onPress={() => onQuantityChange(stepQuantity(quantity, 1))}
         />
       </View>
       {choices.length > 1 ? (

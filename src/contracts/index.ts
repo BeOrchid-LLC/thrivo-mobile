@@ -39,6 +39,7 @@ export const updateProfilePayload = pkg.updateProfilePayloadSchema;
 export const updateUserSettingsPayload = pkg.updateUserSettingsPayloadSchema;
 export const upsertFoodPayload = pkg.upsertFoodPayloadSchema;
 export const userSchema = pkg.userProfileSchema;
+export type UpdateProfilePayload = z.infer<typeof updateProfilePayload>;
 export const errorEnvelope = pkg.apiErrorSchema;
 
 // `*ResultSchema` are already the inner data shape — alias directly.
@@ -75,6 +76,7 @@ export type ActivationIntent = z.infer<typeof pkg.activationIntentSchema>;
 export type ActivityLevel = z.infer<typeof pkg.activityLevelSchema>;
 export type AddFavoritePayload = z.infer<typeof pkg.addFavoritePayloadSchema>;
 export type CalendarDay = z.infer<typeof pkg.calendarDaySchema>;
+export type ChartMetric = z.infer<typeof chartMetric>;
 export type ChartPoint = z.infer<typeof pkg.chartPointSchema>;
 export type Goal = z.infer<typeof pkg.goalSchema>;
 export type ProgressSummary = z.infer<typeof pkg.progressSummarySchema>;
@@ -85,7 +87,7 @@ export type User = pkg.UserProfile;
 export type ErrorEnvelope = pkg.ApiError;
 
 // Response types mirror the unwrapped `data` (see value aliases above).
-export type ChartResponse = z.infer<typeof pkg.chartResponseSchema.shape.data>;
+export type ChartResponse = z.infer<typeof chartResponse>;
 export type DashboardCaloriesResponse = z.infer<
   typeof pkg.dashboardCaloriesResponseSchema.shape.data
 >;
@@ -97,7 +99,7 @@ export type FavoriteMutationResponse = z.infer<
   typeof pkg.favoriteMutationResponseSchema.shape.data
 >;
 export type FoodItemResponse = z.infer<typeof pkg.foodItemResponseSchema.shape.data>;
-export type FoodLogDayResponse = z.infer<typeof pkg.foodLogDayResponseSchema.shape.data>;
+export type FoodLogDayResponse = z.infer<typeof foodLogDayResponse>;
 export type FoodLogHistoryResponse = z.infer<typeof pkg.foodLogHistoryResponseSchema.shape.data>;
 export type FoodLookupResponse = z.infer<typeof pkg.foodLookupResponseSchema.shape.data>;
 export type LogMutationResponse = z.infer<typeof pkg.logMutationResponseSchema.shape.data>;

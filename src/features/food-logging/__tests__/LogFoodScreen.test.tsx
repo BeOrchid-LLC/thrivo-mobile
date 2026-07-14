@@ -302,6 +302,26 @@ describe("LogFoodScreen", () => {
     expect(toggleFavorite).toHaveBeenCalledWith(food.id);
   });
 
+  it("opens the log sheet for a scanned food instead of logging immediately", () => {
+    const mutate = jest.fn();
+    mockUseBarcodeLookup.mockReturnValue(successQuery({ food }));
+    mockUseLogFood.mockReturnValue({ mutate, isPending: false, error: null, reset: jest.fn() });
+
+    const screen = render(<LogFoodScreen />);
+    fireEvent.press(screen.getByText("Scan barcode"));
+    fireEvent.press(screen.getByLabelText("Log Chicken breast, grilled"));
+
+    expect(mutate).not.toHaveBeenCalled();
+    expect(screen.getByText("Log food")).toBeTruthy();
+
+    fireEvent.press(screen.getByText("Log food"));
+
+    expect(mutate).toHaveBeenCalledWith(
+      expect.objectContaining({ foodItemId: food.id, servings: 1 }),
+      expect.any(Object)
+    );
+  });
+
   it("shows a filled heart and toggles off an already-favorited item", () => {
     const toggleFavorite = jest.fn();
     mockUseToggleFavorite.mockReturnValue(toggleFavorite);
@@ -315,6 +335,7 @@ describe("LogFoodScreen", () => {
     fireEvent.press(screen.getAllByLabelText("Remove favorite")[0]);
 
     expect(toggleFavorite).toHaveBeenCalledWith(food.id);
+    expect(screen.queryByText("Save changes")).toBeNull();
   });
 
   it("opens the edit sheet from a recent food row", () => {
@@ -387,5 +408,23 @@ describe("LogFoodScreen", () => {
     expect(screen.getByText("1 Glass of water")).toBeTruthy();
     expect(add).toHaveBeenCalledWith(250, expect.any(Object));
     expect(remove).toHaveBeenCalledWith("water-1", expect.any(Object));
+  });
+
+  it("updates the water manual amount when the unit system changes", () => {
+    const settings: { data: { unitSystem: "metric" | "imperial" } } = {
+      data: { unitSystem: "metric" },
+    };
+    mockUseSettings.mockImplementation(() => settings);
+
+    const screen = render(<LogFoodScreen />);
+    fireEvent.press(screen.getByText("Water"));
+
+    expect(screen.getByDisplayValue("250")).toBeTruthy();
+
+    settings.data.unitSystem = "imperial";
+    screen.rerender(<LogFoodScreen />);
+
+    expect(screen.getByDisplayValue("8.5")).toBeTruthy();
+    expect(screen.getByText("Log Water")).toBeTruthy();
   });
 });

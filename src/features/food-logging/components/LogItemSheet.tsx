@@ -3,6 +3,7 @@ import { Pressable, View } from "react-native";
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { Heart } from "phosphor-react-native";
 import { BottomSheetShell, Button, FormError, Text } from "@/components";
+import { isNetworkReachable } from "@/lib";
 import { useFavoritesActions, useIsFavorite } from "@/stores";
 import { colors } from "@/theme";
 import type { FoodItem, FoodSearchResult, LogMutationResponse } from "@/contracts";
@@ -12,6 +13,7 @@ import {
   defaultQuantityFor,
   resolveCreateServingFields,
 } from "../utils/servingChoices";
+import { parsePositiveQuantity } from "../utils/quantity";
 import {
   useAddFavorite,
   useFavorites,
@@ -49,6 +51,7 @@ export function LogItemSheet({ item, day, visible, onClose }: LogItemSheetProps)
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [favoriteChecked, setFavoriteChecked] = useState(false);
   const [selectedChoiceKey, setSelectedChoiceKey] = useState("default");
+  const [message, setMessage] = useState<string | null>(null);
 
   const catalogFoodItemId = item && "id" in item ? item.id : null;
   const alreadyFavorite = useIsFavorite(catalogFoodItemId);
@@ -65,14 +68,15 @@ export function LogItemSheet({ item, day, visible, onClose }: LogItemSheetProps)
     setConsumedAt(new Date());
     setFavoriteChecked(alreadyFavorite);
     setSelectedChoiceKey(choices[0]?.key ?? "default");
+    setMessage(null);
     logFood.reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, itemKey]);
 
   if (!item) return null;
 
-  const servingsValue = Number(servings);
-  const hasValidServings = servingsValue > 0;
+  const servingsValue = parsePositiveQuantity(servings);
+  const hasValidServings = servingsValue !== null;
 
   const onSelectChoice = (choice: (typeof choices)[number]) => {
     setSelectedChoiceKey(choice.key);
@@ -86,11 +90,15 @@ export function LogItemSheet({ item, day, visible, onClose }: LogItemSheetProps)
   };
 
   const save = () => {
+    setMessage(null);
+    void isNetworkReachable().then((online) => {
+      if (!online) setMessage("Saved offline. We'll sync this food when you're back online.");
+    });
     const base = {
       day,
       consumedAt: consumedAt.toISOString(),
       // selectedChoice can't actually be undefined here (see choices comment above).
-      ...resolveCreateServingFields(item, selectedChoice!, servingsValue),
+      ...resolveCreateServingFields(item, selectedChoice!, servingsValue!),
     };
     logFood.mutate(
       "id" in item ? { ...base, foodItemId: item.id } : { ...base, externalFood: item },
@@ -179,6 +187,11 @@ export function LogItemSheet({ item, day, visible, onClose }: LogItemSheetProps)
 
       {!hasValidServings ? <FormError message="Servings must be a positive number." /> : null}
       <FormError message={logFood.error?.message ?? null} />
+      {message ? (
+        <Text variant="caption" color="primary">
+          {message}
+        </Text>
+      ) : null}
 
       <Button
         label="Log food"
