@@ -17,6 +17,7 @@ import WeightStep from "@/features/onboarding/screens/WeightStep";
 import { ONBOARDING_STEPS, TOTAL_ONBOARDING_STEPS } from "@/features/onboarding/config";
 import type { OnboardingStepProps } from "@/features/onboarding/types";
 import { getOnboardingProgress } from "@/features/onboarding/utils/progress";
+import { colors } from "@/theme/colors";
 
 const STEP_SCREENS: Record<number, (props: OnboardingStepProps) => React.ReactNode> = {
   1: (props) => <NameStep {...props} />,
@@ -52,7 +53,7 @@ export function OnboardingSettingsScreen() {
       <Screen backgroundColor="white" style={{ gap: 20, paddingTop: 32 }}>
         <PageHeader title="Onboarding complete" onBack={() => router.back()} />
         <View className="items-center gap-md py-2xl">
-          <CheckCircle size={64} weight="fill" color="#16A34A" />
+          <CheckCircle size={64} weight="fill" color={colors.successBright} />
           <Text variant="heading2" className="text-center">
             Your onboarding is complete
           </Text>
@@ -120,11 +121,11 @@ export function OnboardingSettingsScreen() {
               }`}
             >
               {complete ? (
-                <CheckCircle size={24} weight="fill" color="#16A34A" />
+                <CheckCircle size={24} weight="fill" color={colors.successBright} />
               ) : unlocked ? (
                 <View className="h-6 w-6 rounded-full border-2 border-primaryBright" />
               ) : (
-                <Lock size={22} color="#9CA3AF" />
+                <Lock size={22} color={colors.gray[400]} />
               )}
               <View className="flex-1">
                 <Text className="font-semibold">{step.title}</Text>
@@ -136,7 +137,7 @@ export function OnboardingSettingsScreen() {
                       : "Complete earlier steps first"}
                 </Text>
               </View>
-              {unlocked ? <CaretRight size={20} color="#6B7280" /> : null}
+              {unlocked ? <CaretRight size={20} color={colors.gray[500]} /> : null}
             </Pressable>
           );
         })}

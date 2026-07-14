@@ -269,7 +269,7 @@ export function SettingsScreen() {
           />
         ) : user?.isOnboarded ? (
           <Row
-            icon={<CheckCircle size={24} weight="fill" color="#16A34A" />}
+            icon={<CheckCircle size={24} weight="fill" color={colors.successBright} />}
             title="Onboarding complete"
             subtitle="All setup steps are complete"
           />

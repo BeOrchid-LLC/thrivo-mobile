@@ -23,9 +23,7 @@ export const addFavoritePayload = pkg.addFavoritePayloadSchema;
 export const addWaterPayload = pkg.addWaterPayloadSchema;
 export const addWeightPayload = pkg.addWeightPayloadSchema;
 export const cancelSubscriptionPayload = pkg.cancelSubscriptionPayloadSchema;
-// Compatibility shim until the published contracts package includes the Progress
-// macro-chart + day-detail fields added in this workspace.
-export const chartMetric = z.enum(["calories", "water", "weight", "protein", "carbs", "fat"]);
+export const chartMetric = pkg.chartMetricSchema;
 export const chartPeriod = pkg.chartPeriodSchema;
 export const estimateFoodPayload = pkg.estimateFoodPayloadSchema;
 export const logEstimatePayload = pkg.logEstimatePayloadSchema;
@@ -37,11 +35,7 @@ export const startTrialPayload = pkg.startTrialPayloadSchema;
 export const subscriptionSchema = pkg.subscriptionStateSchema;
 export const subscriptionStatusSchema = pkg.publicSubscriptionStatusSchema;
 export const updateLogPayload = pkg.updateLogPayloadSchema;
-// Keep the mobile client compatible with the nullable reset accepted by the
-// backend while the published contracts package is being bumped.
-export const updateProfilePayload = pkg.updateProfilePayloadSchema.extend({
-  manualDailyTargetKcal: z.number().int().positive().nullable().optional(),
-});
+export const updateProfilePayload = pkg.updateProfilePayloadSchema;
 export const updateUserSettingsPayload = pkg.updateUserSettingsPayloadSchema;
 export const upsertFoodPayload = pkg.upsertFoodPayloadSchema;
 export const userSchema = pkg.userProfileSchema;
@@ -54,16 +48,7 @@ export const verifyUploadResult = pkg.verifyUploadResultSchema;
 
 // `*ResponseSchema` are full `{ success, data, … }` envelopes; `callApi` validates
 // the unwrapped `data`, so expose `.shape.data` under the app's response names.
-export const chartResponse = z.object({
-  chart: z.object({
-    metric: chartMetric,
-    period: pkg.chartPeriodSchema,
-    unit: z.enum(["kcal", "ml", "kg", "g"]),
-    from: pkg.localDaySchema,
-    to: pkg.localDaySchema,
-    points: z.array(pkg.chartPointSchema),
-  }),
-});
+export const chartResponse = pkg.chartResponseSchema.shape.data;
 export const dashboardCaloriesResponse = pkg.dashboardCaloriesResponseSchema.shape.data;
 export const dashboardMacrosResponse = pkg.dashboardMacrosResponseSchema.shape.data;
 export const dashboardStreakResponse = pkg.dashboardStreakResponseSchema.shape.data;
@@ -73,12 +58,7 @@ export const estimateFoodResponse = pkg.estimateFoodResponseSchema.shape.data;
 export const favoritesListResponse = pkg.favoritesListResponseSchema.shape.data;
 export const favoriteMutationResponse = pkg.favoriteMutationResponseSchema.shape.data;
 export const foodItemResponse = pkg.foodItemResponseSchema.shape.data;
-export const foodLogDayResponse = pkg.foodLogDayResponseSchema.shape.data.extend({
-  isLocked: z.boolean(),
-  lockReason: z.enum(["free_history_limit"]).nullable(),
-  historyLimitDays: z.number().int(),
-  totals: pkg.dailyTotalsSchema,
-});
+export const foodLogDayResponse = pkg.foodLogDayResponseSchema.shape.data;
 export const foodLogHistoryResponse = pkg.foodLogHistoryResponseSchema.shape.data;
 export const foodLookupResponse = pkg.foodLookupResponseSchema.shape.data;
 export const logMutationResponse = pkg.logMutationResponseSchema.shape.data;

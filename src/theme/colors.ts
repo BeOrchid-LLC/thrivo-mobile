@@ -38,6 +38,7 @@ export const colors = {
     900: "#111827",
   },
   success: "#09823C", // shares Thrivo Green
+  successBright: "#16A34A", // onboarding completion icon
   warning: "#F39C12", // shares Orange accent
   error: "#C0392B", // Figma: Thrivo Red
 };
