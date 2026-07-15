@@ -24,6 +24,8 @@ export { SkeletonBlock, SkeletonText } from "./Skeleton";
 export type { SkeletonBlockProps, SkeletonTextProps } from "./Skeleton";
 export { PlaceholderScreen } from "./PlaceholderScreen";
 export type { PlaceholderScreenProps } from "./PlaceholderScreen";
+export { PremiumGate } from "./PremiumGate";
+export type { PremiumGateProps } from "./PremiumGate";
 export { BrandSplash } from "./BrandSplash";
 export type { BrandSplashProps } from "./BrandSplash";
 export { ThrivoMark } from "./ThrivoMark";

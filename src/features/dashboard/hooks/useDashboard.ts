@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/api";
 import type { Water } from "@/contracts";
 import { useAddWaterLog } from "@/features/food-logging";
+import { useEntitlement } from "@/hooks/useEntitlement";
 import { localDay } from "@/utils";
 import {
   getDashboardCalories,
@@ -23,11 +24,19 @@ export function useDashboardCalories(day = localDay()) {
 }
 
 export function useDashboardMacros(day = localDay()) {
-  return useQuery({
+  const entitlement = useEntitlement();
+  const query = useQuery({
     queryKey: queryKeys.dashboard.macros(day),
     queryFn: () => getDashboardMacros(day),
+    enabled: entitlement.isPremium,
     staleTime: 1000 * 60,
   });
+
+  return {
+    ...query,
+    isPremium: entitlement.isPremium,
+    isEntitlementLoading: entitlement.isLoading,
+  };
 }
 
 export function useDashboardStreak() {

@@ -4,13 +4,27 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { queryKeys } from "@/api";
 import type { Water } from "@/contracts";
 import { localDay } from "@/utils";
-import { useAddWater } from "../hooks/useDashboard";
+import { useAddWater, useDashboardMacros } from "../hooks/useDashboard";
 
 const mockUseAddWaterLog = jest.fn();
+const mockUseEntitlement = jest.fn();
+const mockGetDashboardMacros = jest.fn();
 
 jest.mock("@/features/food-logging", () => ({
   useAddWaterLog: (...args: unknown[]) => mockUseAddWaterLog(...args),
 }));
+
+jest.mock("@/hooks/useEntitlement", () => ({
+  useEntitlement: () => mockUseEntitlement(),
+}));
+
+jest.mock("../api/dashboard.api", () => {
+  const actual = jest.requireActual("../api/dashboard.api");
+  return {
+    ...actual,
+    getDashboardMacros: (...args: unknown[]) => mockGetDashboardMacros(...args),
+  };
+});
 
 function wrapperFor(queryClient: QueryClient) {
   function QueryWrapper({ children }: { children: ReactNode }) {
@@ -54,5 +68,22 @@ describe("useAddWater", () => {
 
     expect(mockUseAddWaterLog).toHaveBeenCalledWith(day);
     expect(mutate).toHaveBeenCalledWith(300, undefined);
+  });
+});
+
+describe("useDashboardMacros", () => {
+  it("does not request premium macros for free users", () => {
+    mockUseEntitlement.mockReturnValue({ isPremium: false, isLoading: false });
+    mockGetDashboardMacros.mockResolvedValue({});
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+
+    const { result } = renderHook(() => useDashboardMacros(), {
+      wrapper: wrapperFor(queryClient),
+    });
+
+    expect(result.current.isPremium).toBe(false);
+    expect(mockGetDashboardMacros).not.toHaveBeenCalled();
   });
 });

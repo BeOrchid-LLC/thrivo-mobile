@@ -6,6 +6,7 @@ import {
   Button,
   Card,
   CalorieRing,
+  PremiumGate,
   SectionError,
   SkeletonBlock,
   SkeletonText,
@@ -13,6 +14,7 @@ import {
 } from "@/components";
 import type { FoodLogEntry } from "@/contracts";
 import { EditFoodLogSheet } from "@/features/food-logging";
+import { deriveMacroTargets } from "@/features/onboarding/utils/tdee";
 import { colors } from "@/theme";
 import { MacroBars } from "./MacroBars";
 import { MealLog } from "./MealLog";
@@ -28,6 +30,8 @@ import {
 } from "../hooks/useDashboard";
 
 const GLASS_ML = 250;
+const DEFAULT_TARGET_CALORIES = 1800;
+const ZERO_MACROS = { proteinG: 0, carbsG: 0, fatG: 0 };
 
 const goToLog = () => router.push("/(app)/log");
 const goToHistory = () => router.push("/(app)/history");
@@ -102,7 +106,7 @@ export function CaloriesSummarySection() {
 export function MacrosSection() {
   const macros = useDashboardMacros();
 
-  if (macros.isLoading) {
+  if (macros.isEntitlementLoading || macros.isLoading) {
     return (
       <Card
         accessibilityRole="progressbar"
@@ -124,6 +128,18 @@ export function MacrosSection() {
     );
   }
 
+  if (macros.isPremium === false) {
+    return (
+      <PremiumGate
+        title="Subscribe to see your macros"
+        subtitle="Unlock your full nutrition progress."
+        onViewPlans={() => router.push("/(app)/settings/subscription")}
+      >
+        <MacroCard consumed={ZERO_MACROS} target={deriveMacroTargets(DEFAULT_TARGET_CALORIES)} />
+      </PremiumGate>
+    );
+  }
+
   if (macros.isError || !macros.data) {
     return (
       <SectionError
@@ -134,16 +150,19 @@ export function MacrosSection() {
     );
   }
 
+  return <MacroCard consumed={macros.data.consumed} target={macros.data.target} />;
+}
+
+function MacroCard({
+  consumed,
+  target,
+}: {
+  consumed: { proteinG: number; carbsG: number; fatG: number };
+  target: { proteinG: number; carbsG: number; fatG: number };
+}) {
   return (
     <Card className="border-2 border-gray-2" style={styles.macroCardShadow}>
-      <MacroBars
-        consumed={{
-          proteinG: macros.data.consumed.proteinG,
-          carbsG: macros.data.consumed.carbsG,
-          fatG: macros.data.consumed.fatG,
-        }}
-        target={macros.data.target}
-      />
+      <MacroBars consumed={consumed} target={target} />
     </Card>
   );
 }

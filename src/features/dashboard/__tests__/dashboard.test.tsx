@@ -170,6 +170,20 @@ describe("Dashboard graceful degradation", () => {
     expect(screen.getByText("Hi, Ada")).toBeTruthy();
   });
 
+  it("renders the premium macro gate for free users", () => {
+    mockUseDashboardMacros.mockReturnValue({
+      ...successQuery(emptyMacros),
+      isPremium: false,
+      isEntitlementLoading: false,
+    });
+
+    const screen = renderDashboard();
+
+    expect(screen.getByText("Subscribe to see your macros")).toBeTruthy();
+    fireEvent.press(screen.getByText("View plans"));
+    expect(mockPush).toHaveBeenCalledWith("/(app)/settings/subscription");
+  });
+
   it("shows dashboard section errors without hiding static content", () => {
     mockUseDashboardCalories.mockReturnValue(errorQuery);
     mockUseDashboardMacros.mockReturnValue(errorQuery);
