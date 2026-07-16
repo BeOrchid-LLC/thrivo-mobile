@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
-import { Platform, View } from "react-native";
+import { View } from "react-native";
 import { router } from "expo-router";
-import DateTimePicker from "@react-native-community/datetimepicker";
-import { BellIcon, Button, PageHeader, Screen, Text } from "@/components";
+import { BellIcon, Button, PageHeader, Screen, Text, TimePicker } from "@/components";
 import { useMe, useUpdateProfile } from "@/features/profile";
 import { useSettings } from "@/features/settings/hooks/useSettings";
 import { colors } from "@/theme";
@@ -76,17 +75,15 @@ export function RemindersScreen() {
       ) : null}
       <Button label="Save changes" loading={updateProfile.isPending} onPress={save} />
       {editing !== null ? (
-        <DateTimePicker
+        <TimePicker
           value={timeToDate(times[editing])}
-          mode="time"
-          display={Platform.OS === "ios" ? "spinner" : "default"}
           onChange={(event, date) => {
             if (event.type === "set" && date) {
               setTimes((current) =>
                 current.map((time, index) => (index === editing ? dateToTime(date) : time))
               );
             }
-            if (Platform.OS === "android" || event.type === "set") setEditing(null);
+            if (event.type === "set" || event.type === "dismissed") setEditing(null);
           }}
         />
       ) : null}

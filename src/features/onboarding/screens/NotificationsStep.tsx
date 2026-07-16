@@ -1,8 +1,15 @@
 import { useEffect, useState } from "react";
 import { router } from "expo-router";
-import { Platform, Pressable, View } from "react-native";
-import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
-import { BellIcon, Button, ChevronDownIcon, Segmented, Text } from "@/components";
+import { Pressable, View } from "react-native";
+import {
+  BellIcon,
+  Button,
+  ChevronDownIcon,
+  Segmented,
+  Text,
+  TimePicker,
+  type TimePickerEvent,
+} from "@/components";
 import { colors } from "@/theme";
 import { registerForPushNotifications } from "@/lib";
 import { type OnboardingDraft, useOnboardingDraftActions, useSessionActions } from "@/stores";
@@ -75,12 +82,12 @@ export default function NotificationsStep({
     onboardingStep: 7,
   });
 
-  const onTimeChange = (event: DateTimePickerEvent, date?: Date) => {
-    if (Platform.OS === "android") setEditing(null);
-    if (date && (Platform.OS === "ios" || event.type === "set")) {
+  const onTimeChange = (event: TimePickerEvent, date?: Date) => {
+    if (event.type === "set" && date) {
       const value = dateToHhmm(date);
       setTimes((previous) => previous.map((time, index) => (index === editing ? value : time)));
     }
+    if (event.type === "set" || event.type === "dismissed") setEditing(null);
   };
 
   const finish = async () => {
@@ -193,18 +200,7 @@ export default function NotificationsStep({
       </View>
 
       {editing !== null ? (
-        <View className="items-center">
-          <DateTimePicker
-            value={hhmmToDate(times[editing])}
-            mode="time"
-            is24Hour={false}
-            display={Platform.OS === "ios" ? "spinner" : "default"}
-            onChange={onTimeChange}
-          />
-          {Platform.OS === "ios" ? (
-            <Button label="Done" variant="ghost" onPress={() => setEditing(null)} />
-          ) : null}
-        </View>
+        <TimePicker value={hhmmToDate(times[editing])} onChange={onTimeChange} />
       ) : null}
     </OnboardingStep>
   );

@@ -2,6 +2,7 @@ import "../global.css";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Stack, useRouter, useSegments } from "expo-router";
+import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import * as SplashScreen from "expo-splash-screen";
 import {
   useFonts,
@@ -13,7 +14,7 @@ import {
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { queryClient, persistOptions, registerOfflineMutations } from "@/api";
-import { BrandSplash, ErrorState, Screen } from "@/components";
+import { BrandSplash, ErrorState, Screen, ToastProvider } from "@/components";
 import {
   wireApiSeams,
   addNotificationResponseListener,
@@ -220,7 +221,11 @@ function RootLayout() {
             void queryClient.resumePausedMutations();
           }}
         >
-          <RootNavigator fontsReady={fontsReady} />
+          <BottomSheetModalProvider>
+            <ToastProvider>
+              <RootNavigator fontsReady={fontsReady} />
+            </ToastProvider>
+          </BottomSheetModalProvider>
         </PersistQueryClientProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

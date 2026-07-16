@@ -1,8 +1,13 @@
-import { useContext } from "react";
+import { useCallback, useContext, useEffect, useRef } from "react";
 import type { ReactNode } from "react";
-import { Modal, Pressable, View } from "react-native";
+import { View } from "react-native";
+import {
+  BottomSheetBackdrop,
+  BottomSheetModal,
+  BottomSheetView,
+  type BottomSheetBackdropProps,
+} from "@gorhom/bottom-sheet";
 import { SafeAreaInsetsContext } from "react-native-safe-area-context";
-import { X } from "phosphor-react-native";
 import { colors } from "@/theme";
 import { Text } from "./Text";
 
@@ -25,12 +30,6 @@ export interface BottomSheetShellProps {
   modalOverlay?: ReactNode;
 }
 
-/**
- * R6 (I22): the Modal/backdrop/insets/grab-handle/header scaffold that
- * EditFoodLogSheet and LogItemSheet each hand-rolled identically, extracted
- * to one place (pattern taken from `select-sheet.tsx`, which stays as-is —
- * it's a different, already-single-instance component).
- */
 export function BottomSheetShell({
   visible,
   onClose,
@@ -41,22 +40,57 @@ export function BottomSheetShell({
   children,
   modalOverlay,
 }: BottomSheetShellProps) {
+  const sheetRef = useRef<BottomSheetModal>(null);
   const insets = useContext(SafeAreaInsetsContext) ?? { top: 0, right: 0, bottom: 0, left: 0 };
 
+  useEffect(() => {
+    if (visible) sheetRef.current?.present();
+  }, [visible]);
+
+  const renderBackdrop = useCallback(
+    (props: BottomSheetBackdropProps) => (
+      <BottomSheetBackdrop
+        {...props}
+        appearsOnIndex={0}
+        disappearsOnIndex={-1}
+        opacity={0.3}
+        pressBehavior="close"
+        accessibilityLabel={closeLabel ?? `Close ${title}`}
+      />
+    ),
+    [closeLabel, title]
+  );
+
+  const handleDismiss = useCallback(() => {
+    if (visible) onClose();
+  }, [onClose, visible]);
+
+  if (!visible) return modalOverlay ? <>{modalOverlay}</> : null;
+
   return (
-    <Modal transparent visible={visible} animationType="slide" onRequestClose={onClose}>
-      <View className="flex-1 justify-end bg-black/30">
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={closeLabel ?? `Close ${title}`}
-          className="absolute inset-0"
-          onPress={onClose}
-        />
-        <View
-          className="gap-md rounded-t-[24px] bg-white px-lg pt-md"
+    <>
+      <BottomSheetModal
+        ref={sheetRef}
+        enableDynamicSizing
+        enablePanDownToClose
+        keyboardBehavior="interactive"
+        keyboardBlurBehavior="restore"
+        backdropComponent={renderBackdrop}
+        backgroundStyle={{
+          backgroundColor: colors.white,
+          borderTopLeftRadius: 24,
+          borderTopRightRadius: 24,
+        }}
+        handleIndicatorStyle={{
+          width: 44,
+          backgroundColor: colors.gray[300],
+        }}
+        onDismiss={handleDismiss}
+      >
+        <BottomSheetView
+          className="gap-md px-lg pt-xs"
           style={{ paddingBottom: Math.max(insets.bottom + 24, 40) }}
         >
-          <View className="h-[4px] w-[44px] self-center rounded-pill bg-gray-300" />
           <View className="flex-row items-center justify-between">
             <View className="flex-1">
               <Text className="font-semibold text-[18px]" numberOfLines={1}>
@@ -64,23 +98,14 @@ export function BottomSheetShell({
               </Text>
               {subtitle}
             </View>
-            <View className="flex-row items-center gap-md">
-              {headerAccessory}
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Close"
-                hitSlop={10}
-                onPress={onClose}
-                className="h-[36px] w-[36px] items-center justify-center rounded-full bg-light"
-              >
-                <X size={18} color={colors.gray[500]} />
-              </Pressable>
-            </View>
+            {headerAccessory ? (
+              <View className="flex-row items-center gap-md">{headerAccessory}</View>
+            ) : null}
           </View>
           {children}
-        </View>
-      </View>
+        </BottomSheetView>
+      </BottomSheetModal>
       {modalOverlay}
-    </Modal>
+    </>
   );
 }

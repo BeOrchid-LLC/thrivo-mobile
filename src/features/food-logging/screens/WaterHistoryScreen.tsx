@@ -1,10 +1,10 @@
-import { memo, useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { router } from "expo-router";
-import { Heart } from "phosphor-react-native";
-import { Pressable, View } from "react-native";
+import { View } from "react-native";
 import { FlashList, type ListRenderItem } from "@shopify/flash-list";
 import {
   Card,
+  PageHeader,
   PremiumGate,
   SectionError,
   SelectInput,
@@ -12,13 +12,12 @@ import {
   SkeletonText,
   Text,
 } from "@/components";
-import type { ChartPeriod, FoodLogEntry, FoodLogHistoryResponse } from "@/contracts";
-import { EditFoodLogSheet, useFavorites, useToggleFavorite } from "@/features/food-logging";
-import { useIsFavorite } from "@/stores";
-import { colors } from "@/theme";
-import { useFoodLogHistory } from "../hooks/useDashboard";
+import type { ChartPeriod, WaterEntry, WaterHistoryResponse } from "@/contracts";
+import { useSettings } from "@/features/settings";
+import { localDay, formatWater } from "@/utils";
+import { useWaterHistory } from "../hooks/useFoodLogging";
 
-export interface FoodHistoryScreenProps {
+export interface WaterHistoryScreenProps {
   refreshing?: boolean;
   onRefresh?: () => void;
 }
@@ -33,45 +32,49 @@ const periodOptions: readonly { label: string; value: ChartPeriod }[] = [
   { label: "All time", value: "all" },
 ];
 
-type HistoryListItem =
-  | { type: "header"; day: string }
-  | { type: "locked"; historyLimitDays: number }
-  | { type: "entry"; day: string; entry: FoodLogEntry };
+type WaterHistory = WaterHistoryResponse["history"];
 
-function buildListItems(history: FoodLogHistoryResponse | undefined): HistoryListItem[] {
+type HistoryListItem =
+  | { type: "header"; day: string; totalMl: number }
+  | { type: "entry"; entry: WaterEntry }
+  | { type: "locked"; historyLimitDays: number };
+
+function buildListItems(history: WaterHistory | undefined): HistoryListItem[] {
   if (!history) return [];
+
   const items: HistoryListItem[] = [];
   for (const day of history.days) {
-    items.push({ type: "header", day: day.day });
+    items.push({ type: "header", day: day.day, totalMl: day.totalMl });
     for (const entry of day.entries) {
-      items.push({ type: "entry", day: day.day, entry });
+      items.push({ type: "entry", entry });
     }
   }
+
   if (history.lockedRange) {
     items.push({ type: "locked", historyLimitDays: history.historyLimitDays });
   }
+
   return items;
 }
 
 function keyExtractor(item: HistoryListItem): string {
   if (item.type === "entry") return `entry-${item.entry.id}`;
   if (item.type === "locked") return "locked-earlier-history";
-  return `${item.type}-${item.day}`;
+  return `header-${item.day}`;
 }
 
 function getItemType(item: HistoryListItem): string {
   return item.type;
 }
 
-export function FoodHistoryScreen({ refreshing, onRefresh }: FoodHistoryScreenProps) {
-  const [period, setPeriod] = useState<ChartPeriod>("1m");
+export function WaterHistoryScreen({ refreshing, onRefresh }: WaterHistoryScreenProps) {
+  const [period, setPeriod] = useState<ChartPeriod>("7d");
   const [periodSheetOpen, setPeriodSheetOpen] = useState(false);
-  const history = useFoodLogHistory(period);
-  useFavorites(); // fetch + sync the local favorites store ONCE per screen, not per row (R6 I20)
-  const toggleFavorite = useToggleFavorite();
+  const settings = useSettings();
+  const unitSystem = settings.data?.unitSystem ?? "metric";
+  const history = useWaterHistory(period, localDay());
   const selectedPeriodLabel =
     periodOptions.find((option) => option.value === period)?.label ?? "Select period";
-  const [editingEntry, setEditingEntry] = useState<FoodLogEntry | null>(null);
 
   const listItems = useMemo(() => buildListItems(history.data), [history.data]);
   const stickyHeaderIndices = useMemo(
@@ -88,33 +91,29 @@ export function FoodHistoryScreen({ refreshing, onRefresh }: FoodHistoryScreenPr
       if (item.type === "locked") {
         return <LockedEarlierHistory historyLimitDays={item.historyLimitDays} />;
       }
-      if (item.type === "header") return <HistoryDayHeader day={item.day} />;
-      return (
-        <HistoryEntryRow
-          entry={item.entry}
-          toggleFavorite={toggleFavorite}
-          onPress={() => setEditingEntry(item.entry)}
-        />
-      );
+      if (item.type === "header") {
+        return <HistoryDayHeader day={item.day} totalMl={item.totalMl} unitSystem={unitSystem} />;
+      }
+      return <WaterHistoryEntryRow entry={item.entry} unitSystem={unitSystem} />;
     },
-    [toggleFavorite]
+    [unitSystem]
   );
 
   return (
     <View className="flex-1 gap-lg">
-      <Text variant="heading2" color="dark">
-        Food history
-      </Text>
+      <PageHeader title="Water history" subtitle="Review your hydration logs over time." />
+
       <SelectInput
         label="Time period"
         value={selectedPeriodLabel}
         onPress={() => setPeriodSheetOpen(true)}
       />
+
       {history.isLoading ? <HistorySkeleton /> : null}
       {history.isError && !history.data ? (
         <SectionError
-          title="Could not load history"
-          message="Your dashboard is still available."
+          title="Could not load water history"
+          message="Your hydration log is still available for today."
           onRetry={() => void history.refetch()}
         />
       ) : null}
@@ -126,10 +125,10 @@ export function FoodHistoryScreen({ refreshing, onRefresh }: FoodHistoryScreenPr
       {!history.isLoading && !history.isError && listItems.length === 0 ? (
         <Card className="items-center gap-sm">
           <Text variant="heading3" color="dark">
-            Nothing logged yet
+            No water logged
           </Text>
           <Text variant="body" color="muted" className="text-center">
-            Your meals will appear here after you start logging.
+            Your water logs will appear here after you start logging in this period.
           </Text>
         </Card>
       ) : (
@@ -144,11 +143,7 @@ export function FoodHistoryScreen({ refreshing, onRefresh }: FoodHistoryScreenPr
           onRefresh={onRefresh}
         />
       )}
-      <EditFoodLogSheet
-        entry={editingEntry}
-        visible={editingEntry !== null}
-        onClose={() => setEditingEntry(null)}
-      />
+
       <SelectSheet
         title="Select period"
         options={periodOptions}
@@ -177,67 +172,50 @@ function HistorySkeleton() {
   );
 }
 
-/** Sticky — needs its own background so scrolling entries don't show through underneath it. */
-function HistoryDayHeader({ day }: { day: string }) {
+function HistoryDayHeader({
+  day,
+  totalMl,
+  unitSystem,
+}: {
+  day: string;
+  totalMl: number;
+  unitSystem: "metric" | "imperial";
+}) {
   return (
-    <View className="bg-white pb-sm pt-md">
+    <View className="flex-row items-center justify-between bg-white pb-sm pt-md">
       <Text variant="heading3" color="dark">
-        {day}
+        {formatHistoryDay(day)}
+      </Text>
+      <Text variant="body" color="muted">
+        {formatWater(totalMl, unitSystem)}
       </Text>
     </View>
   );
 }
 
-const HistoryEntryRow = memo(function HistoryEntryRow({
+function WaterHistoryEntryRow({
   entry,
-  toggleFavorite,
-  onPress,
+  unitSystem,
 }: {
-  entry: FoodLogEntry;
-  toggleFavorite: (foodItemId: string) => void;
-  onPress: () => void;
+  entry: WaterEntry;
+  unitSystem: "metric" | "imperial";
 }) {
-  const isFavorite = useIsFavorite(entry.foodItemId);
-
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`View ${entry.name}`}
-      onPress={onPress}
-      className="flex-row items-center justify-between gap-md border-b border-gray-200 pb-sm"
-    >
-      <View className="flex-1">
+    <View className="flex-row items-center justify-between border-b border-gray-200 py-sm">
+      <View>
         <Text variant="body" color="dark">
-          {entry.name}
+          Glass of water
         </Text>
         <Text variant="caption" color="muted">
-          {new Date(entry.consumedAt).toLocaleTimeString([], {
-            hour: "numeric",
-            minute: "2-digit",
-          })}
+          {formatTime(entry.recordedAt)}
         </Text>
       </View>
-      <View className="flex-row items-center gap-md">
-        <Text variant="body" color="dark">
-          {entry.nutrients.calories} kcal
-        </Text>
-        {entry.foodItemId ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={isFavorite ? "Remove favorite" : "Add favorite"}
-            onPress={(event) => {
-              event?.stopPropagation?.();
-              toggleFavorite(entry.foodItemId as string);
-            }}
-            hitSlop={8}
-          >
-            <Heart size={20} color={colors.primary} weight={isFavorite ? "fill" : "regular"} />
-          </Pressable>
-        ) : null}
-      </View>
-    </Pressable>
+      <Text variant="body" color="dark">
+        {formatWater(entry.amountMl, unitSystem)}
+      </Text>
+    </View>
   );
-});
+}
 
 function LockedEarlierHistory({ historyLimitDays }: { historyLimitDays: number }) {
   return (
@@ -246,7 +224,7 @@ function LockedEarlierHistory({ historyLimitDays }: { historyLimitDays: number }
         Earlier history
       </Text>
       <PremiumGate
-        title="Subscribe to see your full history"
+        title="Subscribe to see older water logs"
         subtitle={`Free history includes the most recent ${historyLimitDays} days.`}
         onViewPlans={() => router.push("/(app)/settings/subscription")}
       >
@@ -258,14 +236,14 @@ function LockedEarlierHistory({ historyLimitDays }: { historyLimitDays: number }
             >
               <View>
                 <Text variant="body" color="dark">
-                  Meal log
+                  Glass of water
                 </Text>
                 <Text variant="caption" color="muted">
-                  -- kcal
+                  --:--
                 </Text>
               </View>
               <Text variant="body" color="dark">
-                --:--
+                -- ml
               </Text>
             </View>
           ))}
@@ -273,4 +251,20 @@ function LockedEarlierHistory({ historyLimitDays }: { historyLimitDays: number }
       </PremiumGate>
     </View>
   );
+}
+
+function formatHistoryDay(day: string): string {
+  const date = new Date(`${day}T00:00:00`);
+  return date.toLocaleDateString([], {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function formatTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }

@@ -4,7 +4,7 @@ import { queryKeys } from "./query-keys";
 export function invalidateFoodLogViews(queryClient: QueryClient, day: string): void {
   void queryClient.invalidateQueries({ queryKey: queryKeys.foods.logDay(day) });
   void queryClient.invalidateQueries({ queryKey: queryKeys.foods.recent() });
-  void queryClient.invalidateQueries({ queryKey: queryKeys.foods.logHistory() });
+  void queryClient.invalidateQueries({ queryKey: queryKeys.foods.logHistoryRoot() });
   void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.calories(day) });
   void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.macros(day) });
   void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.streak() });
@@ -14,6 +14,7 @@ export function invalidateFoodLogViews(queryClient: QueryClient, day: string): v
 
 export function invalidateWaterViews(queryClient: QueryClient, day: string): void {
   void queryClient.invalidateQueries({ queryKey: queryKeys.metrics.waterByDay(day) });
+  void queryClient.invalidateQueries({ queryKey: queryKeys.metrics.waterHistoryRoot() });
   void queryClient.invalidateQueries({ queryKey: queryKeys.metrics.progress(day) });
   void queryClient.invalidateQueries({ queryKey: queryKeys.metrics.chartRoot() });
 }

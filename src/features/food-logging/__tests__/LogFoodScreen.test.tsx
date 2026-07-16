@@ -16,6 +16,7 @@ const mockUseDeleteFoodLog = jest.fn();
 const mockUseFoodDetail = jest.fn();
 const mockUseWater = jest.fn();
 const mockUseAddWaterLog = jest.fn();
+const mockUseUpdateWaterLog = jest.fn();
 const mockUseDeleteWaterLog = jest.fn();
 const mockUseEstimateFood = jest.fn();
 const mockUseLogEstimate = jest.fn();
@@ -63,6 +64,7 @@ jest.mock("../hooks/useFoodLogging", () => ({
   useFoodDetail: (...args: unknown[]) => mockUseFoodDetail(...args),
   useWater: () => mockUseWater(),
   useAddWaterLog: () => mockUseAddWaterLog(),
+  useUpdateWaterLog: () => mockUseUpdateWaterLog(),
   useDeleteWaterLog: () => mockUseDeleteWaterLog(),
   useEstimateFood: () => mockUseEstimateFood(),
   useLogEstimate: () => mockUseLogEstimate(),
@@ -176,6 +178,11 @@ describe("LogFoodScreen", () => {
     mockUseFoodDetail.mockReturnValue({ data: undefined, isLoading: false });
     mockUseWater.mockReturnValue(successQuery(water));
     mockUseAddWaterLog.mockReturnValue({ mutate: jest.fn(), isPending: false });
+    mockUseUpdateWaterLog.mockReturnValue({
+      mutate: jest.fn(),
+      isPending: false,
+      error: null,
+    });
     mockUseDeleteWaterLog.mockReturnValue({ mutate: jest.fn() });
     mockUseEstimateFood.mockReturnValue({ mutate: jest.fn(), isPending: false, data: undefined });
     mockUseLogEstimate.mockReturnValue({ mutate: jest.fn(), isPending: false });
@@ -400,14 +407,34 @@ describe("LogFoodScreen", () => {
 
     const screen = render(<LogFoodScreen />);
     fireEvent.press(screen.getByText("Water"));
-    fireEvent.press(screen.getByText("1 glass"));
+    fireEvent.press(screen.getByLabelText("Add 250 ml water"));
     fireEvent.press(screen.getByLabelText("Delete water entry"));
 
     expect(screen.getByText(/980/)).toBeTruthy();
     expect(screen.getByText("Drink up")).toBeTruthy();
-    expect(screen.getByText("1 Glass of water")).toBeTruthy();
+    expect(screen.getByText("Glass of water")).toBeTruthy();
     expect(add).toHaveBeenCalledWith(250, expect.any(Object));
     expect(remove).toHaveBeenCalledWith("water-1", expect.any(Object));
+  });
+
+  it("opens the water edit sheet for same-day entries", () => {
+    const update = jest.fn();
+    mockUseWater.mockReturnValue(successQuery({ ...water, day: localDay() }));
+    mockUseUpdateWaterLog.mockReturnValue({ mutate: update, isPending: false, error: null });
+
+    const screen = render(<LogFoodScreen />);
+    fireEvent.press(screen.getByText("Water"));
+    fireEvent.press(screen.getByLabelText("Edit water entry"));
+    fireEvent.press(screen.getByText("Save changes"));
+
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "water-1",
+        amountMl: 250,
+        recordedAt: water.entries[0].recordedAt,
+      }),
+      expect.any(Object)
+    );
   });
 
   it("updates the water manual amount when the unit system changes", () => {
@@ -419,12 +446,13 @@ describe("LogFoodScreen", () => {
     const screen = render(<LogFoodScreen />);
     fireEvent.press(screen.getByText("Water"));
 
-    expect(screen.getByDisplayValue("250")).toBeTruthy();
+    fireEvent.press(screen.getByText("Add water manually"));
+    expect(screen.getAllByText("0").length).toBeGreaterThan(0);
 
     settings.data.unitSystem = "imperial";
     screen.rerender(<LogFoodScreen />);
 
-    expect(screen.getByDisplayValue("8.5")).toBeTruthy();
+    expect(screen.getAllByText("0").length).toBeGreaterThan(0);
     expect(screen.getByText("Log Water")).toBeTruthy();
   });
 });

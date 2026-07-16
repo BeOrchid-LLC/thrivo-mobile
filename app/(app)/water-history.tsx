@@ -1,21 +1,21 @@
 import { useState } from "react";
-import { Screen } from "@/components";
-import { FoodHistoryScreen } from "@/features/dashboard";
 import { queryClient, queryKeys } from "@/api";
+import { Screen } from "@/components";
+import { WaterHistoryScreen } from "@/features/food-logging";
 
-export default function History() {
+export default function WaterHistory() {
   const [refreshing, setRefreshing] = useState(false);
 
   const refresh = () => {
     setRefreshing(true);
     void queryClient
-      .invalidateQueries({ queryKey: queryKeys.foods.logHistoryRoot() })
+      .invalidateQueries({ queryKey: queryKeys.metrics.waterHistoryRoot() })
       .finally(() => setRefreshing(false));
   };
 
   return (
     <Screen edges={["top", "left", "right"]} style={{ paddingTop: 32, paddingBottom: 16 }}>
-      <FoodHistoryScreen refreshing={refreshing} onRefresh={refresh} />
+      <WaterHistoryScreen refreshing={refreshing} onRefresh={refresh} />
     </Screen>
   );
 }

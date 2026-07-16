@@ -9,7 +9,7 @@
  *    back to a dark default background for that gap, producing a dark flash before our JS
  *    splash (BrandSplash) can render.
  * 2. Theme.App.SplashScreen's icon container can render its own opaque/light contrast
- *    backdrop behind our transparent placeholder icon (src/assets/splashscreen-blank.png).
+ *    backdrop behind our transparent splash logo.
  *    Setting windowSplashScreenIconBackgroundColor neutralizes that regardless of whether
  *    it's actually the source of the "white box" the flash showed.
  * 3. android:windowDisablePreview=true on Theme.App.SplashScreen. Android shows a separate
@@ -39,9 +39,8 @@ const {
   },
 } = require("expo/config-plugins");
 
-// Keep in sync with colors.light (src/theme/colors.ts) and the expo-splash-screen
-// plugin's backgroundColor in app.json if the brand background ever changes.
-const SPLASH_MATCH_COLOR = "#F4F6F9";
+// Keep in sync with the expo-splash-screen plugin's backgroundColor in app.json.
+const SPLASH_MATCH_COLOR = "#FFFFFF";
 
 async function main() {
   const stylesPath = path.join(

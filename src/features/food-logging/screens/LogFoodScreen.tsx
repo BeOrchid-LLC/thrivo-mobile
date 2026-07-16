@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { router } from "expo-router";
 import { Pressable, TextInput, View } from "react-native";
 import {
   CameraView,
@@ -8,6 +9,7 @@ import {
 } from "expo-camera";
 import {
   Barcode,
+  CaretRight,
   Heart,
   MagnifyingGlass,
   Plus,
@@ -27,6 +29,7 @@ import {
   SkeletonText,
   StepperButton,
   Text,
+  useToast,
 } from "@/components";
 import { queryClient, queryKeys } from "@/api";
 import { useCurrentDay } from "@/hooks/useCurrentDay";
@@ -40,10 +43,18 @@ import { colors } from "@/theme";
 import { useSettings } from "@/features/settings";
 import { subscribeTabRootReset } from "@/navigation/tab-root-reset";
 import { useIsFavorite } from "@/stores";
-import { formatWater, roundTo, waterFromMl, waterToMl, waterUnitFor } from "@/utils";
-import type { FoodItem, FoodLogEntry, FoodSearchResult, PortionMeasure } from "@/contracts";
+import { formatWater, isToday, roundTo, waterFromMl, waterUnitFor } from "@/utils";
+import type {
+  FoodItem,
+  FoodLogEntry,
+  FoodSearchResult,
+  PortionMeasure,
+  WaterEntry,
+} from "@/contracts";
 import { EditFoodLogSheet } from "../components/EditFoodLogSheet";
 import { LogItemSheet } from "../components/LogItemSheet";
+import { WaterAmountSheet } from "../components/WaterAmountSheet";
+import { WaterProgressRing } from "../components/WaterProgressRing";
 import { parsePositiveQuantity, stepQuantity } from "../utils/quantity";
 import {
   useAddWaterLog,
@@ -56,6 +67,7 @@ import {
   useLogFood,
   useRecentFoods,
   useToggleFavorite,
+  useUpdateWaterLog,
   useWater,
 } from "../hooks/useFoodLogging";
 
@@ -93,11 +105,6 @@ function useDebouncedValue<T>(value: T, delayMs: number): T {
 function normalizeBarcode(value: string): string | null {
   const normalized = value.replace(/[\s-]/g, "");
   return /^\d{8,14}$/.test(normalized) ? normalized : null;
-}
-
-function formatManualWaterInput(ml: number, unitSystem: "metric" | "imperial"): string {
-  const value = roundTo(waterFromMl(ml, unitSystem), unitSystem === "imperial" ? 1 : 0);
-  return String(value);
 }
 
 export function LogFoodScreen() {
@@ -294,18 +301,14 @@ function FoodHome({
         </FoodListSection>
       ) : recentItems.length > 0 ? (
         <View className="gap-md">
-          <Text variant="heading3" color="muted">
-            Recent foods
-          </Text>
+          <RecentFoodsHeader />
           {recentItems.map((entry) => (
             <RecentFoodRow key={entry.id} entry={entry} onPress={() => setEditingEntry(entry)} />
           ))}
         </View>
       ) : recent.isLoading ? (
         <View className="gap-md">
-          <Text variant="heading3" color="muted">
-            Recent foods
-          </Text>
+          <RecentFoodsHeader />
           <FoodRowSkeleton count={3} />
         </View>
       ) : recent.isError ? (
@@ -359,32 +362,31 @@ function WaterHome({ day }: { day: string }) {
   const water = useWater(day);
   const settings = useSettings();
   const addWater = useAddWaterLog(day);
+  const updateWater = useUpdateWaterLog(day);
   const deleteWater = useDeleteWaterLog(day);
+  const { showToast } = useToast();
   const unitSystem = settings.data?.unitSystem ?? "metric";
   const waterUnit = waterUnitFor(unitSystem);
-  const quickAddGlasses = [1, 2, 3];
-  const [manual, setManual] = useState(formatManualWaterInput(250, unitSystem));
-  const [manualUnitSystem, setManualUnitSystem] = useState(unitSystem);
-  const [message, setMessage] = useState<string | null>(null);
+  const quickAddAmounts = [100, 250, 500];
+  const [manualOpen, setManualOpen] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<WaterEntry | null>(null);
   const data = water.data;
-  const manualAmount = Number(manual);
-  const manualAmountMl = Math.round(waterToMl(manualAmount, unitSystem));
-  const manualValid =
-    Number.isFinite(manualAmount) &&
-    manualAmount > 0 &&
-    manualAmountMl > 0 &&
-    manualAmountMl <= 5000;
+  const behind = Boolean(data?.alert);
+  const canEditEntries = Boolean(data && isToday(data.day));
 
-  useEffect(() => {
-    if (manualUnitSystem === unitSystem) return;
-    const previousAmount = Number(manual);
-    const previousMl =
-      Number.isFinite(previousAmount) && previousAmount > 0
-        ? Math.round(waterToMl(previousAmount, manualUnitSystem))
-        : 250;
-    setManual(formatManualWaterInput(previousMl, unitSystem));
-    setManualUnitSystem(unitSystem);
-  }, [manual, manualUnitSystem, unitSystem]);
+  const showWaterToast = (message: string, variant: "success" | "error" = "success") => {
+    showToast({ message, variant });
+  };
+
+  const addWaterAmount = (amountMl: number, onSuccess?: () => void) => {
+    addWater.mutate(amountMl, {
+      onSuccess: () => {
+        onSuccess?.();
+        showWaterToast(`${formatWater(amountMl, unitSystem)} added`);
+      },
+      onError: () => showWaterToast("Could not add water. Try again.", "error"),
+    });
+  };
 
   if (water.isLoading) {
     return <WaterSkeleton />;
@@ -403,31 +405,28 @@ function WaterHome({ day }: { day: string }) {
   return (
     <View className="gap-xl">
       <View className="flex-row items-center gap-xl">
-        <View className="h-[100px] w-[100px] items-center justify-center rounded-pill border-[8px] border-primaryBright">
-          <Text variant="heading3" color="muted">
-            {data.progressPercent}%
-          </Text>
-          <Text variant="caption" color="muted">
-            hydrated
-          </Text>
-        </View>
+        <WaterProgressRing progressPercent={data.progressPercent} behind={behind} />
         <View className="flex-1">
           <Text variant="heading1" color="dark">
-            {formatWater(data.totalMl, unitSystem)}{" "}
+            {roundTo(waterFromMl(data.totalMl, unitSystem), unitSystem === "imperial" ? 1 : 0)}{" "}
             <Text variant="body" color="muted">
-              logged
+              {waterUnit}
             </Text>
           </Text>
           <Text variant="body" color="muted">
             of {formatWater(data.targetMl, unitSystem)} daily goal
           </Text>
-          <Text variant="caption" color="primary">
+          <Text
+            variant="body"
+            color={behind ? "dark" : "primary"}
+            className={behind ? "font-semibold text-accent" : "font-semibold"}
+          >
             {formatWater(data.remainingMl, unitSystem)} remaining
           </Text>
         </View>
       </View>
       {data.alert ? (
-        <Card className="gap-sm border-accent bg-accentSoft">
+        <Card className="gap-sm border-accent bg-accentSoft px-lg py-lg">
           <View className="flex-row items-center gap-sm">
             <Warning size={20} color={colors.accent} />
             <Text variant="heading3" className="text-accent">
@@ -444,125 +443,152 @@ function WaterHome({ day }: { day: string }) {
           Quick add
         </Text>
         <View className="flex-row gap-md">
-          {quickAddGlasses.map((n) => {
-            const amountMl = data.glassMl * n;
+          {quickAddAmounts.map((amountMl) => {
             const amount = roundTo(
               waterFromMl(amountMl, unitSystem),
               unitSystem === "imperial" ? 1 : 0
             );
-            const isDefault = n === 1;
+            const isDefault = amountMl === 250;
             return (
               <Pressable
-                key={n}
+                key={amountMl}
                 accessibilityRole="button"
+                accessibilityLabel={`Add ${formatWater(amountMl, unitSystem)} water`}
                 disabled={addWater.isPending}
-                onPress={() =>
-                  addWater.mutate(amountMl, {
-                    onSuccess: () => setMessage(`${formatWater(amountMl, unitSystem)} added.`),
-                    onError: () => setMessage("Could not add water. Try again."),
-                  })
-                }
-                className={`min-h-[64px] flex-1 items-center justify-center rounded-md ${
+                onPress={() => addWaterAmount(amountMl)}
+                className={`h-[52px] flex-1 items-center justify-center rounded-md ${
                   isDefault ? "bg-primarySoft" : "bg-gray-100"
                 }`}
               >
-                <Text variant="heading3" color={isDefault ? "primary" : "muted"}>
-                  {n} {n === 1 ? "glass" : "glasses"}
+                <Text
+                  variant="body"
+                  color={isDefault ? "primary" : "muted"}
+                  className="font-semibold"
+                >
+                  {amount}
                 </Text>
-                <Text variant="body" color={isDefault ? "primary" : "muted"}>
-                  {amount} {waterUnit}
+                <Text variant="caption" color={isDefault ? "primary" : "muted"}>
+                  {waterUnit}
                 </Text>
               </Pressable>
             );
           })}
         </View>
-        <View className="flex-row items-center gap-md">
-          <View className="flex-1">
-            <Input
-              value={manual}
-              onChangeText={setManual}
-              keyboardType="decimal-pad"
-              trailingText={waterUnit}
-              className="text-center"
-            />
-          </View>
-          <Button
-            label="Add"
-            fullWidth={false}
-            loading={addWater.isPending}
-            disabled={!manualValid}
-            onPress={() =>
-              addWater.mutate(manualAmountMl, {
-                onSuccess: () => setMessage(`${formatWater(manualAmountMl, unitSystem)} added.`),
-                onError: () => setMessage("Could not add water. Try again."),
-              })
-            }
-          />
-        </View>
-        {!manualValid ? (
-          <Text variant="caption" color="error">
-            Enter an amount up to {formatWater(5000, unitSystem)}.
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Add water manually"
+          onPress={() => setManualOpen(true)}
+          className="self-end py-xs"
+        >
+          <Text variant="body" color="primary" className="font-semibold">
+            Add water manually
           </Text>
-        ) : null}
-        {message ? (
-          <Text variant="caption" color={message.includes("Could not") ? "error" : "primary"}>
-            {message}
-          </Text>
-        ) : null}
+        </Pressable>
       </View>
       <View className="gap-md">
-        <Text variant="heading3" color="muted">
-          {"Today's log"}
-        </Text>
-        {data.entries.map((entry) => {
-          const glassCount = entry.amountMl / data.glassMl;
-          const entryLabel =
-            Number.isInteger(glassCount) && glassCount > 0
-              ? `${glassCount} Glass${glassCount === 1 ? "" : "es"} of water`
-              : "Water logged";
-          return (
-            <View
-              key={entry.id}
-              className="flex-row items-center justify-between border-b border-gray-200 py-sm"
-            >
-              <View>
+        <View className="flex-row items-center justify-between">
+          <Text variant="heading3" color="muted">
+            {"Today's log"}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="View all water logs"
+            onPress={() => router.push("/(app)/water-history")}
+            className="flex-row items-center gap-xs py-xs"
+          >
+            <Text variant="body" color="primary" className="font-semibold">
+              View all logs
+            </Text>
+            <CaretRight size={16} color={colors.primary} weight="bold" />
+          </Pressable>
+        </View>
+        {data.entries.map((entry) => (
+          <Pressable
+            key={entry.id}
+            accessibilityRole="button"
+            accessibilityLabel="Edit water entry"
+            disabled={!canEditEntries}
+            onPress={() => setEditingEntry(entry)}
+            className="flex-row items-center justify-between border-b border-gray-200 py-sm"
+          >
+            <View>
+              <Text variant="body" color="dark">
+                Glass of water
+              </Text>
+              <Text variant="caption" color="muted">
+                {formatTime(entry.recordedAt)}
+              </Text>
+            </View>
+            <View className="flex-row items-center gap-md">
+              <View className="items-end">
                 <Text variant="body" color="dark">
-                  {entryLabel}
+                  {roundTo(
+                    waterFromMl(entry.amountMl, unitSystem),
+                    unitSystem === "imperial" ? 1 : 0
+                  )}
                 </Text>
                 <Text variant="caption" color="muted">
-                  {formatTime(entry.recordedAt)}
+                  {waterUnit}
                 </Text>
               </View>
-              <View className="flex-row items-center gap-md">
-                <View className="items-end">
-                  <Text variant="body" color="dark">
-                    {roundTo(
-                      waterFromMl(entry.amountMl, unitSystem),
-                      unitSystem === "imperial" ? 1 : 0
-                    )}
-                  </Text>
-                  <Text variant="caption" color="muted">
-                    {waterUnit}
-                  </Text>
-                </View>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Delete water entry"
-                  disabled={deleteWater.isPending}
-                  onPress={() =>
-                    deleteWater.mutate(entry.id, {
-                      onSuccess: () => setMessage("Water entry deleted."),
-                      onError: () => setMessage("Could not delete water. Try again."),
-                    })
-                  }
-                >
-                  <XCircle size={22} color={colors.gray[500]} />
-                </Pressable>
-              </View>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Delete water entry"
+                disabled={deleteWater.isPending}
+                onPress={(event) => {
+                  event?.stopPropagation?.();
+                  deleteWater.mutate(entry.id, {
+                    onSuccess: () => showWaterToast("Water entry deleted"),
+                    onError: () => showWaterToast("Could not delete water. Try again.", "error"),
+                  });
+                }}
+              >
+                <XCircle size={22} color={colors.gray[500]} />
+              </Pressable>
             </View>
-          );
-        })}
+          </Pressable>
+        ))}
+        {data.entries.length === 0 ? (
+          <Text variant="body" color="muted">
+            No water logged yet.
+          </Text>
+        ) : null}
       </View>
+      <WaterAmountSheet
+        visible={manualOpen}
+        title="Add water manually"
+        submitLabel="Add water"
+        initialAmountMl={0}
+        unitSystem={unitSystem}
+        loading={addWater.isPending}
+        error={addWater.error?.message ?? null}
+        onClose={() => setManualOpen(false)}
+        onSubmit={({ amountMl }) => addWaterAmount(amountMl, () => setManualOpen(false))}
+      />
+      <WaterAmountSheet
+        visible={editingEntry !== null}
+        title="Glass of water"
+        submitLabel="Save changes"
+        initialAmountMl={editingEntry?.amountMl ?? data.glassMl}
+        initialRecordedAt={editingEntry?.recordedAt}
+        unitSystem={unitSystem}
+        loading={updateWater.isPending}
+        error={updateWater.error?.message ?? null}
+        onClose={() => setEditingEntry(null)}
+        onSubmit={({ amountMl, recordedAt }) => {
+          if (!editingEntry) return;
+          updateWater.mutate(
+            { id: editingEntry.id, amountMl, recordedAt },
+            {
+              onSuccess: () => {
+                setEditingEntry(null);
+                showWaterToast("Water entry updated");
+              },
+              onError: () => showWaterToast("Could not update water. Try again.", "error"),
+            }
+          );
+        }}
+      />
     </View>
   );
 }
@@ -880,6 +906,27 @@ function DescribeMealScreen({ day, onBack }: { day: string; onBack: () => void }
   );
 }
 
+function RecentFoodsHeader() {
+  return (
+    <View className="flex-row items-center justify-between">
+      <Text variant="heading3" color="muted">
+        Recent foods
+      </Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="View food history"
+        onPress={() => router.push("/(app)/history")}
+        className="flex-row items-center gap-xs py-xs"
+      >
+        <Text variant="body" color="primary" className="font-semibold">
+          View history
+        </Text>
+        <CaretRight size={16} color={colors.primary} weight="bold" />
+      </Pressable>
+    </View>
+  );
+}
+
 function QuickAction({
   icon,
   label,
@@ -935,7 +982,8 @@ function FoodResultRow({
           {"isEstimated" in item && item.isEstimated ? "  Estimated" : ""}
         </Text>
       </View>
-      <View className="flex-row gap-sm">
+      <View className="flex-row items-center gap-md">
+        <Plus size={22} color={colors.primary} />
         {foodItemId ? (
           <Pressable
             accessibilityRole="button"
@@ -949,7 +997,6 @@ function FoodResultRow({
             <Heart size={22} color={colors.primary} weight={isFavorite ? "fill" : "regular"} />
           </Pressable>
         ) : null}
-        <Plus size={22} color={colors.primary} />
       </View>
     </Pressable>
   );
@@ -976,6 +1023,14 @@ function RecentFoodRow({ entry, onPress }: { entry: FoodLogEntry; onPress: () =>
         </Text>
       </View>
       <View className="flex-row items-center gap-md">
+        <View className="items-end">
+          <Text variant="body" color="dark">
+            {entry.servings}
+          </Text>
+          <Text variant="caption" color="muted">
+            {entry.servingUnit ?? "serving"}
+          </Text>
+        </View>
         {entry.foodItemId ? (
           <Pressable
             accessibilityRole="button"
@@ -989,14 +1044,6 @@ function RecentFoodRow({ entry, onPress }: { entry: FoodLogEntry; onPress: () =>
             <Heart size={22} color={colors.primary} weight={isFavorite ? "fill" : "regular"} />
           </Pressable>
         ) : null}
-        <View className="items-end">
-          <Text variant="body" color="dark">
-            {entry.servings}
-          </Text>
-          <Text variant="caption" color="muted">
-            {entry.servingUnit ?? "serving"}
-          </Text>
-        </View>
       </View>
     </Pressable>
   );

@@ -13,11 +13,15 @@ import {
 import { useFavoritesActions, useFavoritesStore } from "@/stores";
 import { localDay } from "@/utils";
 import type {
+  ChartPeriod,
   EstimateFoodPayload,
   FavoritesListResponse,
+  FoodItem,
+  FoodLogEntry,
   LogEstimatePayload,
   LogFoodPayload,
   UpdateLogPayload,
+  UpdateWaterPayload,
 } from "@/contracts";
 import {
   addFavorite,
@@ -29,10 +33,12 @@ import {
   getFoodLogDay,
   getRecentFoods,
   getWater,
+  getWaterHistory,
   lookupFood,
   removeFavorite,
   searchFoods,
   updateFoodLog,
+  updateWater,
 } from "../api/food-logging.api";
 
 export function useFoodSearch(query: string) {
@@ -64,20 +70,24 @@ export function useFoodDetail(foodItemId: string | null, enabled: boolean) {
 }
 
 export function useFoodLogDay(day = localDay(), enabled = true) {
-  return useQuery({
+  const query = useQuery({
     queryKey: queryKeys.foods.logDay(day),
     queryFn: () => getFoodLogDay(day),
     enabled,
     staleTime: 1000 * 60,
   });
+  useSyncFavoriteStatusesFromEntries(query.data?.entries);
+  return query;
 }
 
 export function useRecentFoods() {
-  return useQuery({
+  const query = useQuery({
     queryKey: queryKeys.foods.recent(),
     queryFn: getRecentFoods,
     staleTime: 1000 * 60,
   });
+  useSyncFavoriteStatusesFromEntries(query.data?.items);
+  return query;
 }
 
 /** Fetches favorites AND keeps the device-local favorites store in sync. */
@@ -96,10 +106,40 @@ export function useFavorites() {
   return query;
 }
 
+export function useSyncFavoriteStatusesFromEntries(
+  entries: readonly FoodLogEntry[] | null | undefined
+) {
+  const { applyFavoriteStatuses } = useFavoritesActions();
+  useEffect(() => {
+    if (!entries) return;
+    applyFavoriteStatuses(
+      entries.map((entry) => ({ id: entry.foodItemId, isFavorite: Boolean(entry.isFavorite) }))
+    );
+  }, [entries, applyFavoriteStatuses]);
+}
+
+export function useSyncFavoriteStatusesFromItems(items: readonly FoodItem[] | null | undefined) {
+  const { applyFavoriteStatuses } = useFavoritesActions();
+  useEffect(() => {
+    if (!items) return;
+    applyFavoriteStatuses(
+      items.map((item) => ({ id: item.id, isFavorite: Boolean(item.isFavorite) }))
+    );
+  }, [items, applyFavoriteStatuses]);
+}
+
 export function useWater(day = localDay()) {
   return useQuery({
     queryKey: queryKeys.metrics.waterByDay(day),
     queryFn: () => getWater(day),
+    staleTime: 1000 * 60,
+  });
+}
+
+export function useWaterHistory(period: ChartPeriod, day = localDay()) {
+  return useQuery({
+    queryKey: queryKeys.metrics.waterHistory(period, day),
+    queryFn: () => getWaterHistory(period, day),
     staleTime: 1000 * 60,
   });
 }
@@ -225,6 +265,17 @@ export function useDeleteWaterLog(day = localDay()) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => deleteWater(id),
+    onSuccess: () => {
+      invalidateWaterViews(queryClient, day);
+    },
+  });
+}
+
+export function useUpdateWaterLog(day = localDay()) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...payload }: { id: string } & UpdateWaterPayload) =>
+      updateWater(id, payload),
     onSuccess: () => {
       invalidateWaterViews(queryClient, day);
     },

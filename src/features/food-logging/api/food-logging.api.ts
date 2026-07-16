@@ -3,10 +3,12 @@ import { localDay } from "@/utils";
 import type {
   AddFavoritePayload,
   AddWaterPayload,
+  ChartPeriod,
   EstimateFoodPayload,
   LogEstimatePayload,
   LogFoodPayload,
   UpdateLogPayload,
+  UpdateWaterPayload,
   UpsertFoodPayload,
 } from "@/contracts";
 
@@ -50,7 +52,13 @@ export const logEstimate = (payload: LogEstimatePayload, idempotencyKey?: string
 export const getWater = async (day = localDay()) =>
   (await callApi("WATER_GET", { query: { date: day } })).water;
 
+export const getWaterHistory = async (period: ChartPeriod, day = localDay()) =>
+  (await callApi("WATER_HISTORY", { query: { date: day, period, today: localDay() } })).history;
+
 export const addWater = (amountMl: number, day = localDay(), idempotencyKey?: string) =>
   callApi("WATER_ADD", { payload: { day, amountMl } satisfies AddWaterPayload, idempotencyKey });
+
+export const updateWater = (id: string, payload: UpdateWaterPayload) =>
+  callApi("WATER_UPDATE", { params: { id }, payload });
 
 export const deleteWater = (id: string) => callApi("WATER_DELETE", { params: { id } });

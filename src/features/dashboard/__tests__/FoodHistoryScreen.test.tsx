@@ -45,7 +45,15 @@ describe("FoodHistoryScreen", () => {
     jest.clearAllMocks();
     useFavoritesStore.setState({ favoriteIds: [] });
     mockUseFoodLogHistory.mockReturnValue({
-      data: { days: [historyDay], historyLimitDays: 30 },
+      data: {
+        period: "1m",
+        date: "2026-06-20",
+        from: "2026-05-22",
+        to: "2026-06-20",
+        days: [historyDay],
+        lockedRange: null,
+        historyLimitDays: 7,
+      },
       isLoading: false,
       isError: false,
       isFetching: false,
@@ -81,5 +89,32 @@ describe("FoodHistoryScreen", () => {
     fireEvent.press(screen.getByLabelText("Add favorite"));
 
     expect(toggleFavorite).toHaveBeenCalledWith(entry.foodItemId);
+  });
+
+  it("shows one earlier-history gate for a locked range", () => {
+    mockUseFoodLogHistory.mockReturnValue({
+      data: {
+        period: "1m",
+        date: "2026-06-20",
+        from: "2026-05-22",
+        to: "2026-06-20",
+        days: [historyDay],
+        lockedRange: {
+          from: "2026-05-22",
+          to: "2026-06-13",
+          lockReason: "free_history_limit",
+        },
+        historyLimitDays: 7,
+      },
+      isLoading: false,
+      isError: false,
+      isFetching: false,
+      refetch: jest.fn(),
+    });
+
+    const screen = render(<FoodHistoryScreen />);
+
+    expect(screen.getAllByText("Earlier history")).toHaveLength(1);
+    expect(screen.getByText("Free history includes the most recent 7 days.")).toBeTruthy();
   });
 });
