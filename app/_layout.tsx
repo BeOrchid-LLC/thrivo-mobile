@@ -2,6 +2,7 @@ import "../global.css";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Stack, useRouter, useSegments } from "expo-router";
+import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import * as SplashScreen from "expo-splash-screen";
 import {
   useFonts,
@@ -220,9 +221,11 @@ function RootLayout() {
             void queryClient.resumePausedMutations();
           }}
         >
-          <ToastProvider>
-            <RootNavigator fontsReady={fontsReady} />
-          </ToastProvider>
+          <BottomSheetModalProvider>
+            <ToastProvider>
+              <RootNavigator fontsReady={fontsReady} />
+            </ToastProvider>
+          </BottomSheetModalProvider>
         </PersistQueryClientProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

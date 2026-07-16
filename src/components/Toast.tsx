@@ -1,24 +1,15 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
-import { Pressable, View } from "react-native";
+import { createContext, useCallback, useContext, type ReactNode } from "react";
+import { View } from "react-native";
+import ToastMessage, {
+  BaseToast,
+  type BaseToastProps,
+  type ToastConfig,
+} from "react-native-toast-message";
 import { CheckCircle, WarningCircle } from "phosphor-react-native";
-import { SafeAreaInsetsContext } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "@/theme";
-import { Text } from "./Text";
 
 type ToastVariant = "success" | "error";
-
-interface ToastState {
-  message: string;
-  variant: ToastVariant;
-}
 
 export interface ToastOptions {
   message: string;
@@ -34,63 +25,91 @@ const ToastContext = createContext<ToastContextValue>({
   showToast: () => undefined,
 });
 
-export function ToastProvider({ children }: { children: ReactNode }) {
-  const [toast, setToast] = useState<ToastState | null>(null);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const insets = useContext(SafeAreaInsetsContext) ?? { top: 0, right: 0, bottom: 0, left: 0 };
+const iconContainerClassName = "h-full justify-center pl-md";
 
-  const clearToast = useCallback(() => {
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    timeoutRef.current = null;
-    setToast(null);
-  }, []);
+function AppToast({
+  variant,
+  ...props
+}: BaseToastProps & {
+  variant: ToastVariant;
+}) {
+  const isError = variant === "error";
+
+  return (
+    <BaseToast
+      {...props}
+      activeOpacity={0.92}
+      style={{
+        width: "92%",
+        maxWidth: 340,
+        minHeight: 52,
+        borderLeftWidth: 0,
+        borderWidth: 1,
+        borderColor: isError ? colors.error : colors.primarySoft,
+        borderRadius: 16,
+        backgroundColor: colors.white,
+        shadowColor: colors.dark,
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 6 },
+        elevation: 4,
+      }}
+      contentContainerStyle={{
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+      }}
+      text1NumberOfLines={2}
+      text1Style={{
+        color: isError ? colors.error : colors.dark,
+        fontFamily: "Inter_500Medium",
+        fontSize: 14,
+        lineHeight: 20,
+      }}
+      renderLeadingIcon={() => (
+        <View className={iconContainerClassName}>
+          {isError ? (
+            <WarningCircle size={20} color={colors.error} weight="fill" />
+          ) : (
+            <CheckCircle size={20} color={colors.primary} weight="fill" />
+          )}
+        </View>
+      )}
+    />
+  );
+}
+
+const toastConfig: ToastConfig = {
+  success: (props) => <AppToast {...props} variant="success" />,
+  error: (props) => <AppToast {...props} variant="error" />,
+};
+
+export function ToastProvider({ children }: { children: ReactNode }) {
+  const insets = useSafeAreaInsets();
 
   const showToast = useCallback(
     ({ message, variant = "success", durationMs = 2500 }: ToastOptions) => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      setToast({ message, variant });
-      timeoutRef.current = setTimeout(clearToast, durationMs);
+      ToastMessage.show({
+        type: variant,
+        text1: message,
+        position: "top",
+        visibilityTime: durationMs,
+        autoHide: true,
+        topOffset: Math.max(insets.top + 20, 100),
+      });
     },
-    [clearToast]
+    [insets.top]
   );
-
-  useEffect(
-    () => () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    },
-    []
-  );
-
-  const isError = toast?.variant === "error";
 
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
-      {toast ? (
-        <View
-          pointerEvents="box-none"
-          className="absolute left-0 right-0 items-center px-lg"
-          style={{ bottom: Math.max(insets.bottom + 84, 100) }}
-        >
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Dismiss message"
-            onPress={clearToast}
-            className={`max-w-[340px] flex-row items-center gap-sm rounded-lg border px-md py-sm shadow ${
-              isError ? "border-error bg-white" : "border-primarySoft bg-white"
-            }`}
-          >
-            {isError ? (
-              <WarningCircle size={20} color={colors.error} weight="fill" />
-            ) : (
-              <CheckCircle size={20} color={colors.primary} weight="fill" />
-            )}
-            <Text variant="body" color={isError ? "error" : "dark"} className="flex-1">
-              {toast.message}
-            </Text>
-          </Pressable>
-        </View>
-      ) : null}
+      <ToastMessage
+        config={toastConfig}
+        position="top"
+        topOffset={Math.max(insets.top, 20)}
+        visibilityTime={2500}
+        swipeable
+      />
     </ToastContext.Provider>
   );
 }

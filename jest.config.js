@@ -13,6 +13,7 @@ module.exports = {
       "<rootDir>/node_modules/@beorchid-llc/thrivo-contracts/dist/index.js",
     "^@beorchid-llc/thrivo-contracts/(.*)$":
       "<rootDir>/node_modules/@beorchid-llc/thrivo-contracts/dist/$1.js",
+    "^@gorhom/bottom-sheet$": "<rootDir>/test/mocks/gorhom-bottom-sheet.js",
   },
   // Transform RN / Expo ESM packages that ship untranspiled.
   transformIgnorePatterns: [
