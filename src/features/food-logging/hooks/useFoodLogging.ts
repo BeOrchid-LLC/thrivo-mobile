@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   invalidateFoodLogViews,
   invalidateWaterViews,
@@ -41,14 +41,56 @@ import {
   updateWater,
 } from "../api/food-logging.api";
 
+const FOOD_SEARCH_PAGE_SIZE = 10;
+
+/**
+ * Catalog-first search with cursor pages (local then OFF). Auto-fetches the
+ * first external page when the local page is empty so the sheet never shows
+ * a blank “no results” flash before OFF fills in.
+ */
 export function useFoodSearch(query: string) {
   const normalized = query.trim().replace(/\s+/g, " ");
-  return useQuery({
-    queryKey: queryKeys.foods.search(normalized),
-    queryFn: () => searchFoods(normalized),
-    enabled: normalized.length >= 2,
-    staleTime: 1000 * 60,
-  });
+  const enabled = normalized.length >= 2;
+
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isFetchNextPageError, ...rest } =
+    useInfiniteQuery({
+      queryKey: queryKeys.foods.search(normalized),
+      queryFn: ({ pageParam }) =>
+        searchFoods(normalized, {
+          limit: FOOD_SEARCH_PAGE_SIZE,
+          cursor: pageParam,
+        }),
+      initialPageParam: null as string | null,
+      getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+      enabled,
+      staleTime: 1000 * 60,
+    });
+
+  const firstPage = data?.pages[0];
+  const shouldAutoFetchExternal =
+    enabled &&
+    Boolean(firstPage) &&
+    firstPage!.items.length === 0 &&
+    Boolean(firstPage!.nextCursor?.startsWith("external:")) &&
+    Boolean(hasNextPage) &&
+    !isFetchingNextPage &&
+    !isFetchNextPageError;
+
+  useEffect(() => {
+    if (shouldAutoFetchExternal) void fetchNextPage();
+  }, [shouldAutoFetchExternal, fetchNextPage]);
+
+  const items = data?.pages.flatMap((page) => page.items) ?? [];
+
+  return {
+    ...rest,
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isFetchNextPageError,
+    items,
+  };
 }
 
 export function useBarcodeLookup(barcode: string | null) {

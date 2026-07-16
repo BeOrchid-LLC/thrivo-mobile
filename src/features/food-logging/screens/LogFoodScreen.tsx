@@ -12,7 +12,6 @@ import {
   CaretRight,
   Heart,
   MagnifyingGlass,
-  Plus,
   TextAlignLeft,
   Warning,
   XCircle,
@@ -44,15 +43,13 @@ import { useSettings } from "@/features/settings";
 import { subscribeTabRootReset } from "@/navigation/tab-root-reset";
 import { useIsFavorite } from "@/stores";
 import { formatWater, isToday, roundTo, waterFromMl, waterUnitFor } from "@/utils";
-import type {
-  FoodItem,
-  FoodLogEntry,
-  FoodSearchResult,
-  PortionMeasure,
-  WaterEntry,
-} from "@/contracts";
+import type { FoodItem, FoodLogEntry, PortionMeasure, WaterEntry } from "@/contracts";
 import { EditFoodLogSheet } from "../components/EditFoodLogSheet";
+import { FoodResultRow } from "../components/FoodResultRow";
+import { FoodRowSkeleton } from "../components/FoodRowSkeleton";
 import { LogItemSheet } from "../components/LogItemSheet";
+import { MacroCards } from "../components/MacroCards";
+import { SearchResultsSheet } from "../components/SearchResultsSheet";
 import { WaterAmountSheet } from "../components/WaterAmountSheet";
 import { WaterProgressRing } from "../components/WaterProgressRing";
 import { parsePositiveQuantity, stepQuantity } from "../utils/quantity";
@@ -192,7 +189,7 @@ function FoodHome({
   const debouncedQuery = useDebouncedValue(query, 350);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [editingEntry, setEditingEntry] = useState<FoodLogEntry | null>(null);
-  const [loggingItem, setLoggingItem] = useState<FoodItem | FoodSearchResult | null>(null);
+  const [loggingItem, setLoggingItem] = useState<FoodItem | null>(null);
   const search = useFoodSearch(debouncedQuery);
   const recent = useRecentFoods();
   const favorites = useFavorites();
@@ -200,11 +197,13 @@ function FoodHome({
 
   const hasQuery = query.trim().length > 0;
   const canSearch = query.trim().length >= 2;
-  const results = search.data?.items ?? [];
+  const results = search.items;
   const recentItems = recent.data?.items ?? [];
   const favoriteItems = favorites.data?.items ?? [];
+  const searchLoading =
+    canSearch && (search.isLoading || (results.length === 0 && search.isFetchingNextPage));
 
-  const openLogSheet = (food: FoodItem | FoodSearchResult) => {
+  const openLogSheet = (food: FoodItem) => {
     setQuery("");
     setLoggingItem(food);
   };
@@ -241,47 +240,7 @@ function FoodHome({
         autoCapitalize="none"
         leadingIcon={<MagnifyingGlass size={20} color={colors.gray[500]} />}
       />
-      {hasQuery ? (
-        <Card className="gap-md">
-          <Text variant="body" color="dark">
-            {`Showing results for "${query.trim()}"`}
-          </Text>
-          {!canSearch ? (
-            <Text variant="caption" color="muted">
-              Type at least 2 characters to search.
-            </Text>
-          ) : null}
-          {canSearch && search.isLoading ? <FoodRowSkeleton count={4} /> : null}
-          {search.isError ? (
-            <SectionError
-              title="Could not search foods"
-              message="Check your connection and try again."
-              onRetry={() => void search.refetch()}
-              className="border-0 p-0"
-            />
-          ) : null}
-          {results.map((item) => (
-            <FoodResultRow
-              key={item.externalId}
-              item={item}
-              onLog={() => openLogSheet(item)}
-              loading={logFood.isPending}
-            />
-          ))}
-          {canSearch && !search.isLoading && !search.isError && results.length === 0 ? (
-            <View className="items-center gap-xs py-md">
-              <Text variant="caption" color="muted">
-                {"Don't see it?"}
-              </Text>
-              <Pressable accessibilityRole="button" onPress={onDescribe}>
-                <Text variant="body" color="primary" className="font-semibold">
-                  Describe the meal instead
-                </Text>
-              </Pressable>
-            </View>
-          ) : null}
-        </Card>
-      ) : showFavoritesOnly ? (
+      {showFavoritesOnly ? (
         <FoodListSection
           title="Favorites"
           isLoading={favorites.isLoading}
@@ -328,7 +287,7 @@ function FoodHome({
           <Button label="Log first meal" onPress={onDescribe} />
         </Card>
       )}
-      {favorites.data?.items.length ? (
+      {!showFavoritesOnly && favorites.data?.items.length ? (
         <View className="gap-md">
           <Text variant="heading3" color="muted">
             Favorites
@@ -343,6 +302,22 @@ function FoodHome({
           ))}
         </View>
       ) : null}
+      <SearchResultsSheet
+        query={query}
+        visible={hasQuery}
+        onClose={() => setQuery("")}
+        items={results}
+        canSearch={canSearch}
+        isLoading={searchLoading}
+        isError={search.isError}
+        isFetchingNextPage={search.isFetchingNextPage}
+        hasNextPage={Boolean(search.hasNextPage)}
+        onRetry={() => void search.refetch()}
+        onFetchNextPage={() => void search.fetchNextPage()}
+        onSelect={openLogSheet}
+        onDescribe={onDescribe}
+        logging={logFood.isPending}
+      />
       <EditFoodLogSheet
         entry={editingEntry}
         visible={editingEntry !== null}
@@ -948,60 +923,6 @@ function QuickAction({
   );
 }
 
-function FoodResultRow({
-  item,
-  onLog,
-  loading,
-}: {
-  item: FoodItem | FoodSearchResult;
-  onLog: () => void;
-  loading: boolean;
-}) {
-  // Ensures the local favorites store is synced wherever this row renders,
-  // regardless of navigation path (TanStack Query dedupes by key, so this
-  // costs nothing extra when a parent already called useFavorites()).
-  useFavorites();
-  const toggleFavorite = useToggleFavorite();
-  const foodItemId = "id" in item ? item.id : null;
-  const isFavorite = useIsFavorite(foodItemId);
-
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`Log ${item.name}`}
-      disabled={loading}
-      onPress={onLog}
-      className="flex-row items-center justify-between gap-md border-b border-gray-200 py-sm"
-    >
-      <View className="flex-1">
-        <Text variant="body" color="dark">
-          {item.name}
-        </Text>
-        <Text variant="caption" color="dark">
-          {item.nutrients.calories} kcal per {item.servingLabel}
-          {"isEstimated" in item && item.isEstimated ? "  Estimated" : ""}
-        </Text>
-      </View>
-      <View className="flex-row items-center gap-md">
-        <Plus size={22} color={colors.primary} />
-        {foodItemId ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={isFavorite ? "Remove favorite" : "Add favorite"}
-            onPress={(event) => {
-              event?.stopPropagation?.();
-              toggleFavorite(foodItemId);
-            }}
-            hitSlop={8}
-          >
-            <Heart size={22} color={colors.primary} weight={isFavorite ? "fill" : "regular"} />
-          </Pressable>
-        ) : null}
-      </View>
-    </Pressable>
-  );
-}
-
 function RecentFoodRow({ entry, onPress }: { entry: FoodLogEntry; onPress: () => void }) {
   useFavorites();
   const toggleFavorite = useToggleFavorite();
@@ -1046,31 +967,6 @@ function RecentFoodRow({ entry, onPress }: { entry: FoodLogEntry; onPress: () =>
         ) : null}
       </View>
     </Pressable>
-  );
-}
-
-function MacroCards({
-  nutrients,
-}: {
-  nutrients: { proteinG: number; carbsG: number; fatG: number };
-}) {
-  return (
-    <View className="flex-row gap-md">
-      {[
-        ["Protein", nutrients.proteinG],
-        ["Carbs", nutrients.carbsG],
-        ["Fat", nutrients.fatG],
-      ].map(([label, value]) => (
-        <View key={label} className="flex-1 items-center rounded-md bg-primarySoft p-md">
-          <Text variant="caption" color="dark">
-            {label}
-          </Text>
-          <Text variant="heading3" color="dark">
-            {value}g
-          </Text>
-        </View>
-      ))}
-    </View>
   );
 }
 
@@ -1121,25 +1017,6 @@ function FoodListSection({
 
 function hasRenderableChildren(children: ReactNode): boolean {
   return Array.isArray(children) ? children.length > 0 : Boolean(children);
-}
-
-function FoodRowSkeleton({ count = 3 }: { count?: number }) {
-  return (
-    <View className="gap-sm">
-      {Array.from({ length: count }).map((_, index) => (
-        <View
-          key={index}
-          className="flex-row items-center justify-between border-b border-gray-200 py-sm"
-        >
-          <View className="flex-1 gap-xs">
-            <SkeletonText className="w-2/3" />
-            <SkeletonText size="caption" className="w-1/3" />
-          </View>
-          <SkeletonBlock className="h-[24px] w-[24px] rounded-pill" />
-        </View>
-      ))}
-    </View>
-  );
 }
 
 function WaterSkeleton() {

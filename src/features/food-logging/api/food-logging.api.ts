@@ -14,7 +14,14 @@ import type {
 
 export const lookupFood = (barcode: string) => callApi("FOOD_LOOKUP", { query: { barcode } });
 
-export const searchFoods = (q: string) => callApi("FOOD_SEARCH", { query: { q } });
+export const searchFoods = (q: string, options?: { limit?: number; cursor?: string | null }) =>
+  callApi("FOOD_SEARCH", {
+    query: {
+      q,
+      limit: options?.limit,
+      cursor: options?.cursor ?? undefined,
+    },
+  });
 
 export const getFoodDetail = async (id: string) =>
   (await callApi("FOOD_DETAIL", { params: { id } })).food;

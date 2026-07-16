@@ -24,6 +24,10 @@ jest.mock("@react-native-community/datetimepicker", () => {
   return { __esModule: true, default: () => <View testID="time-picker" /> };
 });
 
+jest.mock("@/hooks/useEntitlement", () => ({
+  useEntitlement: () => ({ isPremium: true, isLoading: false }),
+}));
+
 const entry: FoodLogEntry = {
   id: "entry-1",
   foodItemId: "food-1",

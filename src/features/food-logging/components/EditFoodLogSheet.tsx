@@ -1,19 +1,23 @@
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Pressable, View } from "react-native";
+import { router } from "expo-router";
 import { Heart } from "phosphor-react-native";
 import {
   BottomSheetShell,
   Button,
   FormError,
+  PremiumGate,
   Text,
   TimePicker,
   type TimePickerEvent,
 } from "@/components";
+import { useEntitlement } from "@/hooks/useEntitlement";
 import { useIsFavorite } from "@/stores";
 import { colors } from "@/theme";
 import { isToday } from "@/utils";
 import type { FoodLogEntry } from "@/contracts";
 import { QuantityUnitField } from "./QuantityUnitField";
+import { MacroCards } from "./MacroCards";
 import {
   buildServingChoices,
   defaultQuantityFor,
@@ -38,6 +42,18 @@ function formatTime(date: Date): string {
   return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
+function scaleEntryNutrients(entry: FoodLogEntry, quantity: number): FoodLogEntry["nutrients"] {
+  const baseQty = entry.servings > 0 ? entry.servings : 1;
+  const factor = quantity / baseQty;
+
+  return {
+    calories: Math.round(entry.nutrients.calories * factor),
+    proteinG: entry.nutrients.proteinG * factor,
+    carbsG: entry.nutrients.carbsG * factor,
+    fatG: entry.nutrients.fatG * factor,
+  };
+}
+
 /**
  * Bottom sheet for a logged entry. Today's entries get full editing
  * (servings/time/delete); older entries (dashboard history, etc.) only get the
@@ -47,6 +63,7 @@ function formatTime(date: Date): string {
 export function EditFoodLogSheet({ entry, visible, onClose }: EditFoodLogSheetProps) {
   const updateLog = useUpdateFoodLog();
   const deleteLog = useDeleteFoodLog();
+  const entitlement = useEntitlement();
   useFavorites(); // keeps the local favorites store synced
   const toggleFavoriteId = useToggleFavorite();
   const isFavorite = useIsFavorite(entry?.foodItemId);
@@ -104,6 +121,9 @@ export function EditFoodLogSheet({ entry, visible, onClose }: EditFoodLogSheetPr
     consumedAt.toISOString() !== entry.consumedAt ||
     unitChanged;
 
+  const previewQty = servingsValue ?? entry.servings;
+  const scaled = scaleEntryNutrients(entry, previewQty);
+
   const onSelectChoice = (choice: (typeof choices)[number]) => {
     setSelectedChoiceKey(choice.key);
     setUnitChanged(true);
@@ -138,12 +158,28 @@ export function EditFoodLogSheet({ entry, visible, onClose }: EditFoodLogSheetPr
     ]);
   };
 
+  const macros = (
+    <MacroCards
+      nutrients={{
+        proteinG: scaled.proteinG,
+        carbsG: scaled.carbsG,
+        fatG: scaled.fatG,
+      }}
+    />
+  );
+
   return (
     <BottomSheetShell
       visible={visible}
       onClose={onClose}
       title={entry.name}
       closeLabel="Close edit entry"
+      subtitle={
+        <Text variant="caption" color="dark">
+          {scaled.calories} kcal
+          {entry.isEstimated ? " · Estimated" : ""}
+        </Text>
+      }
       modalOverlay={
         showTimePicker ? <TimePicker value={consumedAt} onChange={onTimePicked} /> : null
       }
@@ -168,6 +204,18 @@ export function EditFoodLogSheet({ entry, visible, onClose }: EditFoodLogSheetPr
             selectedKey={selectedChoiceKey}
             onSelectChoice={onSelectChoice}
           />
+
+          {entitlement.isPremium ? (
+            macros
+          ) : (
+            <PremiumGate
+              title="Subscribe to see macros"
+              subtitle="Protein, carbs, and fat unlock with Premium."
+              onViewPlans={() => router.push("/(app)/settings/subscription")}
+            >
+              {macros}
+            </PremiumGate>
+          )}
 
           <View className="gap-sm">
             <Text variant="caption" color="dark">
@@ -207,12 +255,23 @@ export function EditFoodLogSheet({ entry, visible, onClose }: EditFoodLogSheetPr
           </Pressable>
         </>
       ) : (
-        <View className="gap-xs">
+        <View className="gap-md">
           <Text variant="body" color="muted">
             {entry.servings}
             {entry.servingUnit ? ` ${entry.servingUnit}` : " serving"} ·{" "}
             {formatTime(new Date(entry.consumedAt))}
           </Text>
+          {entitlement.isPremium ? (
+            macros
+          ) : (
+            <PremiumGate
+              title="Subscribe to see macros"
+              subtitle="Protein, carbs, and fat unlock with Premium."
+              onViewPlans={() => router.push("/(app)/settings/subscription")}
+            >
+              {macros}
+            </PremiumGate>
+          )}
           <Text variant="caption" color="muted">
             Editing is only available for entries logged today.
           </Text>
