@@ -301,18 +301,14 @@ function FoodHome({
         </FoodListSection>
       ) : recentItems.length > 0 ? (
         <View className="gap-md">
-          <Text variant="heading3" color="muted">
-            Recent foods
-          </Text>
+          <RecentFoodsHeader />
           {recentItems.map((entry) => (
             <RecentFoodRow key={entry.id} entry={entry} onPress={() => setEditingEntry(entry)} />
           ))}
         </View>
       ) : recent.isLoading ? (
         <View className="gap-md">
-          <Text variant="heading3" color="muted">
-            Recent foods
-          </Text>
+          <RecentFoodsHeader />
           <FoodRowSkeleton count={3} />
         </View>
       ) : recent.isError ? (
@@ -910,6 +906,27 @@ function DescribeMealScreen({ day, onBack }: { day: string; onBack: () => void }
   );
 }
 
+function RecentFoodsHeader() {
+  return (
+    <View className="flex-row items-center justify-between">
+      <Text variant="heading3" color="muted">
+        Recent foods
+      </Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="View food history"
+        onPress={() => router.push("/(app)/history")}
+        className="flex-row items-center gap-xs py-xs"
+      >
+        <Text variant="body" color="primary" className="font-semibold">
+          View history
+        </Text>
+        <CaretRight size={16} color={colors.primary} weight="bold" />
+      </Pressable>
+    </View>
+  );
+}
+
 function QuickAction({
   icon,
   label,
@@ -965,7 +982,8 @@ function FoodResultRow({
           {"isEstimated" in item && item.isEstimated ? "  Estimated" : ""}
         </Text>
       </View>
-      <View className="flex-row gap-sm">
+      <View className="flex-row items-center gap-md">
+        <Plus size={22} color={colors.primary} />
         {foodItemId ? (
           <Pressable
             accessibilityRole="button"
@@ -979,7 +997,6 @@ function FoodResultRow({
             <Heart size={22} color={colors.primary} weight={isFavorite ? "fill" : "regular"} />
           </Pressable>
         ) : null}
-        <Plus size={22} color={colors.primary} />
       </View>
     </Pressable>
   );
@@ -1006,6 +1023,14 @@ function RecentFoodRow({ entry, onPress }: { entry: FoodLogEntry; onPress: () =>
         </Text>
       </View>
       <View className="flex-row items-center gap-md">
+        <View className="items-end">
+          <Text variant="body" color="dark">
+            {entry.servings}
+          </Text>
+          <Text variant="caption" color="muted">
+            {entry.servingUnit ?? "serving"}
+          </Text>
+        </View>
         {entry.foodItemId ? (
           <Pressable
             accessibilityRole="button"
@@ -1019,14 +1044,6 @@ function RecentFoodRow({ entry, onPress }: { entry: FoodLogEntry; onPress: () =>
             <Heart size={22} color={colors.primary} weight={isFavorite ? "fill" : "regular"} />
           </Pressable>
         ) : null}
-        <View className="items-end">
-          <Text variant="body" color="dark">
-            {entry.servings}
-          </Text>
-          <Text variant="caption" color="muted">
-            {entry.servingUnit ?? "serving"}
-          </Text>
-        </View>
       </View>
     </Pressable>
   );

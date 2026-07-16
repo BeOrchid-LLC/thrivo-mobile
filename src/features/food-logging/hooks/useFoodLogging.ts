@@ -16,6 +16,8 @@ import type {
   ChartPeriod,
   EstimateFoodPayload,
   FavoritesListResponse,
+  FoodItem,
+  FoodLogEntry,
   LogEstimatePayload,
   LogFoodPayload,
   UpdateLogPayload,
@@ -68,20 +70,24 @@ export function useFoodDetail(foodItemId: string | null, enabled: boolean) {
 }
 
 export function useFoodLogDay(day = localDay(), enabled = true) {
-  return useQuery({
+  const query = useQuery({
     queryKey: queryKeys.foods.logDay(day),
     queryFn: () => getFoodLogDay(day),
     enabled,
     staleTime: 1000 * 60,
   });
+  useSyncFavoriteStatusesFromEntries(query.data?.entries);
+  return query;
 }
 
 export function useRecentFoods() {
-  return useQuery({
+  const query = useQuery({
     queryKey: queryKeys.foods.recent(),
     queryFn: getRecentFoods,
     staleTime: 1000 * 60,
   });
+  useSyncFavoriteStatusesFromEntries(query.data?.items);
+  return query;
 }
 
 /** Fetches favorites AND keeps the device-local favorites store in sync. */
@@ -98,6 +104,28 @@ export function useFavorites() {
   }, [query.data, setFavoriteIds]);
 
   return query;
+}
+
+export function useSyncFavoriteStatusesFromEntries(
+  entries: readonly FoodLogEntry[] | null | undefined
+) {
+  const { applyFavoriteStatuses } = useFavoritesActions();
+  useEffect(() => {
+    if (!entries) return;
+    applyFavoriteStatuses(
+      entries.map((entry) => ({ id: entry.foodItemId, isFavorite: Boolean(entry.isFavorite) }))
+    );
+  }, [entries, applyFavoriteStatuses]);
+}
+
+export function useSyncFavoriteStatusesFromItems(items: readonly FoodItem[] | null | undefined) {
+  const { applyFavoriteStatuses } = useFavoritesActions();
+  useEffect(() => {
+    if (!items) return;
+    applyFavoriteStatuses(
+      items.map((item) => ({ id: item.id, isFavorite: Boolean(item.isFavorite) }))
+    );
+  }, [items, applyFavoriteStatuses]);
 }
 
 export function useWater(day = localDay()) {

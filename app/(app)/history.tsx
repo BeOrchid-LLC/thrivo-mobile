@@ -9,7 +9,7 @@ export default function History() {
   const refresh = () => {
     setRefreshing(true);
     void queryClient
-      .invalidateQueries({ queryKey: queryKeys.foods.logHistory() })
+      .invalidateQueries({ queryKey: queryKeys.foods.logHistoryRoot() })
       .finally(() => setRefreshing(false));
   };
 

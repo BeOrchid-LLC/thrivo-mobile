@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/api";
-import type { Water } from "@/contracts";
-import { useAddWaterLog } from "@/features/food-logging";
+import type { ChartPeriod, Water } from "@/contracts";
+import { useAddWaterLog, useSyncFavoriteStatusesFromEntries } from "@/features/food-logging";
 import { useEntitlement } from "@/hooks/useEntitlement";
 import { localDay } from "@/utils";
 import {
@@ -63,12 +63,14 @@ export function useDashboardMealLog(day = localDay()) {
   });
 }
 
-export function useFoodLogHistory() {
-  return useQuery({
-    queryKey: queryKeys.foods.logHistory(),
-    queryFn: getFoodLogHistory,
+export function useFoodLogHistory(period: ChartPeriod = "1m", day = localDay()) {
+  const query = useQuery({
+    queryKey: queryKeys.foods.logHistory(period, day),
+    queryFn: () => getFoodLogHistory(period, day),
     staleTime: 1000 * 60,
   });
+  useSyncFavoriteStatusesFromEntries(query.data?.days.flatMap((historyDay) => historyDay.entries));
+  return query;
 }
 
 /** Logs one glass using the same offline/idempotent water write as the log tab. */

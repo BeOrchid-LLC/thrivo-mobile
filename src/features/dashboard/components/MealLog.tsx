@@ -82,6 +82,9 @@ function MealLogRow({ entry, onPress }: { entry: FoodLogEntry; onPress: () => vo
         </Text>
       </View>
       <View className="flex-row items-center gap-md">
+        <Text variant="body" color="dark">
+          {entry.nutrients.calories} kcal
+        </Text>
         {entry.foodItemId ? (
           <Pressable
             accessibilityRole="button"
@@ -95,9 +98,6 @@ function MealLogRow({ entry, onPress }: { entry: FoodLogEntry; onPress: () => vo
             <Heart size={20} color={colors.primary} weight={isFavorite ? "fill" : "regular"} />
           </Pressable>
         ) : null}
-        <Text variant="body" color="dark">
-          {entry.nutrients.calories} kcal
-        </Text>
       </View>
     </Pressable>
   );

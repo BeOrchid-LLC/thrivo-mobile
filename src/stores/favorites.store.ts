@@ -7,6 +7,9 @@ interface FavoritesState {
   hasHydrated: boolean;
   actions: {
     setFavoriteIds: (ids: string[]) => void;
+    applyFavoriteStatuses: (
+      statuses: { id: string | null | undefined; isFavorite: boolean }[]
+    ) => void;
     addFavoriteId: (id: string) => void;
     removeFavoriteId: (id: string) => void;
     setHasHydrated: (hasHydrated: boolean) => void;
@@ -27,6 +30,16 @@ export const useFavoritesStore = create<FavoritesState>()(
       hasHydrated: false,
       actions: {
         setFavoriteIds: (favoriteIds) => set({ favoriteIds }),
+        applyFavoriteStatuses: (statuses) =>
+          set((state) => {
+            const next = new Set(state.favoriteIds);
+            for (const status of statuses) {
+              if (!status.id) continue;
+              if (status.isFavorite) next.add(status.id);
+              else next.delete(status.id);
+            }
+            return { favoriteIds: Array.from(next) };
+          }),
         addFavoriteId: (id) =>
           set((state) => ({
             favoriteIds: state.favoriteIds.includes(id)
