@@ -18,6 +18,7 @@ import type {
   LogEstimatePayload,
   LogFoodPayload,
   UpdateLogPayload,
+  UpdateWaterPayload,
 } from "@/contracts";
 import {
   addFavorite,
@@ -33,6 +34,7 @@ import {
   removeFavorite,
   searchFoods,
   updateFoodLog,
+  updateWater,
 } from "../api/food-logging.api";
 
 export function useFoodSearch(query: string) {
@@ -225,6 +227,17 @@ export function useDeleteWaterLog(day = localDay()) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => deleteWater(id),
+    onSuccess: () => {
+      invalidateWaterViews(queryClient, day);
+    },
+  });
+}
+
+export function useUpdateWaterLog(day = localDay()) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...payload }: { id: string } & UpdateWaterPayload) =>
+      updateWater(id, payload),
     onSuccess: () => {
       invalidateWaterViews(queryClient, day);
     },

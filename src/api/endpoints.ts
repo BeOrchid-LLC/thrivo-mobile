@@ -287,6 +287,13 @@ export const ENDPOINTS = {
     payload: c.addWaterPayload,
     response: c.waterResponse,
   },
+  WATER_UPDATE: {
+    path: "/metrics/water/:id",
+    method: "PATCH",
+    auth: true,
+    payload: c.updateWaterPayload,
+    response: c.waterResponse,
+  },
   WATER_DELETE: {
     path: "/metrics/water/:id",
     method: "DELETE",

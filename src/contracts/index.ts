@@ -37,6 +37,7 @@ export const subscriptionStatusSchema = pkg.publicSubscriptionStatusSchema;
 export const updateLogPayload = pkg.updateLogPayloadSchema;
 export const updateProfilePayload = pkg.updateProfilePayloadSchema;
 export const updateUserSettingsPayload = pkg.updateUserSettingsPayloadSchema;
+export const updateWaterPayload = pkg.updateWaterPayloadSchema;
 export const upsertFoodPayload = pkg.upsertFoodPayloadSchema;
 export const userSchema = pkg.userProfileSchema;
 export type UpdateProfilePayload = z.infer<typeof updateProfilePayload>;
@@ -83,6 +84,7 @@ export type ProgressSummary = z.infer<typeof pkg.progressSummarySchema>;
 export type Sex = z.infer<typeof pkg.sexSchema>;
 export type Subscription = pkg.SubscriptionState;
 export type SubscriptionStatus = pkg.PublicSubscriptionStatus;
+export type UpdateWaterPayload = z.infer<typeof pkg.updateWaterPayloadSchema>;
 export type User = pkg.UserProfile;
 export type ErrorEnvelope = pkg.ApiError;
 

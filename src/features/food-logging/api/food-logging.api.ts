@@ -7,6 +7,7 @@ import type {
   LogEstimatePayload,
   LogFoodPayload,
   UpdateLogPayload,
+  UpdateWaterPayload,
   UpsertFoodPayload,
 } from "@/contracts";
 
@@ -52,5 +53,8 @@ export const getWater = async (day = localDay()) =>
 
 export const addWater = (amountMl: number, day = localDay(), idempotencyKey?: string) =>
   callApi("WATER_ADD", { payload: { day, amountMl } satisfies AddWaterPayload, idempotencyKey });
+
+export const updateWater = (id: string, payload: UpdateWaterPayload) =>
+  callApi("WATER_UPDATE", { params: { id }, payload });
 
 export const deleteWater = (id: string) => callApi("WATER_DELETE", { params: { id } });

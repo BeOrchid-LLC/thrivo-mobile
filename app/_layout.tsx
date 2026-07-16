@@ -13,7 +13,7 @@ import {
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { queryClient, persistOptions, registerOfflineMutations } from "@/api";
-import { BrandSplash, ErrorState, Screen } from "@/components";
+import { BrandSplash, ErrorState, Screen, ToastProvider } from "@/components";
 import {
   wireApiSeams,
   addNotificationResponseListener,
@@ -220,7 +220,9 @@ function RootLayout() {
             void queryClient.resumePausedMutations();
           }}
         >
-          <RootNavigator fontsReady={fontsReady} />
+          <ToastProvider>
+            <RootNavigator fontsReady={fontsReady} />
+          </ToastProvider>
         </PersistQueryClientProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
