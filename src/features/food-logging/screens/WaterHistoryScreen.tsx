@@ -136,6 +136,7 @@ export function WaterHistoryScreen({ refreshing, onRefresh }: WaterHistoryScreen
           style={{ flex: 1 }}
           data={listItems}
           renderItem={renderItem}
+          ItemSeparatorComponent={() => <View className="h-sm" />}
           keyExtractor={keyExtractor}
           getItemType={getItemType}
           stickyHeaderIndices={stickyHeaderIndices}
@@ -182,7 +183,7 @@ function HistoryDayHeader({
   unitSystem: "metric" | "imperial";
 }) {
   return (
-    <View className="flex-row items-center justify-between bg-white pb-sm pt-md">
+    <View className="flex-row items-center justify-between bg-white pb-sm pt-lg">
       <Text variant="heading3" color="dark">
         {formatHistoryDay(day)}
       </Text>

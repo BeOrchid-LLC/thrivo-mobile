@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, View } from "react-native";
-import { Backspace } from "phosphor-react-native";
+import { XCircleIcon } from "phosphor-react-native";
 import {
   BottomSheetShell,
   Button,
@@ -116,7 +116,7 @@ export function WaterAmountSheet({
     >
       <View className="items-center gap-xs">
         <View className="flex-row items-end gap-xs py-xs">
-          <Text className="font-semibold text-[32px] leading-[40px] text-dark">
+          <Text variant="heading2" className="text-dark">
             {displayAmount}
           </Text>
           <Text variant="caption" color="muted" className="pb-[3px]">
@@ -152,10 +152,10 @@ export function WaterAmountSheet({
                 accessibilityRole="button"
                 accessibilityLabel={key === "backspace" ? "Delete digit" : `Water amount ${key}`}
                 onPress={() => pressKey(key)}
-                className="h-[36px] flex-1 items-center justify-center rounded-md bg-primarySoft"
+                className="flex-1 items-center justify-center rounded-md bg-primarySoft py-lg"
               >
                 {key === "backspace" ? (
-                  <Backspace size={18} color={colors.dark} />
+                  <XCircleIcon size={18} color={colors.dark} />
                 ) : (
                   <Text variant="body" color="dark">
                     {key}
