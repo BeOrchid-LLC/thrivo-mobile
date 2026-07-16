@@ -59,12 +59,6 @@ const historyDayWithFavoritesSchema = z.object({
   lockReason: z.enum(["free_history_limit"]).nullable().default(null),
   entries: z.array(foodLogEntryWithFavoriteSchema),
 });
-export const foodLogHistoryLockedRangeSchema = z.object({
-  from: pkg.localDaySchema,
-  to: pkg.localDaySchema,
-  lockReason: z.enum(["free_history_limit"]),
-});
-
 // `*ResponseSchema` are full `{ success, data, … }` envelopes; `callApi` validates
 // the unwrapped `data`, so expose `.shape.data` under the app's response names.
 export const chartResponse = pkg.chartResponseSchema.shape.data;
@@ -86,7 +80,7 @@ export const foodLogHistoryResponse = z.object({
   from: pkg.localDaySchema,
   to: pkg.localDaySchema,
   days: z.array(historyDayWithFavoritesSchema),
-  lockedRange: foodLogHistoryLockedRangeSchema.nullable(),
+  lockedRange: pkg.foodLogHistoryLockedRangeSchema.nullable(),
   historyLimitDays: z.number().int(),
 });
 export const foodLookupResponse = pkg.foodLookupResponseSchema.shape.data;
