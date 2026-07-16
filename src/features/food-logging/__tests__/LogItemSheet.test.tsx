@@ -15,8 +15,10 @@ jest.mock("../hooks/useFoodLogging", () => ({
   useFavorites: () => mockUseFavorites(),
 }));
 
+const mockUseEntitlement = jest.fn(() => ({ isPremium: true, isLoading: false }));
+
 jest.mock("@/hooks/useEntitlement", () => ({
-  useEntitlement: () => ({ isPremium: true, isLoading: false }),
+  useEntitlement: () => mockUseEntitlement(),
 }));
 
 jest.mock("@/lib", () => ({
@@ -53,6 +55,7 @@ describe("LogItemSheet", () => {
     mockUseFavorites.mockReturnValue({ data: { items: [] } });
     mockUseAddFavorite.mockReturnValue({ mutate: jest.fn() });
     mockUseRemoveFavorite.mockReturnValue({ mutate: jest.fn() });
+    mockUseEntitlement.mockReturnValue({ isPremium: true, isLoading: false });
     mockUseLogFood.mockReturnValue({
       mutate: jest.fn(),
       isPending: false,
@@ -83,6 +86,29 @@ describe("LogItemSheet", () => {
 
     expect(screen.getByText("165 kcal")).toBeTruthy();
     expect(screen.getByText("Protein")).toBeTruthy();
+  });
+
+  it("gates macros behind PremiumGate for free users while keeping kcal visible", () => {
+    mockUseEntitlement.mockReturnValue({ isPremium: false, isLoading: false });
+
+    const screen = render(
+      <LogItemSheet item={foodItem} day="2026-07-10" visible onClose={jest.fn()} />
+    );
+
+    expect(screen.getByText("165 kcal")).toBeTruthy();
+    expect(screen.getByText("Subscribe to see macros")).toBeTruthy();
+    expect(screen.getByText("View plans")).toBeTruthy();
+  });
+
+  it("shows ungated macro cards for premium users", () => {
+    mockUseEntitlement.mockReturnValue({ isPremium: true, isLoading: false });
+
+    const screen = render(
+      <LogItemSheet item={foodItem} day="2026-07-10" visible onClose={jest.fn()} />
+    );
+
+    expect(screen.getByText("Protein")).toBeTruthy();
+    expect(screen.queryByText("Subscribe to see macros")).toBeNull();
   });
 
   it("resets quantity when switching to grams", () => {

@@ -19,13 +19,15 @@ jest.mock("../hooks/useFoodLogging", () => ({
   useFoodDetail: (...args: unknown[]) => mockUseFoodDetail(...args),
 }));
 
+const mockUseEntitlement = jest.fn(() => ({ isPremium: true, isLoading: false }));
+
 jest.mock("@react-native-community/datetimepicker", () => {
   const { View } = jest.requireActual("react-native");
   return { __esModule: true, default: () => <View testID="time-picker" /> };
 });
 
 jest.mock("@/hooks/useEntitlement", () => ({
-  useEntitlement: () => ({ isPremium: true, isLoading: false }),
+  useEntitlement: () => mockUseEntitlement(),
 }));
 
 const entry: FoodLogEntry = {
@@ -82,6 +84,7 @@ describe("EditFoodLogSheet", () => {
     mockUseFavorites.mockReturnValue({ data: { items: [] } });
     mockUseToggleFavorite.mockReturnValue(jest.fn());
     mockUseFoodDetail.mockReturnValue({ data: undefined, isLoading: false });
+    mockUseEntitlement.mockReturnValue({ isPremium: true, isLoading: false });
   });
 
   it("renders nothing when there is no entry", () => {
@@ -188,5 +191,24 @@ describe("EditFoodLogSheet", () => {
     expect(screen.queryByLabelText("Delete entry")).toBeNull();
     expect(screen.getByText(/Editing is only available for entries logged today/)).toBeTruthy();
     expect(screen.getByLabelText("Add favorite")).toBeTruthy();
+  });
+
+  it("gates macros behind PremiumGate for free users while keeping kcal visible", () => {
+    mockUseEntitlement.mockReturnValue({ isPremium: false, isLoading: false });
+
+    const screen = render(<EditFoodLogSheet entry={entry} visible onClose={jest.fn()} />);
+
+    expect(screen.getByText("120 kcal")).toBeTruthy();
+    expect(screen.getByText("Subscribe to see macros")).toBeTruthy();
+    expect(screen.getByText("View plans")).toBeTruthy();
+  });
+
+  it("shows ungated macro cards for premium users", () => {
+    mockUseEntitlement.mockReturnValue({ isPremium: true, isLoading: false });
+
+    const screen = render(<EditFoodLogSheet entry={entry} visible onClose={jest.fn()} />);
+
+    expect(screen.getByText("Protein")).toBeTruthy();
+    expect(screen.queryByText("Subscribe to see macros")).toBeNull();
   });
 });
