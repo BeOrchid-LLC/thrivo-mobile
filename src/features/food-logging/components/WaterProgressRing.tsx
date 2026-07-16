@@ -18,7 +18,7 @@ export function WaterProgressRing({
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const clampedProgress = Math.max(0, Math.min(progressPercent, 100));
-  const dashOffset = circumference * (1 - clampedProgress / 100);
+  const progressRatio = clampedProgress / 100;
   const activeColor = behind ? colors.accent : colors.primary;
 
   return (
@@ -41,10 +41,8 @@ export function WaterProgressRing({
             strokeWidth={strokeWidth}
             fill="transparent"
             strokeLinecap="round"
-            strokeDasharray={`${circumference} ${circumference}`}
-            strokeDashoffset={dashOffset}
-            rotation="-90"
-            origin={`${size / 2}, ${size / 2}`}
+            strokeDasharray={`${circumference * progressRatio} ${circumference}`}
+            transform={`rotate(-90 ${size / 2} ${size / 2})`}
           />
         ) : null}
       </Svg>
