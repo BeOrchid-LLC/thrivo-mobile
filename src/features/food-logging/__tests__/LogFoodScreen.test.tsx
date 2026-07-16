@@ -447,12 +447,12 @@ describe("LogFoodScreen", () => {
     fireEvent.press(screen.getByText("Water"));
 
     fireEvent.press(screen.getByText("Add water manually"));
-    expect(screen.getAllByText("250").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("0").length).toBeGreaterThan(0);
 
     settings.data.unitSystem = "imperial";
     screen.rerender(<LogFoodScreen />);
 
-    expect(screen.getAllByText("8.5").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("0").length).toBeGreaterThan(0);
     expect(screen.getByText("Log Water")).toBeTruthy();
   });
 });

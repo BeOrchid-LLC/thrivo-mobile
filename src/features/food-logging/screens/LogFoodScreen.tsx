@@ -547,7 +547,7 @@ function WaterHome({ day }: { day: string }) {
         visible={manualOpen}
         title="Add water manually"
         submitLabel="Add water"
-        initialAmountMl={250}
+        initialAmountMl={0}
         unitSystem={unitSystem}
         loading={addWater.isPending}
         error={addWater.error?.message ?? null}
