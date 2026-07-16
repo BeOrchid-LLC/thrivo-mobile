@@ -42,7 +42,7 @@ export function WaterProgressRing({
             fill="transparent"
             strokeLinecap="round"
             strokeDasharray={`${circumference * progressRatio} ${circumference}`}
-            transform={`rotate(-90 ${size / 2} ${size / 2})`}
+            transform={`rotate(90 ${size / 2} ${size / 2})`}
           />
         ) : null}
       </Svg>
