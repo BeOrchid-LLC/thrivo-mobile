@@ -33,6 +33,9 @@ export const queryKeys = {
       ["metrics", "chart", metric, period, day] as const,
     weightContext: (day: string) => ["metrics", "weight", "context", day] as const,
     waterByDay: (day: string) => ["metrics", "water", day] as const,
+    waterHistoryRoot: () => ["metrics", "water", "history"] as const,
+    waterHistory: (period: string, day: string) =>
+      ["metrics", "water", "history", period, day] as const,
   },
 
   checkins: {

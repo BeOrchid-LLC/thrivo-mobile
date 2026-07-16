@@ -68,6 +68,29 @@ export const progressResponse = pkg.progressResponseSchema.shape.data;
 export const recentFoodsResponse = pkg.recentFoodsResponseSchema.shape.data;
 export const subscriptionResponse = pkg.subscriptionResponseSchema.shape.data;
 export const waterResponse = pkg.waterResponseSchema.shape.data;
+export const waterHistoryResponse = z.object({
+  history: z.object({
+    period: pkg.chartPeriodSchema,
+    date: pkg.localDaySchema,
+    from: pkg.localDaySchema,
+    to: pkg.localDaySchema,
+    days: z.array(
+      z.object({
+        day: pkg.localDaySchema,
+        totalMl: z.number().int().nonnegative(),
+        entries: z.array(pkg.waterEntrySchema),
+      })
+    ),
+    lockedRange: z
+      .object({
+        from: pkg.localDaySchema,
+        to: pkg.localDaySchema,
+        lockReason: z.enum(["free_history_limit"]),
+      })
+      .nullable(),
+    historyLimitDays: z.number().int(),
+  }),
+});
 export const weightContextResponse = pkg.weightContextResponseSchema.shape.data;
 export const weightEntryResponse = pkg.weightEntryResponseSchema.shape.data;
 
@@ -111,6 +134,7 @@ export type RecentFoodsResponse = z.infer<typeof pkg.recentFoodsResponseSchema.s
 // Shadow the package's envelope-typed `SubscriptionResponse` with the unwrapped shape.
 export type SubscriptionResponse = z.infer<typeof pkg.subscriptionResponseSchema.shape.data>;
 export type WaterResponse = z.infer<typeof pkg.waterResponseSchema.shape.data>;
+export type WaterHistoryResponse = z.infer<typeof waterHistoryResponse>;
 export type WeightContextResponse = z.infer<typeof pkg.weightContextResponseSchema.shape.data>;
 export type WeightEntryResponse = z.infer<typeof pkg.weightEntryResponseSchema.shape.data>;
 

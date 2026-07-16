@@ -91,6 +91,7 @@ export default function AppLayout() {
       />
       <Tabs.Screen name="foods" options={{ href: null }} />
       <Tabs.Screen name="history" options={{ href: null }} />
+      <Tabs.Screen name="water-history" options={{ href: null }} />
       <Tabs.Screen name="checkin" options={{ href: null }} />
     </Tabs>
   );

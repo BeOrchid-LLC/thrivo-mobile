@@ -14,6 +14,7 @@ export function invalidateFoodLogViews(queryClient: QueryClient, day: string): v
 
 export function invalidateWaterViews(queryClient: QueryClient, day: string): void {
   void queryClient.invalidateQueries({ queryKey: queryKeys.metrics.waterByDay(day) });
+  void queryClient.invalidateQueries({ queryKey: queryKeys.metrics.waterHistoryRoot() });
   void queryClient.invalidateQueries({ queryKey: queryKeys.metrics.progress(day) });
   void queryClient.invalidateQueries({ queryKey: queryKeys.metrics.chartRoot() });
 }

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { router } from "expo-router";
 import { Pressable, TextInput, View } from "react-native";
 import {
   CameraView,
@@ -8,6 +9,7 @@ import {
 } from "expo-camera";
 import {
   Barcode,
+  CaretRight,
   Heart,
   MagnifyingGlass,
   Plus,
@@ -488,9 +490,22 @@ function WaterHome({ day }: { day: string }) {
         </Pressable>
       </View>
       <View className="gap-md">
-        <Text variant="heading3" color="muted">
-          {"Today's log"}
-        </Text>
+        <View className="flex-row items-center justify-between">
+          <Text variant="heading3" color="muted">
+            {"Today's log"}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="View all water logs"
+            onPress={() => router.push("/(app)/water-history")}
+            className="flex-row items-center gap-xs py-xs"
+          >
+            <Text variant="body" color="primary" className="font-semibold">
+              View all logs
+            </Text>
+            <CaretRight size={16} color={colors.primary} weight="bold" />
+          </Pressable>
+        </View>
         {data.entries.map((entry) => (
           <Pressable
             key={entry.id}

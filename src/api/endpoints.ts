@@ -280,6 +280,12 @@ export const ENDPOINTS = {
     auth: true,
     response: c.waterResponse,
   },
+  WATER_HISTORY: {
+    path: "/metrics/water/history",
+    method: "GET",
+    auth: true,
+    response: c.waterHistoryResponse,
+  },
   WATER_ADD: {
     path: "/metrics/water",
     method: "POST",

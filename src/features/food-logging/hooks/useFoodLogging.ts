@@ -13,6 +13,7 @@ import {
 import { useFavoritesActions, useFavoritesStore } from "@/stores";
 import { localDay } from "@/utils";
 import type {
+  ChartPeriod,
   EstimateFoodPayload,
   FavoritesListResponse,
   LogEstimatePayload,
@@ -30,6 +31,7 @@ import {
   getFoodLogDay,
   getRecentFoods,
   getWater,
+  getWaterHistory,
   lookupFood,
   removeFavorite,
   searchFoods,
@@ -102,6 +104,14 @@ export function useWater(day = localDay()) {
   return useQuery({
     queryKey: queryKeys.metrics.waterByDay(day),
     queryFn: () => getWater(day),
+    staleTime: 1000 * 60,
+  });
+}
+
+export function useWaterHistory(period: ChartPeriod, day = localDay()) {
+  return useQuery({
+    queryKey: queryKeys.metrics.waterHistory(period, day),
+    queryFn: () => getWaterHistory(period, day),
     staleTime: 1000 * 60,
   });
 }
