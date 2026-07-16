@@ -1,8 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, View } from "react-native";
-import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { Backspace } from "phosphor-react-native";
-import { BottomSheetShell, Button, FormError, Text } from "@/components";
+import {
+  BottomSheetShell,
+  Button,
+  FormError,
+  Text,
+  TimePicker,
+  type TimePickerEvent,
+} from "@/components";
 import { colors } from "@/theme";
 import { formatWater, roundTo, waterFromMl, waterToMl, waterUnitFor } from "@/utils";
 
@@ -84,7 +90,7 @@ export function WaterAmountSheet({
     });
   };
 
-  const onTimePicked = (event: DateTimePickerEvent, date?: Date) => {
+  const onTimePicked = (event: TimePickerEvent, date?: Date) => {
     setShowTimePicker(false);
     if (event.type !== "set" || !date) return;
     setRecordedAt((current) => mergeTime(current, date));
@@ -105,14 +111,7 @@ export function WaterAmountSheet({
       title={title}
       closeLabel={`Close ${title}`}
       modalOverlay={
-        showTimePicker ? (
-          <DateTimePicker
-            mode="time"
-            display="spinner"
-            value={recordedAt}
-            onChange={onTimePicked}
-          />
-        ) : null
+        showTimePicker ? <TimePicker value={recordedAt} onChange={onTimePicked} /> : null
       }
     >
       <View className="items-center gap-xs">

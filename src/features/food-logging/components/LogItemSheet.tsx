@@ -1,8 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, View } from "react-native";
-import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { Heart } from "phosphor-react-native";
-import { BottomSheetShell, Button, FormError, Text } from "@/components";
+import {
+  BottomSheetShell,
+  Button,
+  FormError,
+  Text,
+  TimePicker,
+  type TimePickerEvent,
+} from "@/components";
 import { isNetworkReachable } from "@/lib";
 import { useFavoritesActions, useIsFavorite } from "@/stores";
 import { colors } from "@/theme";
@@ -83,7 +89,7 @@ export function LogItemSheet({ item, day, visible, onClose }: LogItemSheetProps)
     setServings(defaultQuantityFor(choice, item.servingGrams));
   };
 
-  const onTimePicked = (event: DateTimePickerEvent, date?: Date) => {
+  const onTimePicked = (event: TimePickerEvent, date?: Date) => {
     setShowTimePicker(false);
     if (event.type !== "set" || !date) return;
     setConsumedAt(date);
@@ -139,14 +145,7 @@ export function LogItemSheet({ item, day, visible, onClose }: LogItemSheetProps)
         </Text>
       }
       modalOverlay={
-        showTimePicker ? (
-          <DateTimePicker
-            mode="time"
-            display="spinner"
-            value={consumedAt}
-            onChange={onTimePicked}
-          />
-        ) : null
+        showTimePicker ? <TimePicker value={consumedAt} onChange={onTimePicked} /> : null
       }
     >
       <QuantityUnitField

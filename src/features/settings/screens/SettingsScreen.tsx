@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Linking, Pressable, Switch, View } from "react-native";
 import { Image } from "expo-image";
-import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { router } from "expo-router";
 import {
   Bell,
@@ -15,7 +14,16 @@ import {
   Ticket,
   X,
 } from "phosphor-react-native";
-import { Button, Screen, SectionError, SelectSheet, SkeletonText, Text } from "@/components";
+import {
+  Button,
+  Screen,
+  SectionError,
+  SelectSheet,
+  SkeletonText,
+  Text,
+  TimePicker,
+  type TimePickerEvent,
+} from "@/components";
 import { queryClient, queryKeys } from "@/api";
 import { LEGAL_LINKS } from "@/config/links";
 import { useLogout } from "@/features/auth/hooks/useAuth";
@@ -172,7 +180,7 @@ export function SettingsScreen() {
   const sub = subscription.data?.subscription;
   const renewsAt = shortDate(sub?.renewsAt ?? sub?.accessEndsAt);
 
-  const onTimePicked = (event: DateTimePickerEvent, date?: Date) => {
+  const onTimePicked = (event: TimePickerEvent, date?: Date) => {
     const field = editingTime;
     setEditingTime(null); // Android dialog is one-shot; iOS spinner closes too.
     if (event.type !== "set" || !date || !field) return;
@@ -508,12 +516,7 @@ export function SettingsScreen() {
       />
 
       {editingTime ? (
-        <DateTimePicker
-          mode="time"
-          display="spinner"
-          value={timeToDate(userSettings?.[editingTime])}
-          onChange={onTimePicked}
-        />
+        <TimePicker value={timeToDate(userSettings?.[editingTime])} onChange={onTimePicked} />
       ) : null}
 
       <SelectSheet
