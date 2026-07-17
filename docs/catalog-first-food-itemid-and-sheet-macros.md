@@ -159,3 +159,32 @@ flowchart TB
 1. **All new food logs get `foodItemId`?** Yes (Phases 1–4 + mobile). Water is not a food log.  
 2. **Old logs?** Phase 5 backfill links or creates personal items and sets the FK.  
 3. **Macros in sheets?** Phase 7 — kcal free; macros premium-gated via `PremiumGate` + entitlement.
+
+## Remediation handoff plan — 2026-07-17
+
+Implemented in this phase:
+
+- Backend estimate responses now require validated `referenceGrams`; estimate catalog nutrients store `servingG = referenceGrams / quantity`.
+- Food-log serving edits recalculate from catalog reference grams for default, named, and gram selections; quantity-only edits preserve snapshot scaling.
+- Food-log responses include the selected serving identifier.
+- Backfill rows without defensible gram information are flagged instead of receiving fabricated catalog nutrition.
+- Barcode-less Open Food Facts results use stable external identities; local search has deterministic ordering.
+- Mobile add/edit previews scale by grams for gram and named-serving choices, seed edits by serving ID, deduplicate search pages, fetch external results after short local pages, and avoid entitlement-gate flashes.
+- Backend migration `0028_striped_randall_flagg.sql` adds the active Open Food Facts origin-reference uniqueness guard.
+
+Validation completed:
+
+- Backend typecheck passed.
+- Mobile typecheck passed after restoring dependencies.
+- Admin typecheck passed with contracts `0.16.0` installed.
+- Backend targeted unit suites passed: 32 tests.
+- Mobile search suite passed: 2 tests.
+- Database integration suites are present but skipped unless `RUN_DB_TESTS=1` and a test database is available.
+
+Remaining delivery plan:
+
+1. Publish/deploy the backend and the refreshed contracts artifact consumed by mobile. The currently published `0.16.0` declarations do not yet contain `referenceGrams`/`servingId`, so this checkout temporarily extends the mobile contract seam until that artifact is republished.
+2. Run migration `0028_striped_randall_flagg.sql` through Coolify after checking for duplicate active Open Food Facts `origin_ref` values.
+3. In Coolify, run a dry-run of `node dist/backfill-food-log-item-ids.js` with a retained report, inspect flagged rows, then run `node dist/backfill-food-log-item-ids.js --apply`.
+4. Verify the remaining `food_logs.food_item_id IS NULL` count and manually resolve rows flagged `missing_reference_grams`; never invent gram references.
+5. Publish the mobile build/OTA with the contracts artifact and catalog-first UI, then manually QA local/external search, barcode, describe meal, favorites, re-log, serving changes, free/premium sheets, and offline logging.

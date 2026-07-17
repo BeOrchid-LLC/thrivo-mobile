@@ -26,7 +26,9 @@ export const cancelSubscriptionPayload = pkg.cancelSubscriptionPayloadSchema;
 export const chartMetric = pkg.chartMetricSchema;
 export const chartPeriod = pkg.chartPeriodSchema;
 export const estimateFoodPayload = pkg.estimateFoodPayloadSchema;
-export const logEstimatePayload = pkg.logEstimatePayloadSchema;
+export const logEstimatePayload = pkg.logEstimatePayloadSchema.extend({
+  referenceGrams: z.number().positive(),
+});
 export const otpRequestPayload = pkg.otpRequestPayloadSchema;
 export const otpVerifyPayload = pkg.otpVerifyPayloadSchema;
 export const purchaseSubscriptionPayload = pkg.purchaseSubscriptionPayloadSchema;
@@ -51,6 +53,7 @@ const foodItemWithFavoriteSchema = pkg.foodItemSchema.extend({
   isFavorite: z.boolean().optional(),
 });
 const foodLogEntryWithFavoriteSchema = pkg.foodLogEntrySchema.extend({
+  servingId: z.string().nullable().optional(),
   isFavorite: z.boolean().optional(),
 });
 const historyDayWithFavoritesSchema = z.object({
@@ -65,7 +68,14 @@ export const chartResponse = pkg.chartResponseSchema.shape.data;
 export const dashboardCaloriesResponse = pkg.dashboardCaloriesResponseSchema.shape.data;
 export const dashboardMacrosResponse = pkg.dashboardMacrosResponseSchema.shape.data;
 export const dashboardStreakResponse = pkg.dashboardStreakResponseSchema.shape.data;
-export const estimateFoodResponse = pkg.estimateFoodResponseSchema.shape.data;
+const estimateWithReferenceSchema = pkg.estimateFoodResponseSchema.shape.data.shape.estimate.extend(
+  {
+    referenceGrams: z.number().positive(),
+  }
+);
+export const estimateFoodResponse = pkg.estimateFoodResponseSchema.shape.data.extend({
+  estimate: estimateWithReferenceSchema,
+});
 // R5-1: list and mutation responses diverged — add/remove now return the
 // single changed item (nullable on remove), not a full re-list.
 export const favoritesListResponse = z.object({ items: z.array(foodItemWithFavoriteSchema) });
@@ -173,3 +183,4 @@ export type FoodSearchResponse = z.infer<typeof pkg.foodSearchResponseSchema.sha
 
 export const logFoodPayload = pkg.logFoodPayloadSchema;
 export type LogFoodPayload = z.infer<typeof pkg.logFoodPayloadSchema>;
+export type LogEstimatePayload = z.infer<typeof logEstimatePayload>;

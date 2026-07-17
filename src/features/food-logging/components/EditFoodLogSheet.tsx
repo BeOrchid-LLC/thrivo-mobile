@@ -19,9 +19,11 @@ import type { FoodLogEntry } from "@/contracts";
 import { QuantityUnitField } from "./QuantityUnitField";
 import { MacroCards } from "./MacroCards";
 import {
+  GRAMS_SERVING_ID,
   buildServingChoices,
   defaultQuantityFor,
   resolveUpdateServingFields,
+  type ServingChoice,
 } from "../utils/servingChoices";
 import { parsePositiveQuantity } from "../utils/quantity";
 import {
@@ -54,6 +56,22 @@ function scaleEntryNutrients(entry: FoodLogEntry, quantity: number): FoodLogEntr
   };
 }
 
+function scaleCatalogNutrients(
+  nutrients: FoodLogEntry["nutrients"],
+  choice: ServingChoice,
+  quantity: number,
+  referenceGrams: number
+): FoodLogEntry["nutrients"] {
+  const isGrams = choice.servingId === GRAMS_SERVING_ID || choice.key === GRAMS_SERVING_ID;
+  const selectedGrams = isGrams ? quantity : quantity * (choice.grams ?? referenceGrams);
+  const factor = selectedGrams / referenceGrams;
+  return {
+    calories: Math.round(nutrients.calories * factor),
+    proteinG: nutrients.proteinG * factor,
+    carbsG: nutrients.carbsG * factor,
+    fatG: nutrients.fatG * factor,
+  };
+}
 /**
  * Bottom sheet for a logged entry. Today's entries get full editing
  * (servings/time/delete); older entries (dashboard history, etc.) only get the
@@ -101,10 +119,15 @@ export function EditFoodLogSheet({ entry, visible, onClose }: EditFoodLogSheetPr
   useEffect(() => {
     if (!visible || !entry || choices.length === 0) return;
     const savedLabel = entry.servingUnit?.trim().toLowerCase();
-    const matched = savedLabel
+    const matchedById = entry.servingId
+      ? choices.find(
+          (choice) => choice.servingId === entry.servingId || choice.key === entry.servingId
+        )
+      : null;
+    const matchedByLabel = savedLabel
       ? choices.find((choice) => choice.label.trim().toLowerCase() === savedLabel)
       : null;
-    setSelectedChoiceKey((matched ?? choices[0]).key);
+    setSelectedChoiceKey((matchedById ?? matchedByLabel ?? choices[0]).key);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, entry?.id, choices]);
 
@@ -122,7 +145,15 @@ export function EditFoodLogSheet({ entry, visible, onClose }: EditFoodLogSheetPr
     unitChanged;
 
   const previewQty = servingsValue ?? entry.servings;
-  const scaled = scaleEntryNutrients(entry, previewQty);
+  const scaled =
+    detail.data && selectedChoice
+      ? scaleCatalogNutrients(
+          detail.data.nutrients,
+          selectedChoice,
+          previewQty,
+          detail.data.servingGrams ?? 100
+        )
+      : scaleEntryNutrients(entry, previewQty);
 
   const onSelectChoice = (choice: (typeof choices)[number]) => {
     setSelectedChoiceKey(choice.key);
@@ -205,7 +236,9 @@ export function EditFoodLogSheet({ entry, visible, onClose }: EditFoodLogSheetPr
             onSelectChoice={onSelectChoice}
           />
 
-          {entitlement.isPremium ? (
+          {entitlement.isLoading ? (
+            <View className="h-24" />
+          ) : entitlement.isPremium ? (
             macros
           ) : (
             <PremiumGate
@@ -261,7 +294,9 @@ export function EditFoodLogSheet({ entry, visible, onClose }: EditFoodLogSheetPr
             {entry.servingUnit ? ` ${entry.servingUnit}` : " serving"} ·{" "}
             {formatTime(new Date(entry.consumedAt))}
           </Text>
-          {entitlement.isPremium ? (
+          {entitlement.isLoading ? (
+            <View className="h-24" />
+          ) : entitlement.isPremium ? (
             macros
           ) : (
             <PremiumGate

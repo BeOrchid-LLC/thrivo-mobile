@@ -98,4 +98,37 @@ describe("useFoodSearch", () => {
       cursor: "external:1",
     });
   });
+  it("fetches external results after a short local page and deduplicates ids", async () => {
+    const local = {
+      id: "food-1",
+      name: "Oats",
+      brand: null,
+      barcode: null,
+      source: "authoritative",
+      servingLabel: "40g",
+      servingGrams: 40,
+      nutrients: { calories: 150, proteinG: 5, carbsG: 27, fatG: 3 },
+      servingOptions: [],
+      isPersonal: false,
+      isEstimated: false,
+    };
+    mockSearchFoods
+      .mockResolvedValueOnce({
+        items: [local],
+        nextCursor: "external:1",
+        phase: "local",
+        cached: false,
+      })
+      .mockResolvedValueOnce({
+        items: [local, { ...local, id: "food-2", name: "Oat milk" }],
+        nextCursor: null,
+        phase: "external",
+        cached: false,
+      });
+
+    const screen = render(wrap(<Harness query="oat" />));
+
+    await waitFor(() => expect(screen.getByTestId("count").props.children).toBe("2"));
+    expect(mockSearchFoods).toHaveBeenCalledTimes(2);
+  });
 });

@@ -70,7 +70,6 @@ export function useFoodSearch(query: string) {
   const shouldAutoFetchExternal =
     enabled &&
     Boolean(firstPage) &&
-    firstPage!.items.length === 0 &&
     Boolean(firstPage!.nextCursor?.startsWith("external:")) &&
     Boolean(hasNextPage) &&
     !isFetchingNextPage &&
@@ -80,7 +79,11 @@ export function useFoodSearch(query: string) {
     if (shouldAutoFetchExternal) void fetchNextPage();
   }, [shouldAutoFetchExternal, fetchNextPage]);
 
-  const items = data?.pages.flatMap((page) => page.items) ?? [];
+  const items = Array.from(
+    new Map(
+      (data?.pages.flatMap((page) => page.items) ?? []).map((item) => [item.id, item])
+    ).values()
+  );
 
   return {
     ...rest,

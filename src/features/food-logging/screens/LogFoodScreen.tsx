@@ -791,6 +791,7 @@ function DescribeMealScreen({ day, onBack }: { day: string; onBack: () => void }
         ...payload,
         day,
         nutrients: estimateResult!.nutrients,
+        referenceGrams: estimateResult!.referenceGrams,
         servingUnit: estimateResult!.servingUnit,
       },
       {

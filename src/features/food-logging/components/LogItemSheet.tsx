@@ -19,9 +19,11 @@ import type { FoodItem, LogMutationResponse } from "@/contracts";
 import { QuantityUnitField } from "./QuantityUnitField";
 import { MacroCards } from "./MacroCards";
 import {
+  GRAMS_SERVING_ID,
   buildServingChoices,
   defaultQuantityFor,
   resolveCreateServingFields,
+  type ServingChoice,
 } from "../utils/servingChoices";
 import { parsePositiveQuantity } from "../utils/quantity";
 import {
@@ -42,12 +44,20 @@ function formatTime(date: Date): string {
   return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
-function scaleNutrients(nutrients: FoodItem["nutrients"], quantity: number): FoodItem["nutrients"] {
+function scaleNutrients(
+  nutrients: FoodItem["nutrients"],
+  choice: ServingChoice,
+  quantity: number,
+  referenceGrams: number
+): FoodItem["nutrients"] {
+  const isGrams = choice.servingId === GRAMS_SERVING_ID || choice.key === GRAMS_SERVING_ID;
+  const selectedGrams = isGrams ? quantity : quantity * (choice.grams ?? referenceGrams);
+  const factor = selectedGrams / referenceGrams;
   return {
-    calories: Math.round(nutrients.calories * quantity),
-    proteinG: nutrients.proteinG * quantity,
-    carbsG: nutrients.carbsG * quantity,
-    fatG: nutrients.fatG * quantity,
+    calories: Math.round(nutrients.calories * factor),
+    proteinG: nutrients.proteinG * factor,
+    carbsG: nutrients.carbsG * factor,
+    fatG: nutrients.fatG * factor,
   };
 }
 
@@ -93,7 +103,12 @@ export function LogItemSheet({ item, day, visible, onClose }: LogItemSheetProps)
 
   const servingsValue = parsePositiveQuantity(servings);
   const hasValidServings = servingsValue !== null;
-  const scaled = scaleNutrients(item.nutrients, servingsValue ?? 1);
+  const scaled = scaleNutrients(
+    item.nutrients,
+    selectedChoice!,
+    servingsValue ?? 1,
+    item.servingGrams ?? 100
+  );
 
   const onSelectChoice = (choice: (typeof choices)[number]) => {
     setSelectedChoiceKey(choice.key);
@@ -178,7 +193,9 @@ export function LogItemSheet({ item, day, visible, onClose }: LogItemSheetProps)
         onSelectChoice={onSelectChoice}
       />
 
-      {entitlement.isPremium ? (
+      {entitlement.isLoading ? (
+        <View className="h-24" />
+      ) : entitlement.isPremium ? (
         macros
       ) : (
         <PremiumGate
