@@ -181,9 +181,19 @@ Validation completed:
 - Mobile search suite passed: 2 tests.
 - Database integration suites are present but skipped unless `RUN_DB_TESTS=1` and a test database is available.
 
-Remaining delivery plan:
+## Remediation follow-up — 2026-07-17 (later same day)
 
-1. Publish/deploy the backend and the refreshed contracts artifact consumed by mobile. The currently published `0.16.0` declarations do not yet contain `referenceGrams`/`servingId`, so this checkout temporarily extends the mobile contract seam until that artifact is republished.
+Closed two acceptance-gate gaps left open by the handoff above:
+
+- `thrivo-backend/scripts/backfill-food-log-item-ids.ts`: exported `inferReferenceGrams` and guarded the top-level `run()` call behind an `isMain` check (same pattern as `check-env-example.ts`), so it's importable without executing. Added `tests/unit/backfill-food-log-item-ids.test.ts` (4 tests) proving it never fabricates a gram basis for non-gram units — returns `null` (which flags the row) instead of guessing.
+- Mobile: added numeric scaling assertions to `LogItemSheet.test.tsx` and `EditFoodLogSheet.test.tsx` proving the preview math matches the server's `resolveQuantityGrams`/`scaleNutrients` formula for a named serving (grams ≠ quantity) and a raw-gram entry, not just the trivial 1:1 default-serving case the prior tests covered.
+- Bumped `contracts/package.json` to `0.16.1` locally (`npm run contracts:pack:dry` verified it builds clean). **Not yet published to npm** — that step, plus removing mobile's temporary local schema patch in `src/contracts/index.ts` once the real package is live, is still manual.
+
+Verification this pass: backend typecheck/lint/format clean, 306 backend unit tests passing (up from 302), all 39 mobile Jest suites / 179 tests passing (up from 179 pre-existing + this pass's new assertions folded into the same files). Backend DB-integration suites still could not be run — the `.env` `DATABASE_URL` (`13.140.160.132:5433`) is unreachable from this sandbox (`ETIMEDOUT`), not a code issue; run them from a machine with network access to that host.
+
+Remaining delivery plan (unchanged, still manual/infra):
+
+1. `npm publish` the bumped contracts package (`0.16.1`), then drop the temporary local schema patch in mobile's `src/contracts/index.ts` and admin's equivalent once installed.
 2. Run migration `0028_striped_randall_flagg.sql` through Coolify after checking for duplicate active Open Food Facts `origin_ref` values.
 3. In Coolify, run a dry-run of `node dist/backfill-food-log-item-ids.js` with a retained report, inspect flagged rows, then run `node dist/backfill-food-log-item-ids.js --apply`.
 4. Verify the remaining `food_logs.food_item_id IS NULL` count and manually resolve rows flagged `missing_reference_grams`; never invent gram references.

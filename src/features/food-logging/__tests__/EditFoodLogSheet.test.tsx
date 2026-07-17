@@ -149,6 +149,21 @@ describe("EditFoodLogSheet", () => {
     );
   });
 
+  it("scales the macro preview by serving grams, matching the server's reference-grams math", () => {
+    // foodItem reference is 170g/120kcal/18p/8c/2f; "1 cup" = 245g, so the
+    // preview must scale by 245/170 (not by the raw quantity of 1).
+    mockUseFoodDetail.mockReturnValue({ data: foodItem, isLoading: false });
+
+    const screen = render(<EditFoodLogSheet entry={entry} visible onClose={jest.fn()} />);
+    fireEvent.press(screen.getByText("Unit"));
+    fireEvent.press(screen.getByText("1 cup"));
+
+    expect(screen.getByDisplayValue("1")).toBeTruthy();
+    expect(screen.getByText("173 kcal")).toBeTruthy();
+    expect(screen.getByText("25.9g")).toBeTruthy(); // protein: 18 * (245/170)
+    expect(screen.getByText("2.9g")).toBeTruthy(); // fat: 2 * (245/170)
+  });
+
   it("does not fetch food detail for historical (non-editable) entries", () => {
     render(<EditFoodLogSheet entry={oldEntry} visible onClose={jest.fn()} />);
     expect(mockUseFoodDetail).toHaveBeenCalledWith(oldEntry.foodItemId, false);

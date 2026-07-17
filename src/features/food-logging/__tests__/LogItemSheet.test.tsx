@@ -131,6 +131,36 @@ describe("LogItemSheet", () => {
     );
   });
 
+  it("scales macros by grams (not quantity) when switching to a named serving", () => {
+    // Reference is 100g/165kcal/31p/0c/4f; "1 cup, diced" = 140g, so 1x that
+    // serving should scale by 140/100 = 1.4x, not by the raw quantity (1).
+    const screen = render(
+      <LogItemSheet item={foodItem} day="2026-07-10" visible onClose={jest.fn()} />
+    );
+    fireEvent.press(screen.getByText("Unit"));
+    fireEvent.press(screen.getByText("1 cup, diced"));
+
+    expect(screen.getByDisplayValue("1")).toBeTruthy();
+    expect(screen.getByText("231 kcal")).toBeTruthy();
+    expect(screen.getByText("43.4g")).toBeTruthy(); // protein: 31 * 1.4
+    expect(screen.getByText("5.6g")).toBeTruthy(); // fat: 4 * 1.4
+  });
+
+  it("scales macros by the typed gram amount, matching the server's per-100g math", () => {
+    const screen = render(
+      <LogItemSheet item={foodItem} day="2026-07-10" visible onClose={jest.fn()} />
+    );
+    fireEvent.press(screen.getByText("Unit"));
+    fireEvent.press(screen.getByText("grams"));
+
+    const gramsInput = screen.getByDisplayValue("100");
+    fireEvent.changeText(gramsInput, "250");
+
+    // 250g against a 100g reference = 2.5x: 165 * 2.5 = 412.5 -> rounds to 413.
+    expect(screen.getByText("413 kcal")).toBeTruthy();
+    expect(screen.getByText("77.5g")).toBeTruthy(); // protein: 31 * 2.5
+  });
+
   it("favorites the item after a successful log when checked", () => {
     const addFavorite = jest.fn();
     mockUseAddFavorite.mockReturnValue({ mutate: addFavorite });
