@@ -28,6 +28,7 @@ export default function StartFreeStep({
   onDone,
   onBack,
   isSaving,
+  variant,
 }: OnboardingStepProps) {
   useOnboardingPrefill();
   const subscription = useSubscription();
@@ -77,6 +78,7 @@ export default function StartFreeStep({
       title="Start your premium preview"
       subtitle={`Try longer history and trend access for ${trialDays} days. Paid plans are ${MONTHLY_PRICE_DISPLAY}/month when enabled.`}
       onBack={mode === "revisit" ? onBack : undefined}
+      variant={variant}
       footer={
         <>
           <Button

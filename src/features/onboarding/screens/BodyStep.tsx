@@ -30,6 +30,7 @@ export default function BodyStep({
   onDone,
   onBack,
   isSaving,
+  variant,
 }: OnboardingStepProps) {
   const { draft, settings } = useOnboardingPrefill();
   const { setFields } = useOnboardingDraftActions();
@@ -115,6 +116,7 @@ export default function BodyStep({
       title="A bit more about your body"
       subtitle="Used only for your calorie formula."
       onBack={mode === "revisit" ? onBack : undefined}
+      variant={variant}
       footer={
         <>
           <Button

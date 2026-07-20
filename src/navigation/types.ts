@@ -34,8 +34,7 @@ export type AppTabParamList = {
 export type AppStackParamList = {
   foods: undefined;
   "settings/onboarding": undefined;
-  "settings/targets": undefined;
-  "settings/reminders": undefined;
+  "settings/edit/[step]": { step: string };
   "settings/personal-info": undefined;
   "settings/subscription": undefined;
 };

@@ -13,6 +13,7 @@ export default function NameStep({
   onDone,
   onBack,
   isSaving,
+  variant,
 }: OnboardingStepProps) {
   const { draft } = useOnboardingPrefill();
   const { setFields } = useOnboardingDraftActions();
@@ -59,6 +60,7 @@ export default function NameStep({
       title="What should we call you?"
       subtitle="We'll use this name throughout the app."
       onBack={mode === "revisit" ? onBack : undefined}
+      variant={variant}
       footer={
         <>
           <Button

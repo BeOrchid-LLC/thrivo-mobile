@@ -58,6 +58,7 @@ export default function NotificationsStep({
   onDone,
   onBack,
   isSaving,
+  variant,
 }: OnboardingStepProps) {
   const { draft } = useOnboardingPrefill();
   const { setFields } = useOnboardingDraftActions();
@@ -131,6 +132,7 @@ export default function NotificationsStep({
       title="Your daily nudges"
       subtitle="Pick 1–3 reminder times a day. We'll check in — not spam you."
       onBack={mode === "revisit" ? onBack : undefined}
+      variant={variant}
       footer={
         <>
           <Button
