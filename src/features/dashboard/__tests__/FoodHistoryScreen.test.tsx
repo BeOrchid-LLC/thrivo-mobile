@@ -41,22 +41,27 @@ const historyDay: HistoryDay = {
 };
 
 describe("FoodHistoryScreen", () => {
+  const makePage = (override?: Partial<{ lockedRange: unknown }>) => ({
+    period: "1m",
+    date: "2026-06-20",
+    from: "2026-05-22",
+    to: "2026-06-20",
+    days: [historyDay],
+    lockedRange: override?.lockedRange ?? null,
+    historyLimitDays: 7,
+    nextCursor: null,
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
     useFavoritesStore.setState({ favoriteIds: [] });
     mockUseFoodLogHistory.mockReturnValue({
-      data: {
-        period: "1m",
-        date: "2026-06-20",
-        from: "2026-05-22",
-        to: "2026-06-20",
-        days: [historyDay],
-        lockedRange: null,
-        historyLimitDays: 7,
-      },
+      data: { pages: [makePage()], pageParams: [null] },
       isLoading: false,
       isError: false,
-      isFetching: false,
+      isFetchingNextPage: false,
+      hasNextPage: false,
+      fetchNextPage: jest.fn(),
       refetch: jest.fn(),
     });
     mockUseFavorites.mockReturnValue({ data: { items: [] } });
@@ -94,21 +99,22 @@ describe("FoodHistoryScreen", () => {
   it("shows one earlier-history gate for a locked range", () => {
     mockUseFoodLogHistory.mockReturnValue({
       data: {
-        period: "1m",
-        date: "2026-06-20",
-        from: "2026-05-22",
-        to: "2026-06-20",
-        days: [historyDay],
-        lockedRange: {
-          from: "2026-05-22",
-          to: "2026-06-13",
-          lockReason: "free_history_limit",
-        },
-        historyLimitDays: 7,
+        pages: [
+          makePage({
+            lockedRange: {
+              from: "2026-05-22",
+              to: "2026-06-13",
+              lockReason: "free_history_limit",
+            },
+          }),
+        ],
+        pageParams: [null],
       },
       isLoading: false,
       isError: false,
-      isFetching: false,
+      isFetchingNextPage: false,
+      hasNextPage: false,
+      fetchNextPage: jest.fn(),
       refetch: jest.fn(),
     });
 

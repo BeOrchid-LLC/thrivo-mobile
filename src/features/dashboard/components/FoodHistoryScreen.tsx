@@ -1,21 +1,33 @@
-import { memo, useCallback, useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { router } from "expo-router";
 import { Heart } from "phosphor-react-native";
-import { Pressable, View } from "react-native";
-import { FlashList, type ListRenderItem } from "@shopify/flash-list";
+import { ActivityIndicator, Pressable, View } from "react-native";
+import { FlashList, type FlashListRef, type ListRenderItem } from "@shopify/flash-list";
 import {
   Card,
+  FilterChips,
   PremiumGate,
+  SearchBar,
   SectionError,
   SelectInput,
   SelectSheet,
   SkeletonText,
   Text,
+  type FilterChip,
 } from "@/components";
-import type { ChartPeriod, FoodLogEntry, FoodLogHistoryResponse } from "@/contracts";
+import type {
+  ChartPeriod,
+  FoodLogEntry,
+  FoodLogHistoryResponse,
+  HistorySort,
+  MealTime,
+} from "@/contracts";
+import { MEAL_TIME_WINDOWS } from "@/contracts";
 import { EditFoodLogSheet, useFavorites, useToggleFavorite } from "@/features/food-logging";
+import { useDebouncedValue } from "@/hooks";
 import { useIsFavorite } from "@/stores";
 import { colors } from "@/theme";
+import type { FoodLogHistoryFilters } from "../api/dashboard.api";
 import { useFoodLogHistory } from "../hooks/useDashboard";
 
 export interface FoodHistoryScreenProps {
@@ -33,29 +45,77 @@ const periodOptions: readonly { label: string; value: ChartPeriod }[] = [
   { label: "All time", value: "all" },
 ];
 
+const sortOptions: readonly { label: string; value: HistorySort }[] = [
+  { label: "Newest first", value: "newest" },
+  { label: "Oldest first", value: "oldest" },
+  { label: "Highest kcal", value: "highest" },
+  { label: "Lowest kcal", value: "lowest" },
+];
+
+function formatHour(h: number): string {
+  if (h === 0 || h === 24) return "12:00 AM";
+  if (h === 12) return "12:00 PM";
+  return h < 12 ? `${h}:00 AM` : `${h - 12}:00 PM`;
+}
+
+function formatMealTimeOption(key: MealTime): string {
+  const label = key.charAt(0).toUpperCase() + key.slice(1);
+  const { startHour, endHour } = MEAL_TIME_WINDOWS[key];
+  // endHour is exclusive: 11 means up to 10:59
+  const endDisplay = endHour === 4 ? "3:59 AM" : `${formatHour(endHour - 1).replace(":00", ":59")}`;
+  return `${label} · ${formatHour(startHour)} – ${endDisplay}`;
+}
+
+const mealTimeOptions: readonly { label: string; value: MealTime }[] = (
+  ["morning", "afternoon", "evening", "night"] as MealTime[]
+).map((key) => ({ label: formatMealTimeOption(key), value: key }));
+
 type HistoryListItem =
   | { type: "header"; day: string }
   | { type: "locked"; historyLimitDays: number }
-  | { type: "entry"; day: string; entry: FoodLogEntry };
+  | { type: "entry"; day: string; entry: FoodLogEntry }
+  | { type: "footer-spinner" }
+  | { type: "footer-end" };
 
-function buildListItems(history: FoodLogHistoryResponse | undefined): HistoryListItem[] {
-  if (!history) return [];
+function buildListItems(
+  pages: FoodLogHistoryResponse[] | undefined,
+  hasNextPage: boolean,
+  isFetchingNextPage: boolean,
+  suppressDateHeaders: boolean
+): HistoryListItem[] {
+  if (!pages || pages.length === 0) return [];
   const items: HistoryListItem[] = [];
-  for (const day of history.days) {
-    items.push({ type: "header", day: day.day });
-    for (const entry of day.entries) {
-      items.push({ type: "entry", day: day.day, entry });
+  const seenDays = new Set<string>();
+
+  for (const page of pages) {
+    for (const day of page.days) {
+      if (!suppressDateHeaders && !seenDays.has(day.day)) {
+        seenDays.add(day.day);
+        items.push({ type: "header", day: day.day });
+      }
+      for (const entry of day.entries) {
+        items.push({ type: "entry", day: day.day, entry });
+      }
+    }
+    if (page.lockedRange) {
+      items.push({ type: "locked", historyLimitDays: page.historyLimitDays });
     }
   }
-  if (history.lockedRange) {
-    items.push({ type: "locked", historyLimitDays: history.historyLimitDays });
+
+  if (isFetchingNextPage) {
+    items.push({ type: "footer-spinner" });
+  } else if (!hasNextPage && items.length > 0) {
+    items.push({ type: "footer-end" });
   }
+
   return items;
 }
 
 function keyExtractor(item: HistoryListItem): string {
   if (item.type === "entry") return `entry-${item.entry.id}`;
   if (item.type === "locked") return "locked-earlier-history";
+  if (item.type === "footer-spinner") return "footer-spinner";
+  if (item.type === "footer-end") return "footer-end";
   return `${item.type}-${item.day}`;
 }
 
@@ -66,22 +126,100 @@ function getItemType(item: HistoryListItem): string {
 export function FoodHistoryScreen({ refreshing, onRefresh }: FoodHistoryScreenProps) {
   const [period, setPeriod] = useState<ChartPeriod>("1m");
   const [periodSheetOpen, setPeriodSheetOpen] = useState(false);
-  const history = useFoodLogHistory(period);
-  useFavorites(); // fetch + sync the local favorites store ONCE per screen, not per row (R6 I20)
+  const [sortSheetOpen, setSortSheetOpen] = useState(false);
+  const [mealTimeSheetOpen, setMealTimeSheetOpen] = useState(false);
+  const [searchText, setSearchText] = useState("");
+  const [sort, setSort] = useState<HistorySort>("newest");
+  const [mealTime, setMealTime] = useState<MealTime | undefined>(undefined);
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const debouncedSearch = useDebouncedValue(searchText, 350);
+  const flashListRef = useRef<FlashListRef<HistoryListItem>>(null);
+
+  const filters: FoodLogHistoryFilters = useMemo(
+    () => ({
+      q: debouncedSearch.trim() || undefined,
+      mealTime,
+      favoritesOnly: favoritesOnly || undefined,
+      sort: sort !== "newest" ? sort : undefined,
+    }),
+    [debouncedSearch, mealTime, favoritesOnly, sort]
+  );
+
+  const history = useFoodLogHistory(period, undefined, filters);
+  useFavorites();
   const toggleFavorite = useToggleFavorite();
-  const selectedPeriodLabel =
-    periodOptions.find((option) => option.value === period)?.label ?? "Select period";
   const [editingEntry, setEditingEntry] = useState<FoodLogEntry | null>(null);
 
-  const listItems = useMemo(() => buildListItems(history.data), [history.data]);
+  const suppressDateHeaders = sort === "highest" || sort === "lowest";
+  const listItems = useMemo(
+    () =>
+      buildListItems(
+        history.data?.pages,
+        history.hasNextPage,
+        history.isFetchingNextPage,
+        suppressDateHeaders
+      ),
+    [history.data?.pages, history.hasNextPage, history.isFetchingNextPage, suppressDateHeaders]
+  );
+
   const stickyHeaderIndices = useMemo(
     () =>
-      listItems.reduce<number[]>((acc, item, index) => {
-        if (item.type === "header") acc.push(index);
-        return acc;
-      }, []),
-    [listItems]
+      suppressDateHeaders
+        ? []
+        : listItems.reduce<number[]>((acc, item, index) => {
+            if (item.type === "header") acc.push(index);
+            return acc;
+          }, []),
+    [listItems, suppressDateHeaders]
   );
+
+  const handleEndReached = useCallback(() => {
+    if (history.hasNextPage && !history.isFetchingNextPage) {
+      void history.fetchNextPage();
+    }
+  }, [history]);
+
+  const handleFilterChange = useCallback(
+    (
+      update: Partial<{ sort: HistorySort; mealTime: MealTime | undefined; favoritesOnly: boolean }>
+    ) => {
+      if (update.sort !== undefined) setSort(update.sort);
+      if ("mealTime" in update) setMealTime(update.mealTime);
+      if (update.favoritesOnly !== undefined) setFavoritesOnly(update.favoritesOnly);
+      flashListRef.current?.scrollToOffset({ offset: 0, animated: false });
+    },
+    []
+  );
+
+  const selectedPeriodLabel =
+    periodOptions.find((o) => o.value === period)?.label ?? "Select period";
+  const selectedSortLabel = sortOptions.find((o) => o.value === sort)?.label ?? "Newest first";
+  const selectedMealTimeLabel = mealTime
+    ? mealTimeOptions.find((o) => o.value === mealTime)?.label
+    : undefined;
+
+  const filterChips: FilterChip[] = useMemo(() => {
+    const chips: FilterChip[] = [];
+    if (sort !== "newest")
+      chips.push({
+        key: "sort",
+        label: selectedSortLabel,
+        onRemove: () => handleFilterChange({ sort: "newest" }),
+      });
+    if (mealTime)
+      chips.push({
+        key: "mealTime",
+        label: selectedMealTimeLabel ?? mealTime,
+        onRemove: () => handleFilterChange({ mealTime: undefined }),
+      });
+    if (favoritesOnly)
+      chips.push({
+        key: "favorites",
+        label: "Favorites only",
+        onRemove: () => handleFilterChange({ favoritesOnly: false }),
+      });
+    return chips;
+  }, [sort, mealTime, favoritesOnly, selectedSortLabel, selectedMealTimeLabel, handleFilterChange]);
 
   const renderItem = useCallback<ListRenderItem<HistoryListItem>>(
     ({ item }) => {
@@ -89,6 +227,22 @@ export function FoodHistoryScreen({ refreshing, onRefresh }: FoodHistoryScreenPr
         return <LockedEarlierHistory historyLimitDays={item.historyLimitDays} />;
       }
       if (item.type === "header") return <HistoryDayHeader day={item.day} />;
+      if (item.type === "footer-spinner") {
+        return (
+          <View className="items-center py-md">
+            <ActivityIndicator color={colors.primary} />
+          </View>
+        );
+      }
+      if (item.type === "footer-end") {
+        return (
+          <View className="items-center py-md">
+            <Text variant="caption" color="muted">
+              All caught up
+            </Text>
+          </View>
+        );
+      }
       return (
         <HistoryEntryRow
           entry={item.entry}
@@ -100,30 +254,99 @@ export function FoodHistoryScreen({ refreshing, onRefresh }: FoodHistoryScreenPr
     [toggleFavorite]
   );
 
+  const handleRefresh = useCallback(() => {
+    flashListRef.current?.scrollToOffset({ offset: 0, animated: false });
+    onRefresh?.();
+  }, [onRefresh]);
+
+  const isLoading = history.isLoading;
+  const isError = history.isError && !history.data;
+  const isEmpty = !isLoading && !isError && listItems.length === 0 && !history.isFetchingNextPage;
+  const hasFiltersActive =
+    !!debouncedSearch.trim() || !!mealTime || favoritesOnly || sort !== "newest";
+
   return (
     <View className="flex-1 gap-lg">
       <Text variant="heading2" color="dark">
         Food history
       </Text>
-      <SelectInput
-        label="Time period"
-        value={selectedPeriodLabel}
-        onPress={() => setPeriodSheetOpen(true)}
+
+      <SearchBar
+        value={searchText}
+        onChangeText={(text) => {
+          setSearchText(text);
+          flashListRef.current?.scrollToOffset({ offset: 0, animated: false });
+        }}
+        placeholder="Search foods…"
       />
-      {history.isLoading ? <HistorySkeleton /> : null}
-      {history.isError && !history.data ? (
+
+      <View className="flex-row gap-sm">
+        <View className="flex-1">
+          <SelectInput
+            label="Period"
+            value={selectedPeriodLabel}
+            onPress={() => setPeriodSheetOpen(true)}
+          />
+        </View>
+        <View className="flex-1">
+          <SelectInput
+            label="Sort"
+            value={selectedSortLabel}
+            onPress={() => setSortSheetOpen(true)}
+          />
+        </View>
+      </View>
+
+      <View className="flex-row gap-sm">
+        <SelectInput
+          label="Meal time"
+          value={selectedMealTimeLabel ?? "Any time"}
+          onPress={() => setMealTimeSheetOpen(true)}
+        />
+        <Pressable
+          accessibilityRole="checkbox"
+          accessibilityLabel="Favorites only"
+          accessibilityState={{ checked: favoritesOnly }}
+          onPress={() => handleFilterChange({ favoritesOnly: !favoritesOnly })}
+          className={`min-h-[48px] flex-1 flex-row items-center justify-center rounded-md border px-md ${
+            favoritesOnly ? "border-primary bg-primarySoft" : "border-gray-300 bg-white"
+          }`}
+        >
+          <Heart
+            size={16}
+            color={favoritesOnly ? colors.primary : colors.gray[500]}
+            weight={favoritesOnly ? "fill" : "regular"}
+          />
+          <Text
+            variant="caption"
+            color={favoritesOnly ? "primary" : "muted"}
+            className="ml-xs font-medium"
+          >
+            Favorites
+          </Text>
+        </Pressable>
+      </View>
+
+      <FilterChips chips={filterChips} />
+
+      {isLoading ? <HistorySkeleton /> : null}
+      {isError ? (
         <SectionError
           title="Could not load history"
           message="Your dashboard is still available."
           onRetry={() => void history.refetch()}
         />
       ) : null}
-      {history.isFetching && history.data ? (
-        <Text variant="caption" color="muted">
-          Refreshing history...
-        </Text>
-      ) : null}
-      {!history.isLoading && !history.isError && listItems.length === 0 ? (
+      {isEmpty && hasFiltersActive ? (
+        <Card className="items-center gap-sm">
+          <Text variant="heading3" color="dark">
+            No results
+          </Text>
+          <Text variant="body" color="muted" className="text-center">
+            No logs match your current filters.
+          </Text>
+        </Card>
+      ) : isEmpty ? (
         <Card className="items-center gap-sm">
           <Text variant="heading3" color="dark">
             Nothing logged yet
@@ -132,18 +355,23 @@ export function FoodHistoryScreen({ refreshing, onRefresh }: FoodHistoryScreenPr
             Your meals will appear here after you start logging.
           </Text>
         </Card>
-      ) : (
+      ) : null}
+      {!isLoading && !isError && listItems.length > 0 ? (
         <FlashList
+          ref={flashListRef}
           style={{ flex: 1 }}
           data={listItems}
           renderItem={renderItem}
           keyExtractor={keyExtractor}
           getItemType={getItemType}
           stickyHeaderIndices={stickyHeaderIndices}
+          onEndReached={handleEndReached}
+          onEndReachedThreshold={0.5}
           refreshing={refreshing}
-          onRefresh={onRefresh}
+          onRefresh={handleRefresh}
         />
-      )}
+      ) : null}
+
       <EditFoodLogSheet
         entry={editingEntry}
         visible={editingEntry !== null}
@@ -154,8 +382,27 @@ export function FoodHistoryScreen({ refreshing, onRefresh }: FoodHistoryScreenPr
         options={periodOptions}
         value={period}
         visible={periodSheetOpen}
-        onChange={setPeriod}
+        onChange={(v) => {
+          setPeriod(v);
+          flashListRef.current?.scrollToOffset({ offset: 0, animated: false });
+        }}
         onClose={() => setPeriodSheetOpen(false)}
+      />
+      <SelectSheet
+        title="Sort by"
+        options={sortOptions}
+        value={sort}
+        visible={sortSheetOpen}
+        onChange={(v) => handleFilterChange({ sort: v })}
+        onClose={() => setSortSheetOpen(false)}
+      />
+      <SelectSheet
+        title="Meal time"
+        options={mealTimeOptions}
+        value={mealTime ?? ""}
+        visible={mealTimeSheetOpen}
+        onChange={(v) => handleFilterChange({ mealTime: v as MealTime })}
+        onClose={() => setMealTimeSheetOpen(false)}
       />
     </View>
   );

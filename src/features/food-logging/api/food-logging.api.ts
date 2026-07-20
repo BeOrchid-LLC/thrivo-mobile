@@ -5,12 +5,21 @@ import type {
   AddWaterPayload,
   ChartPeriod,
   EstimateFoodPayload,
+  HistorySort,
   LogEstimatePayload,
   LogFoodPayload,
+  MealTime,
   UpdateLogPayload,
   UpdateWaterPayload,
   UpsertFoodPayload,
 } from "@/contracts";
+
+export interface WaterHistoryFilters {
+  mealTime?: MealTime;
+  sort?: HistorySort;
+  cursor?: string;
+  limit?: number;
+}
 
 export const lookupFood = (barcode: string) => callApi("FOOD_LOOKUP", { query: { barcode } });
 
@@ -59,8 +68,23 @@ export const logEstimate = (payload: LogEstimatePayload, idempotencyKey?: string
 export const getWater = async (day = localDay()) =>
   (await callApi("WATER_GET", { query: { date: day } })).water;
 
-export const getWaterHistory = async (period: ChartPeriod, day = localDay()) =>
-  (await callApi("WATER_HISTORY", { query: { date: day, period, today: localDay() } })).history;
+export const getWaterHistory = async (
+  period: ChartPeriod,
+  day = localDay(),
+  filters: WaterHistoryFilters = {},
+  cursor?: string
+) =>
+  (
+    await callApi("WATER_HISTORY", {
+      query: {
+        date: day,
+        period,
+        today: localDay(),
+        cursor: cursor ?? undefined,
+        ...filters,
+      },
+    })
+  ).history;
 
 export const addWater = (amountMl: number, day = localDay(), idempotencyKey?: string) =>
   callApi("WATER_ADD", { payload: { day, amountMl } satisfies AddWaterPayload, idempotencyKey });

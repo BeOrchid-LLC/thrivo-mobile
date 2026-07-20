@@ -39,6 +39,7 @@ import {
   searchFoods,
   updateFoodLog,
   updateWater,
+  type WaterHistoryFilters,
 } from "../api/food-logging.api";
 
 const FOOD_SEARCH_PAGE_SIZE = 10;
@@ -181,10 +182,16 @@ export function useWater(day = localDay()) {
   });
 }
 
-export function useWaterHistory(period: ChartPeriod, day = localDay()) {
-  return useQuery({
-    queryKey: queryKeys.metrics.waterHistory(period, day),
-    queryFn: () => getWaterHistory(period, day),
+export function useWaterHistory(
+  period: ChartPeriod,
+  day = localDay(),
+  filters: WaterHistoryFilters = {}
+) {
+  return useInfiniteQuery({
+    queryKey: queryKeys.metrics.waterHistory(period, day, filters as Record<string, unknown>),
+    queryFn: ({ pageParam }) => getWaterHistory(period, day, filters, pageParam ?? undefined),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     staleTime: 1000 * 60,
   });
 }

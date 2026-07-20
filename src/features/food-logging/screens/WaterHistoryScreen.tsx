@@ -1,9 +1,10 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { router } from "expo-router";
-import { View } from "react-native";
-import { FlashList, type ListRenderItem } from "@shopify/flash-list";
+import { ActivityIndicator, View } from "react-native";
+import { FlashList, type FlashListRef, type ListRenderItem } from "@shopify/flash-list";
 import {
   Card,
+  FilterChips,
   PageHeader,
   PremiumGate,
   SectionError,
@@ -11,11 +12,21 @@ import {
   SelectSheet,
   SkeletonText,
   Text,
+  type FilterChip,
 } from "@/components";
-import type { ChartPeriod, WaterEntry, WaterHistoryResponse } from "@/contracts";
+import type {
+  ChartPeriod,
+  HistorySort,
+  MealTime,
+  WaterEntry,
+  WaterHistoryResponse,
+} from "@/contracts";
+import { MEAL_TIME_WINDOWS } from "@/contracts";
 import { useSettings } from "@/features/settings";
 import { localDay, formatWater } from "@/utils";
+import type { WaterHistoryFilters } from "../api/food-logging.api";
 import { useWaterHistory } from "../hooks/useFoodLogging";
+import { colors } from "@/theme";
 
 export interface WaterHistoryScreenProps {
   refreshing?: boolean;
@@ -32,26 +43,68 @@ const periodOptions: readonly { label: string; value: ChartPeriod }[] = [
   { label: "All time", value: "all" },
 ];
 
+const sortOptions: readonly { label: string; value: HistorySort }[] = [
+  { label: "Newest first", value: "newest" },
+  { label: "Oldest first", value: "oldest" },
+  { label: "Highest amount", value: "highest" },
+  { label: "Lowest amount", value: "lowest" },
+];
+
+function formatHour(h: number): string {
+  if (h === 0 || h === 24) return "12:00 AM";
+  if (h === 12) return "12:00 PM";
+  return h < 12 ? `${h}:00 AM` : `${h - 12}:00 PM`;
+}
+
+function formatMealTimeOption(key: MealTime): string {
+  const label = key.charAt(0).toUpperCase() + key.slice(1);
+  const { startHour, endHour } = MEAL_TIME_WINDOWS[key];
+  const endDisplay = endHour === 4 ? "3:59 AM" : `${formatHour(endHour - 1).replace(":00", ":59")}`;
+  return `${label} · ${formatHour(startHour)} – ${endDisplay}`;
+}
+
+const mealTimeOptions: readonly { label: string; value: MealTime }[] = (
+  ["morning", "afternoon", "evening", "night"] as MealTime[]
+).map((key) => ({ label: formatMealTimeOption(key), value: key }));
+
 type WaterHistory = WaterHistoryResponse["history"];
 
 type HistoryListItem =
   | { type: "header"; day: string; totalMl: number }
   | { type: "entry"; entry: WaterEntry }
-  | { type: "locked"; historyLimitDays: number };
+  | { type: "locked"; historyLimitDays: number }
+  | { type: "footer-spinner" }
+  | { type: "footer-end" };
 
-function buildListItems(history: WaterHistory | undefined): HistoryListItem[] {
-  if (!history) return [];
-
+function buildListItems(
+  pages: WaterHistory[] | undefined,
+  hasNextPage: boolean,
+  isFetchingNextPage: boolean,
+  suppressDateHeaders: boolean
+): HistoryListItem[] {
+  if (!pages || pages.length === 0) return [];
   const items: HistoryListItem[] = [];
-  for (const day of history.days) {
-    items.push({ type: "header", day: day.day, totalMl: day.totalMl });
-    for (const entry of day.entries) {
-      items.push({ type: "entry", entry });
+  const seenDays = new Set<string>();
+
+  for (const page of pages) {
+    for (const day of page.days) {
+      if (!suppressDateHeaders && !seenDays.has(day.day)) {
+        seenDays.add(day.day);
+        items.push({ type: "header", day: day.day, totalMl: day.totalMl });
+      }
+      for (const entry of day.entries) {
+        items.push({ type: "entry", entry });
+      }
+    }
+    if (page.lockedRange) {
+      items.push({ type: "locked", historyLimitDays: page.historyLimitDays });
     }
   }
 
-  if (history.lockedRange) {
-    items.push({ type: "locked", historyLimitDays: history.historyLimitDays });
+  if (isFetchingNextPage) {
+    items.push({ type: "footer-spinner" });
+  } else if (!hasNextPage && items.length > 0) {
+    items.push({ type: "footer-end" });
   }
 
   return items;
@@ -60,6 +113,8 @@ function buildListItems(history: WaterHistory | undefined): HistoryListItem[] {
 function keyExtractor(item: HistoryListItem): string {
   if (item.type === "entry") return `entry-${item.entry.id}`;
   if (item.type === "locked") return "locked-earlier-history";
+  if (item.type === "footer-spinner") return "footer-spinner";
+  if (item.type === "footer-end") return "footer-end";
   return `header-${item.day}`;
 }
 
@@ -70,21 +125,85 @@ function getItemType(item: HistoryListItem): string {
 export function WaterHistoryScreen({ refreshing, onRefresh }: WaterHistoryScreenProps) {
   const [period, setPeriod] = useState<ChartPeriod>("7d");
   const [periodSheetOpen, setPeriodSheetOpen] = useState(false);
+  const [sortSheetOpen, setSortSheetOpen] = useState(false);
+  const [mealTimeSheetOpen, setMealTimeSheetOpen] = useState(false);
+  const [sort, setSort] = useState<HistorySort>("newest");
+  const [mealTime, setMealTime] = useState<MealTime | undefined>(undefined);
   const settings = useSettings();
   const unitSystem = settings.data?.unitSystem ?? "metric";
-  const history = useWaterHistory(period, localDay());
-  const selectedPeriodLabel =
-    periodOptions.find((option) => option.value === period)?.label ?? "Select period";
+  const flashListRef = useRef<FlashListRef<HistoryListItem>>(null);
 
-  const listItems = useMemo(() => buildListItems(history.data), [history.data]);
+  const filters: WaterHistoryFilters = useMemo(
+    () => ({
+      mealTime,
+      sort: sort !== "newest" ? sort : undefined,
+    }),
+    [mealTime, sort]
+  );
+
+  const history = useWaterHistory(period, localDay(), filters);
+
+  const suppressDateHeaders = sort === "highest" || sort === "lowest";
+  const listItems = useMemo(
+    () =>
+      buildListItems(
+        history.data?.pages.map((p) => p),
+        history.hasNextPage,
+        history.isFetchingNextPage,
+        suppressDateHeaders
+      ),
+    [history.data?.pages, history.hasNextPage, history.isFetchingNextPage, suppressDateHeaders]
+  );
+
   const stickyHeaderIndices = useMemo(
     () =>
-      listItems.reduce<number[]>((acc, item, index) => {
-        if (item.type === "header") acc.push(index);
-        return acc;
-      }, []),
-    [listItems]
+      suppressDateHeaders
+        ? []
+        : listItems.reduce<number[]>((acc, item, index) => {
+            if (item.type === "header") acc.push(index);
+            return acc;
+          }, []),
+    [listItems, suppressDateHeaders]
   );
+
+  const handleEndReached = useCallback(() => {
+    if (history.hasNextPage && !history.isFetchingNextPage) {
+      void history.fetchNextPage();
+    }
+  }, [history]);
+
+  const handleFilterChange = useCallback(
+    (update: Partial<{ sort: HistorySort; mealTime: MealTime | undefined }>) => {
+      if (update.sort !== undefined) setSort(update.sort);
+      if ("mealTime" in update) setMealTime(update.mealTime);
+      flashListRef.current?.scrollToOffset({ offset: 0, animated: false });
+    },
+    []
+  );
+
+  const selectedPeriodLabel =
+    periodOptions.find((o) => o.value === period)?.label ?? "Select period";
+  const selectedSortLabel = sortOptions.find((o) => o.value === sort)?.label ?? "Newest first";
+  const selectedMealTimeLabel = mealTime
+    ? mealTimeOptions.find((o) => o.value === mealTime)?.label
+    : undefined;
+
+  const filterChips: FilterChip[] = useMemo(() => {
+    const chips: FilterChip[] = [];
+    if (sort !== "newest")
+      chips.push({
+        key: "sort",
+        label: selectedSortLabel,
+        onRemove: () => handleFilterChange({ sort: "newest" }),
+      });
+    if (mealTime)
+      chips.push({
+        key: "mealTime",
+        label: selectedMealTimeLabel ?? mealTime,
+        onRemove: () => handleFilterChange({ mealTime: undefined }),
+      });
+    return chips;
+  }, [sort, mealTime, selectedSortLabel, selectedMealTimeLabel, handleFilterChange]);
 
   const renderItem = useCallback<ListRenderItem<HistoryListItem>>(
     ({ item }) => {
@@ -94,35 +213,79 @@ export function WaterHistoryScreen({ refreshing, onRefresh }: WaterHistoryScreen
       if (item.type === "header") {
         return <HistoryDayHeader day={item.day} totalMl={item.totalMl} unitSystem={unitSystem} />;
       }
+      if (item.type === "footer-spinner") {
+        return (
+          <View className="items-center py-md">
+            <ActivityIndicator color={colors.primary} />
+          </View>
+        );
+      }
+      if (item.type === "footer-end") {
+        return (
+          <View className="items-center py-md">
+            <Text variant="caption" color="muted">
+              All caught up
+            </Text>
+          </View>
+        );
+      }
       return <WaterHistoryEntryRow entry={item.entry} unitSystem={unitSystem} />;
     },
     [unitSystem]
   );
 
+  const isLoading = history.isLoading;
+  const isError = history.isError && !history.data;
+  const isEmpty = !isLoading && !isError && listItems.length === 0 && !history.isFetchingNextPage;
+  const hasFiltersActive = !!mealTime || sort !== "newest";
+
   return (
     <View className="flex-1 gap-lg">
       <PageHeader title="Water history" subtitle="Review your hydration logs over time." />
 
+      <View className="flex-row gap-sm">
+        <View className="flex-1">
+          <SelectInput
+            label="Period"
+            value={selectedPeriodLabel}
+            onPress={() => setPeriodSheetOpen(true)}
+          />
+        </View>
+        <View className="flex-1">
+          <SelectInput
+            label="Sort"
+            value={selectedSortLabel}
+            onPress={() => setSortSheetOpen(true)}
+          />
+        </View>
+      </View>
+
       <SelectInput
-        label="Time period"
-        value={selectedPeriodLabel}
-        onPress={() => setPeriodSheetOpen(true)}
+        label="Meal time"
+        value={selectedMealTimeLabel ?? "Any time"}
+        onPress={() => setMealTimeSheetOpen(true)}
       />
 
-      {history.isLoading ? <HistorySkeleton /> : null}
-      {history.isError && !history.data ? (
+      <FilterChips chips={filterChips} />
+
+      {isLoading ? <HistorySkeleton /> : null}
+      {isError ? (
         <SectionError
           title="Could not load water history"
           message="Your hydration log is still available for today."
           onRetry={() => void history.refetch()}
         />
       ) : null}
-      {history.isFetching && history.data ? (
-        <Text variant="caption" color="muted">
-          Refreshing history...
-        </Text>
-      ) : null}
-      {!history.isLoading && !history.isError && listItems.length === 0 ? (
+      {isEmpty && hasFiltersActive ? (
+        <Card className="items-center gap-sm">
+          <Text variant="heading3" color="dark">
+            No results
+          </Text>
+          <Text variant="body" color="muted" className="text-center">
+            No water logs match your current filters.
+          </Text>
+        </Card>
+      ) : isEmpty ? (
         <Card className="items-center gap-sm">
           <Text variant="heading3" color="dark">
             No water logged
@@ -131,8 +294,10 @@ export function WaterHistoryScreen({ refreshing, onRefresh }: WaterHistoryScreen
             Your water logs will appear here after you start logging in this period.
           </Text>
         </Card>
-      ) : (
+      ) : null}
+      {!isLoading && !isError && listItems.length > 0 ? (
         <FlashList
+          ref={flashListRef}
           style={{ flex: 1 }}
           data={listItems}
           renderItem={renderItem}
@@ -140,18 +305,39 @@ export function WaterHistoryScreen({ refreshing, onRefresh }: WaterHistoryScreen
           keyExtractor={keyExtractor}
           getItemType={getItemType}
           stickyHeaderIndices={stickyHeaderIndices}
+          onEndReached={handleEndReached}
+          onEndReachedThreshold={0.5}
           refreshing={refreshing}
           onRefresh={onRefresh}
         />
-      )}
+      ) : null}
 
       <SelectSheet
         title="Select period"
         options={periodOptions}
         value={period}
         visible={periodSheetOpen}
-        onChange={setPeriod}
+        onChange={(v) => {
+          setPeriod(v);
+          flashListRef.current?.scrollToOffset({ offset: 0, animated: false });
+        }}
         onClose={() => setPeriodSheetOpen(false)}
+      />
+      <SelectSheet
+        title="Sort by"
+        options={sortOptions}
+        value={sort}
+        visible={sortSheetOpen}
+        onChange={(v) => handleFilterChange({ sort: v })}
+        onClose={() => setSortSheetOpen(false)}
+      />
+      <SelectSheet
+        title="Meal time"
+        options={mealTimeOptions}
+        value={mealTime ?? ""}
+        visible={mealTimeSheetOpen}
+        onChange={(v) => handleFilterChange({ mealTime: v as MealTime })}
+        onClose={() => setMealTimeSheetOpen(false)}
       />
     </View>
   );

@@ -82,6 +82,7 @@ export const foodLogHistoryResponse = z.object({
   days: z.array(historyDayWithFavoritesSchema),
   lockedRange: pkg.foodLogHistoryLockedRangeSchema.nullable(),
   historyLimitDays: z.number().int(),
+  nextCursor: z.string().nullable(),
 });
 export const foodLookupResponse = pkg.foodLookupResponseSchema.shape.data;
 export const logMutationResponse = pkg.logMutationResponseSchema.shape.data.extend({
@@ -113,6 +114,7 @@ export const waterHistoryResponse = z.object({
       })
       .nullable(),
     historyLimitDays: z.number().int(),
+    nextCursor: z.string().nullable(),
   }),
 });
 export const weightContextResponse = pkg.weightContextResponseSchema.shape.data;
@@ -174,3 +176,15 @@ export type FoodSearchResponse = z.infer<typeof pkg.foodSearchResponseSchema.sha
 export const logFoodPayload = pkg.logFoodPayloadSchema;
 export type LogFoodPayload = z.infer<typeof pkg.logFoodPayloadSchema>;
 export type LogEstimatePayload = z.infer<typeof logEstimatePayload>;
+
+// ---- history filter helpers (local definitions until contracts v0.21.0 is published) ----
+// Remove these once `@beorchid-llc/thrivo-contracts` is published at ^0.21.0
+// and the `export * from` above picks them up.
+export const MEAL_TIME_WINDOWS = {
+  morning: { startHour: 4, endHour: 11 },
+  afternoon: { startHour: 11, endHour: 16 },
+  evening: { startHour: 16, endHour: 21 },
+  night: { startHour: 21, endHour: 4 },
+} as const;
+export type MealTime = keyof typeof MEAL_TIME_WINDOWS;
+export type HistorySort = "newest" | "oldest" | "highest" | "lowest";

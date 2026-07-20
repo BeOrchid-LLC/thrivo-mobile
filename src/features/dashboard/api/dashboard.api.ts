@@ -1,6 +1,15 @@
 import { callApi } from "@/api";
 import { localDay } from "@/utils";
-import type { ChartPeriod, FoodLogHistoryResponse } from "@/contracts";
+import type { ChartPeriod, FoodLogHistoryResponse, HistorySort, MealTime } from "@/contracts";
+
+export interface FoodLogHistoryFilters {
+  q?: string;
+  mealTime?: MealTime;
+  favoritesOnly?: boolean;
+  sort?: HistorySort;
+  cursor?: string;
+  limit?: number;
+}
 
 export const getDashboardCalories = async (day = localDay()) =>
   (await callApi("DASHBOARD_CALORIES", { query: { date: day } })).calories;
@@ -21,9 +30,19 @@ export const getMealLogDay = async (day = localDay()) =>
 // see the lock cut a day early or late.
 export const getFoodLogHistory = async (
   period: ChartPeriod,
-  day = localDay()
+  day = localDay(),
+  filters: FoodLogHistoryFilters = {},
+  cursor?: string
 ): Promise<FoodLogHistoryResponse> =>
-  await callApi("FOOD_LOG_HISTORY", { query: { date: day, period, today: localDay() } });
+  await callApi("FOOD_LOG_HISTORY", {
+    query: {
+      date: day,
+      period,
+      today: localDay(),
+      cursor: cursor ?? undefined,
+      ...filters,
+    },
+  });
 
 /** Add a serving of water (ml) for today. */
 export const addWater = (amountMl: number) =>

@@ -22,7 +22,8 @@ export const queryKeys = {
     recent: () => ["foods", "recent"] as const,
     favorites: () => ["foods", "favorites"] as const,
     logHistoryRoot: () => ["foods", "log", "history"] as const,
-    logHistory: (period = "1m", day = "") => ["foods", "log", "history", period, day] as const,
+    logHistory: (period = "1m", day = "", filters?: Record<string, unknown>) =>
+      ["foods", "log", "history", period, day, filters ?? {}] as const,
     logDay: (day: string) => ["foods", "log", "day", day] as const,
   },
 
@@ -35,8 +36,8 @@ export const queryKeys = {
     weightContext: (day: string) => ["metrics", "weight", "context", day] as const,
     waterByDay: (day: string) => ["metrics", "water", day] as const,
     waterHistoryRoot: () => ["metrics", "water", "history"] as const,
-    waterHistory: (period: string, day: string) =>
-      ["metrics", "water", "history", period, day] as const,
+    waterHistory: (period: string, day: string, filters?: Record<string, unknown>) =>
+      ["metrics", "water", "history", period, day, filters ?? {}] as const,
   },
 
   checkins: {
