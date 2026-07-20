@@ -295,14 +295,14 @@ export function SettingsScreen() {
           title="Targets and activity"
           subtitle="Activity level and calorie target"
           action={<CaretRight size={18} color={colors.gray[500]} />}
-          onPress={() => router.push("/(app)/settings/targets")}
+          onPress={() => router.push("/(app)/settings/edit/target")}
         />
         <Row
           icon={<Clock size={24} color={colors.dark} />}
           title="Meal reminders"
           subtitle="Reminder times and timezone"
           action={<CaretRight size={18} color={colors.gray[500]} />}
-          onPress={() => router.push("/(app)/settings/reminders")}
+          onPress={() => router.push("/(app)/settings/edit/notifications")}
         />
         {profile.isError ? (
           <SectionError

@@ -7,27 +7,10 @@ import { useMe } from "@/features/profile";
 import { useSettings } from "@/features/settings/hooks/useSettings";
 import { useOnboardingPrefill } from "@/features/onboarding/hooks/useOnboardingPrefill";
 import { useSaveOnboardingStep } from "@/features/onboarding/hooks/useSaveOnboardingStep";
-import BodyStep from "@/features/onboarding/screens/BodyStep";
-import GoalStep from "@/features/onboarding/screens/GoalStep";
-import NameStep from "@/features/onboarding/screens/NameStep";
-import NotificationsStep from "@/features/onboarding/screens/NotificationsStep";
-import StartFreeStep from "@/features/onboarding/screens/StartFreeStep";
-import TargetStep from "@/features/onboarding/screens/TargetStep";
-import WeightStep from "@/features/onboarding/screens/WeightStep";
+import { STEP_SCREENS } from "@/features/onboarding/step-screens";
 import { ONBOARDING_STEPS, TOTAL_ONBOARDING_STEPS } from "@/features/onboarding/config";
-import type { OnboardingStepProps } from "@/features/onboarding/types";
 import { getOnboardingProgress } from "@/features/onboarding/utils/progress";
 import { colors } from "@/theme/colors";
-
-const STEP_SCREENS: Record<number, (props: OnboardingStepProps) => React.ReactNode> = {
-  1: (props) => <NameStep {...props} />,
-  2: (props) => <GoalStep {...props} />,
-  3: (props) => <WeightStep {...props} />,
-  4: (props) => <BodyStep {...props} />,
-  5: (props) => <TargetStep {...props} />,
-  6: (props) => <StartFreeStep {...props} />,
-  7: (props) => <NotificationsStep {...props} />,
-};
 
 export function OnboardingSettingsScreen() {
   const profile = useMe();

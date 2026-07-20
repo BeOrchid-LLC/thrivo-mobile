@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   invalidateFoodLogViews,
   invalidateWaterViews,
@@ -39,16 +39,62 @@ import {
   searchFoods,
   updateFoodLog,
   updateWater,
+  type WaterHistoryFilters,
 } from "../api/food-logging.api";
 
+const FOOD_SEARCH_PAGE_SIZE = 10;
+
+/**
+ * Catalog-first search with cursor pages (local then OFF). Auto-fetches the
+ * first external page when the local page is empty so the sheet never shows
+ * a blank “no results” flash before OFF fills in.
+ */
 export function useFoodSearch(query: string) {
   const normalized = query.trim().replace(/\s+/g, " ");
-  return useQuery({
-    queryKey: queryKeys.foods.search(normalized),
-    queryFn: () => searchFoods(normalized),
-    enabled: normalized.length >= 2,
-    staleTime: 1000 * 60,
-  });
+  const enabled = normalized.length >= 2;
+
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isFetchNextPageError, ...rest } =
+    useInfiniteQuery({
+      queryKey: queryKeys.foods.search(normalized),
+      queryFn: ({ pageParam }) =>
+        searchFoods(normalized, {
+          limit: FOOD_SEARCH_PAGE_SIZE,
+          cursor: pageParam,
+        }),
+      initialPageParam: null as string | null,
+      getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+      enabled,
+      staleTime: 1000 * 60,
+    });
+
+  const firstPage = data?.pages[0];
+  const shouldAutoFetchExternal =
+    enabled &&
+    Boolean(firstPage) &&
+    Boolean(firstPage!.nextCursor?.startsWith("external:")) &&
+    Boolean(hasNextPage) &&
+    !isFetchingNextPage &&
+    !isFetchNextPageError;
+
+  useEffect(() => {
+    if (shouldAutoFetchExternal) void fetchNextPage();
+  }, [shouldAutoFetchExternal, fetchNextPage]);
+
+  const items = Array.from(
+    new Map(
+      (data?.pages.flatMap((page) => page.items) ?? []).map((item) => [item.id, item])
+    ).values()
+  );
+
+  return {
+    ...rest,
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isFetchNextPageError,
+    items,
+  };
 }
 
 export function useBarcodeLookup(barcode: string | null) {
@@ -136,10 +182,16 @@ export function useWater(day = localDay()) {
   });
 }
 
-export function useWaterHistory(period: ChartPeriod, day = localDay()) {
-  return useQuery({
-    queryKey: queryKeys.metrics.waterHistory(period, day),
-    queryFn: () => getWaterHistory(period, day),
+export function useWaterHistory(
+  period: ChartPeriod,
+  day = localDay(),
+  filters: WaterHistoryFilters = {}
+) {
+  return useInfiniteQuery({
+    queryKey: queryKeys.metrics.waterHistory(period, day, filters as Record<string, unknown>),
+    queryFn: ({ pageParam }) => getWaterHistory(period, day, filters, pageParam ?? undefined),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     staleTime: 1000 * 60,
   });
 }

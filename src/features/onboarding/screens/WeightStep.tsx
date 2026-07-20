@@ -24,6 +24,7 @@ export default function WeightStep({
   onDone,
   onBack,
   isSaving,
+  variant,
 }: OnboardingStepProps) {
   const { draft, settings } = useOnboardingPrefill();
   const { setFields } = useOnboardingDraftActions();
@@ -110,6 +111,7 @@ export default function WeightStep({
       title="Let's talk weight"
       subtitle="We'll calculate how far you are from your goal."
       onBack={mode === "revisit" ? onBack : undefined}
+      variant={variant}
       footer={
         <>
           <Button

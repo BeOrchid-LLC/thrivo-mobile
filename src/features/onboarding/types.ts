@@ -8,4 +8,6 @@ export interface OnboardingStepProps {
   onDone?: () => void;
   onBack?: () => void;
   isSaving?: boolean;
+  /** "settings" suppresses the gradient and progress bar chrome (re-use from Settings hub). */
+  variant?: "onboarding" | "settings";
 }

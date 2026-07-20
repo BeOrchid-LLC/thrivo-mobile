@@ -19,10 +19,16 @@ jest.mock("../hooks/useFoodLogging", () => ({
   useFoodDetail: (...args: unknown[]) => mockUseFoodDetail(...args),
 }));
 
+const mockUseEntitlement = jest.fn(() => ({ isPremium: true, isLoading: false }));
+
 jest.mock("@react-native-community/datetimepicker", () => {
   const { View } = jest.requireActual("react-native");
   return { __esModule: true, default: () => <View testID="time-picker" /> };
 });
+
+jest.mock("@/hooks/useEntitlement", () => ({
+  useEntitlement: () => mockUseEntitlement(),
+}));
 
 const entry: FoodLogEntry = {
   id: "entry-1",
@@ -78,6 +84,7 @@ describe("EditFoodLogSheet", () => {
     mockUseFavorites.mockReturnValue({ data: { items: [] } });
     mockUseToggleFavorite.mockReturnValue(jest.fn());
     mockUseFoodDetail.mockReturnValue({ data: undefined, isLoading: false });
+    mockUseEntitlement.mockReturnValue({ isPremium: true, isLoading: false });
   });
 
   it("renders nothing when there is no entry", () => {
@@ -142,6 +149,21 @@ describe("EditFoodLogSheet", () => {
     );
   });
 
+  it("scales the macro preview by serving grams, matching the server's reference-grams math", () => {
+    // foodItem reference is 170g/120kcal/18p/8c/2f; "1 cup" = 245g, so the
+    // preview must scale by 245/170 (not by the raw quantity of 1).
+    mockUseFoodDetail.mockReturnValue({ data: foodItem, isLoading: false });
+
+    const screen = render(<EditFoodLogSheet entry={entry} visible onClose={jest.fn()} />);
+    fireEvent.press(screen.getByText("Unit"));
+    fireEvent.press(screen.getByText("1 cup"));
+
+    expect(screen.getByDisplayValue("1")).toBeTruthy();
+    expect(screen.getByText("173 kcal")).toBeTruthy();
+    expect(screen.getByText("25.9g")).toBeTruthy(); // protein: 18 * (245/170)
+    expect(screen.getByText("2.9g")).toBeTruthy(); // fat: 2 * (245/170)
+  });
+
   it("does not fetch food detail for historical (non-editable) entries", () => {
     render(<EditFoodLogSheet entry={oldEntry} visible onClose={jest.fn()} />);
     expect(mockUseFoodDetail).toHaveBeenCalledWith(oldEntry.foodItemId, false);
@@ -184,5 +206,24 @@ describe("EditFoodLogSheet", () => {
     expect(screen.queryByLabelText("Delete entry")).toBeNull();
     expect(screen.getByText(/Editing is only available for entries logged today/)).toBeTruthy();
     expect(screen.getByLabelText("Add favorite")).toBeTruthy();
+  });
+
+  it("gates macros behind PremiumGate for free users while keeping kcal visible", () => {
+    mockUseEntitlement.mockReturnValue({ isPremium: false, isLoading: false });
+
+    const screen = render(<EditFoodLogSheet entry={entry} visible onClose={jest.fn()} />);
+
+    expect(screen.getByText("120 kcal")).toBeTruthy();
+    expect(screen.getByText("Subscribe to see macros")).toBeTruthy();
+    expect(screen.getByText("View plans")).toBeTruthy();
+  });
+
+  it("shows ungated macro cards for premium users", () => {
+    mockUseEntitlement.mockReturnValue({ isPremium: true, isLoading: false });
+
+    const screen = render(<EditFoodLogSheet entry={entry} visible onClose={jest.fn()} />);
+
+    expect(screen.getByText("Protein")).toBeTruthy();
+    expect(screen.queryByText("Subscribe to see macros")).toBeNull();
   });
 });

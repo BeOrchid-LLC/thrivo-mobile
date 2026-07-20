@@ -70,6 +70,7 @@ export default function TargetStep({
   onDone,
   onBack,
   isSaving,
+  variant,
 }: OnboardingStepProps) {
   const { draft } = useOnboardingPrefill();
   const { setFields } = useOnboardingDraftActions();
@@ -161,6 +162,7 @@ export default function TargetStep({
       step={5}
       title="Your daily calorie target"
       onBack={mode === "revisit" ? onBack : undefined}
+      variant={variant}
       footer={
         <>
           <Button

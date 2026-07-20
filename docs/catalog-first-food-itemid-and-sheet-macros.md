@@ -1,0 +1,200 @@
+# Catalog-first search, foodItemId everywhere, and sheet macros
+
+## Status
+
+**Implemented** on `staging` (backend phases 1–5; mobile phases 6–8; admin contracts bumped to `0.16.0`).
+
+| Phase | Repo | Outcome |
+|-------|------|---------|
+| 1 — Shared OFF upsert | `thrivo-backend` | `upsertOffProduct` shared by barcode lookup |
+| 2 — Paginated catalog-first search + contracts `0.16.0` | `thrivo-backend` | Cursor local→external; page size 10; `FoodItem[]` |
+| 2b — Publish gate | npm | `@beorchid-llc/thrivo-contracts@0.16.0` published; consumers bumped |
+| 3 — Describe → personal item | `thrivo-backend` | Estimate log creates personal catalog row + `foodItemId` |
+| 4 — externalFood bridge | `thrivo-backend` | Upsert-then-log so every food log gets a catalog id |
+| 5 — Backfill null FKs | `thrivo-backend` | `scripts/backfill-food-log-item-ids.ts` (+ tsup / npm deploy scripts) |
+| 6 — SearchResultsSheet | `thrivo-mobile` | Infinite search sheet; contracts `^0.16.0` |
+| 7 — Macros in add/edit sheets | `thrivo-mobile` | kcal free; P/C/F + `PremiumGate` |
+| 8 — Logging / favourites polish | `thrivo-mobile` | Always `foodItemId`; hearts on rows; favorites-only de-dupe |
+
+**Ops still required (not code):** run the Phase 5 backfill on staging/production (dry-run → `--apply`) via Coolify per `INFRA_SETUP_GUIDE.md` §15.
+
+---
+
+## Goal
+
+Every **food** log (search, barcode, personal, describe/estimate) resolves to a `food_items` row with a real `foodItemId`. Search is personal + public in our DB first, paginated 10/page in a bottom sheet, Open Food Facts only after local exhaustion. Old null-id logs are repaired by backfill. Add/edit food bottom sheets show **kcal + macros**, with **PremiumGate** for free users.
+
+Favourites stay scoped by **`foodItemId`** (catalog row), not log id — universal `foodItemId` unlocks hearts on all food surfaces.
+
+---
+
+## Will every food log have a `foodItemId`?
+
+**Going forward — yes, for all food diary paths:**
+
+| Path | Behaviour |
+|------|-----------|
+| Barcode lookup → log | Catalog id via shared OFF upsert |
+| Search → log | Always `FoodItem.id` |
+| Personal / custom food → log | Already has id |
+| Describe Meal / estimate → log | Creates **personal** `food_item`, then logs with that id |
+| Favorites / recent re-log | Uses existing catalog id |
+
+**Not food logs:** water entries — no `foodItemId` by design.
+
+**Legacy rows:** `food_logs` with `food_item_id IS NULL` → Phase 5 backfill.
+
+---
+
+## Key decisions
+
+### Personal vs public
+
+Reuse existing columns — no new `scope` DB column.
+
+| Scope | Meaning |
+|-------|---------|
+| personal | `tier = personal`, `owner_user_id = user` (includes describe/estimate items) |
+| public | `tier = authoritative` (OFF cache); community later |
+
+Search visibility = personal-owned ∪ public authoritative.
+
+### Local then external pagination
+
+Two-phase cursor, page size **10**, never call OFF until local is exhausted:
+
+- `local:<offset>` → Postgres FTS
+- Exhausted → `external:<page>` → OFF page N → upsert public rows → `FoodItem[]`
+- No mixing local + OFF in one page
+- Client: `useInfiniteQuery`; auto-fetch once if first local page is empty but `nextCursor` is external
+
+### Describe Meal → personal item
+
+On confirm/log: insert personal `food_item` + nutrients → create log with that id → searchable next time with **Estimated** badge.
+
+### Backfill (`food_item_id IS NULL`)
+
+Script: `thrivo-backend/scripts/backfill-food-log-item-ids.ts`
+
+- Dry-run by default; `--apply` to write
+- Keyset on `food_logs.id`; checkpoints in `os.tmpdir()`; separate dry-run vs apply files
+- **Never rewrite** kcal/macro snapshot columns — only set `food_item_id`
+- Resolution: barcode → personal name match → create personal from snapshot
+
+Coolify:
+
+```bash
+node dist/backfill-food-log-item-ids.js
+node dist/backfill-food-log-item-ids.js --apply
+```
+
+### Macros in add/edit bottom sheets
+
+Surfaces: `LogItemSheet`, `EditFoodLogSheet`
+
+- Always show **kcal** (free)
+- **Protein / Carbs / Fat** via shared `MacroCards`, scaled with quantity × serving
+- Free users: wrap macros in `PremiumGate` + `useEntitlement().isPremium`
+- Search result rows stay kcal (+ Estimated); full macros live in the sheet after tap
+
+---
+
+## Target flows
+
+```mermaid
+flowchart TB
+  Search["GET /foods/search cursor"] --> Local["local FTS personal+public"]
+  Local -->|"exhausted"| Off["OFF page + upsert public"]
+  Local --> Sheet["SearchResultsSheet"]
+  Off --> Sheet
+  Sheet --> LogSheet["LogItemSheet kcal+macros"]
+  Describe["Describe Meal"] --> Personal["insert personal food_item"]
+  Personal --> LogSheet
+  History["History / recent / fav"] --> EditSheet["EditFoodLogSheet kcal+macros"]
+  LogSheet --> Log["food_logs.foodItemId set"]
+  EditSheet --> Log
+  Backfill["backfill script"] --> Log
+```
+
+---
+
+## Mobile touchpoints
+
+| Area | Location |
+|------|----------|
+| Infinite search hook | `src/features/food-logging/hooks/useFoodLogging.ts` → `useFoodSearch` |
+| Search API | `src/features/food-logging/api/food-logging.api.ts` → `searchFoods(q, { limit, cursor })` |
+| Results sheet | `src/features/food-logging/components/SearchResultsSheet.tsx` |
+| Result row + heart | `src/features/food-logging/components/FoodResultRow.tsx` |
+| Add sheet | `src/features/food-logging/components/LogItemSheet.tsx` |
+| Edit sheet | `src/features/food-logging/components/EditFoodLogSheet.tsx` |
+| Macro strip | `src/features/food-logging/components/MacroCards.tsx` |
+| Contracts | `@beorchid-llc/thrivo-contracts` `^0.16.0` |
+
+---
+
+## Explicitly out of scope
+
+- Water as food items / water favourites  
+- New DB `scope` column  
+- Bulk USDA seed / community ranking  
+- Rewriting historical kcal/macro snapshot values during backfill  
+- Auto-favourite on every log  
+
+---
+
+## Risks (accepted mitigations)
+
+| Risk | Mitigation |
+|------|------------|
+| Backfill creates near-duplicate personal items | Prefer barcode; name-match within user before create; report counters |
+| Snapshot ÷ servings for new personal nutrients | Prefer barcode/OFF when barcode present |
+| Free users still see blurred macro numbers | Same as dashboard `PremiumGate` |
+| Macro scale drift vs server | Same serving-choice helpers as log payload |
+
+---
+
+## Direct answers
+
+1. **All new food logs get `foodItemId`?** Yes (Phases 1–4 + mobile). Water is not a food log.  
+2. **Old logs?** Phase 5 backfill links or creates personal items and sets the FK.  
+3. **Macros in sheets?** Phase 7 — kcal free; macros premium-gated via `PremiumGate` + entitlement.
+
+## Remediation handoff plan — 2026-07-17
+
+Implemented in this phase:
+
+- Backend estimate responses now require validated `referenceGrams`; estimate catalog nutrients store `servingG = referenceGrams / quantity`.
+- Food-log serving edits recalculate from catalog reference grams for default, named, and gram selections; quantity-only edits preserve snapshot scaling.
+- Food-log responses include the selected serving identifier.
+- Backfill rows without defensible gram information are flagged instead of receiving fabricated catalog nutrition.
+- Barcode-less Open Food Facts results use stable external identities; local search has deterministic ordering.
+- Mobile add/edit previews scale by grams for gram and named-serving choices, seed edits by serving ID, deduplicate search pages, fetch external results after short local pages, and avoid entitlement-gate flashes.
+- Backend migration `0028_striped_randall_flagg.sql` adds the active Open Food Facts origin-reference uniqueness guard.
+
+Validation completed:
+
+- Backend typecheck passed.
+- Mobile typecheck passed after restoring dependencies.
+- Admin typecheck passed with contracts `0.16.0` installed.
+- Backend targeted unit suites passed: 32 tests.
+- Mobile search suite passed: 2 tests.
+- Database integration suites are present but skipped unless `RUN_DB_TESTS=1` and a test database is available.
+
+## Remediation follow-up — 2026-07-17 (later same day)
+
+Closed two acceptance-gate gaps left open by the handoff above:
+
+- `thrivo-backend/scripts/backfill-food-log-item-ids.ts`: exported `inferReferenceGrams` and guarded the top-level `run()` call behind an `isMain` check (same pattern as `check-env-example.ts`), so it's importable without executing. Added `tests/unit/backfill-food-log-item-ids.test.ts` (4 tests) proving it never fabricates a gram basis for non-gram units — returns `null` (which flags the row) instead of guessing.
+- Mobile: added numeric scaling assertions to `LogItemSheet.test.tsx` and `EditFoodLogSheet.test.tsx` proving the preview math matches the server's `resolveQuantityGrams`/`scaleNutrients` formula for a named serving (grams ≠ quantity) and a raw-gram entry, not just the trivial 1:1 default-serving case the prior tests covered.
+- Bumped `contracts/package.json` to `0.16.1` locally (`npm run contracts:pack:dry` verified it builds clean). **Not yet published to npm** — that step, plus removing mobile's temporary local schema patch in `src/contracts/index.ts` once the real package is live, is still manual.
+
+Verification this pass: backend typecheck/lint/format clean, 306 backend unit tests passing (up from 302), all 39 mobile Jest suites / 179 tests passing (up from 179 pre-existing + this pass's new assertions folded into the same files). Backend DB-integration suites still could not be run — the `.env` `DATABASE_URL` (`13.140.160.132:5433`) is unreachable from this sandbox (`ETIMEDOUT`), not a code issue; run them from a machine with network access to that host.
+
+Remaining delivery plan (unchanged, still manual/infra):
+
+1. `npm publish` the bumped contracts package (`0.16.1`), then drop the temporary local schema patch in mobile's `src/contracts/index.ts` and admin's equivalent once installed.
+2. Run migration `0028_striped_randall_flagg.sql` through Coolify after checking for duplicate active Open Food Facts `origin_ref` values.
+3. In Coolify, run a dry-run of `node dist/backfill-food-log-item-ids.js` with a retained report, inspect flagged rows, then run `node dist/backfill-food-log-item-ids.js --apply`.
+4. Verify the remaining `food_logs.food_item_id IS NULL` count and manually resolve rows flagged `missing_reference_grams`; never invent gram references.
+5. Publish the mobile build/OTA with the contracts artifact and catalog-first UI, then manually QA local/external search, barcode, describe meal, favorites, re-log, serving changes, free/premium sheets, and offline logging.

@@ -82,6 +82,7 @@ export const foodLogHistoryResponse = z.object({
   days: z.array(historyDayWithFavoritesSchema),
   lockedRange: pkg.foodLogHistoryLockedRangeSchema.nullable(),
   historyLimitDays: z.number().int(),
+  nextCursor: z.string().nullable(),
 });
 export const foodLookupResponse = pkg.foodLookupResponseSchema.shape.data;
 export const logMutationResponse = pkg.logMutationResponseSchema.shape.data.extend({
@@ -113,6 +114,7 @@ export const waterHistoryResponse = z.object({
       })
       .nullable(),
     historyLimitDays: z.number().int(),
+    nextCursor: z.string().nullable(),
   }),
 });
 export const weightContextResponse = pkg.weightContextResponseSchema.shape.data;
@@ -173,3 +175,4 @@ export type FoodSearchResponse = z.infer<typeof pkg.foodSearchResponseSchema.sha
 
 export const logFoodPayload = pkg.logFoodPayloadSchema;
 export type LogFoodPayload = z.infer<typeof pkg.logFoodPayloadSchema>;
+export type LogEstimatePayload = z.infer<typeof logEstimatePayload>;

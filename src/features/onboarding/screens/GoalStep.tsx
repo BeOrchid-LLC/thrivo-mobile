@@ -42,6 +42,7 @@ export default function GoalStep({
   onDone,
   onBack,
   isSaving,
+  variant,
 }: OnboardingStepProps) {
   const { draft } = useOnboardingPrefill();
   const { setFields } = useOnboardingDraftActions();
@@ -85,6 +86,7 @@ export default function GoalStep({
       title="What's your goal?"
       subtitle="This sets your calorie target and experience."
       onBack={mode === "revisit" ? onBack : undefined}
+      variant={variant}
       footer={
         <>
           <Button

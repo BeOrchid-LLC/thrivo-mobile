@@ -1,23 +1,29 @@
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, View } from "react-native";
+import { router } from "expo-router";
 import { Heart } from "phosphor-react-native";
 import {
   BottomSheetShell,
   Button,
   FormError,
+  PremiumGate,
   Text,
   TimePicker,
   type TimePickerEvent,
 } from "@/components";
+import { useEntitlement } from "@/hooks/useEntitlement";
 import { isNetworkReachable } from "@/lib";
 import { useFavoritesActions, useIsFavorite } from "@/stores";
 import { colors } from "@/theme";
-import type { FoodItem, FoodSearchResult, LogMutationResponse } from "@/contracts";
+import type { FoodItem, LogMutationResponse } from "@/contracts";
 import { QuantityUnitField } from "./QuantityUnitField";
+import { MacroCards } from "./MacroCards";
 import {
+  GRAMS_SERVING_ID,
   buildServingChoices,
   defaultQuantityFor,
   resolveCreateServingFields,
+  type ServingChoice,
 } from "../utils/servingChoices";
 import { parsePositiveQuantity } from "../utils/quantity";
 import {
@@ -28,7 +34,7 @@ import {
 } from "../hooks/useFoodLogging";
 
 export interface LogItemSheetProps {
-  item: FoodItem | FoodSearchResult | null;
+  item: FoodItem | null;
   day: string;
   visible: boolean;
   onClose: () => void;
@@ -38,18 +44,33 @@ function formatTime(date: Date): string {
   return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
+function scaleNutrients(
+  nutrients: FoodItem["nutrients"],
+  choice: ServingChoice,
+  quantity: number,
+  referenceGrams: number
+): FoodItem["nutrients"] {
+  const isGrams = choice.servingId === GRAMS_SERVING_ID || choice.key === GRAMS_SERVING_ID;
+  const selectedGrams = isGrams ? quantity : quantity * (choice.grams ?? referenceGrams);
+  const factor = selectedGrams / referenceGrams;
+  return {
+    calories: Math.round(nutrients.calories * factor),
+    proteinG: nutrients.proteinG * factor,
+    carbsG: nutrients.carbsG * factor,
+    fatG: nutrients.fatG * factor,
+  };
+}
+
 /**
- * Bottom sheet shown before a NEW food gets logged - lets the user set
- * servings/time and optionally favorite it, rather than the log silently
- * landing with defaults. Works for both catalog items (FoodItem, has an
- * `id`) and raw external search hits (FoodSearchResult, `externalId` only -
- * no favoritable id until the log succeeds and the backend resolves it).
+ * Bottom sheet shown before a NEW catalog food gets logged — servings/time,
+ * optional favorite, and quantity-scaled macros (premium for P/C/F).
  */
 export function LogItemSheet({ item, day, visible, onClose }: LogItemSheetProps) {
   const logFood = useLogFood();
   const addFavorite = useAddFavorite();
   const removeFavorite = useRemoveFavorite();
   const { addFavoriteId, removeFavoriteId } = useFavoritesActions();
+  const entitlement = useEntitlement();
   useFavorites(); // keeps the local favorites store synced
 
   const [servings, setServings] = useState("1");
@@ -59,9 +80,8 @@ export function LogItemSheet({ item, day, visible, onClose }: LogItemSheetProps)
   const [selectedChoiceKey, setSelectedChoiceKey] = useState("default");
   const [message, setMessage] = useState<string | null>(null);
 
-  const catalogFoodItemId = item && "id" in item ? item.id : null;
-  const alreadyFavorite = useIsFavorite(catalogFoodItemId);
-  const itemKey = item ? ("id" in item ? item.id : item.externalId) : null;
+  const alreadyFavorite = useIsFavorite(item?.id ?? null);
+  const itemKey = item?.id ?? null;
 
   // Guaranteed non-empty whenever `item` is set - buildServingChoices always
   // returns at least the item's own fixed serving.
@@ -83,6 +103,12 @@ export function LogItemSheet({ item, day, visible, onClose }: LogItemSheetProps)
 
   const servingsValue = parsePositiveQuantity(servings);
   const hasValidServings = servingsValue !== null;
+  const scaled = scaleNutrients(
+    item.nutrients,
+    selectedChoice!,
+    servingsValue ?? 1,
+    item.servingGrams ?? 100
+  );
 
   const onSelectChoice = (choice: (typeof choices)[number]) => {
     setSelectedChoiceKey(choice.key);
@@ -107,24 +133,24 @@ export function LogItemSheet({ item, day, visible, onClose }: LogItemSheetProps)
       ...resolveCreateServingFields(item, selectedChoice!, servingsValue!),
     };
     logFood.mutate(
-      "id" in item ? { ...base, foodItemId: item.id } : { ...base, externalFood: item },
+      { ...base, foodItemId: item.id },
       {
         onSuccess: (data) => {
           // useLogFood's offline-write mutation types success data as `unknown` since
           // its mutationFn is merged in externally (registerOfflineMutations); the real
           // shape is LogMutationResponse.
           const response = data as LogMutationResponse;
-          const resolvedFoodItemId = response.entry.foodItemId ?? catalogFoodItemId;
+          const resolvedFoodItemId = response.entry.foodItemId ?? item.id;
 
           if (favoriteChecked && resolvedFoodItemId && !alreadyFavorite) {
             addFavoriteId(resolvedFoodItemId);
             addFavorite.mutate(resolvedFoodItemId, {
               onError: () => removeFavoriteId(resolvedFoodItemId),
             });
-          } else if (!favoriteChecked && catalogFoodItemId && alreadyFavorite) {
-            removeFavoriteId(catalogFoodItemId);
-            removeFavorite.mutate(catalogFoodItemId, {
-              onError: () => addFavoriteId(catalogFoodItemId),
+          } else if (!favoriteChecked && alreadyFavorite) {
+            removeFavoriteId(item.id);
+            removeFavorite.mutate(item.id, {
+              onError: () => addFavoriteId(item.id),
             });
           }
           onClose();
@@ -132,6 +158,16 @@ export function LogItemSheet({ item, day, visible, onClose }: LogItemSheetProps)
       }
     );
   };
+
+  const macros = (
+    <MacroCards
+      nutrients={{
+        proteinG: scaled.proteinG,
+        carbsG: scaled.carbsG,
+        fatG: scaled.fatG,
+      }}
+    />
+  );
 
   return (
     <BottomSheetShell
@@ -141,7 +177,8 @@ export function LogItemSheet({ item, day, visible, onClose }: LogItemSheetProps)
       closeLabel="Close log food"
       subtitle={
         <Text variant="caption" color="dark">
-          {item.nutrients.calories} kcal per {item.servingLabel}
+          {scaled.calories} kcal
+          {item.isEstimated ? " · Estimated" : ""}
         </Text>
       }
       modalOverlay={
@@ -155,6 +192,20 @@ export function LogItemSheet({ item, day, visible, onClose }: LogItemSheetProps)
         selectedKey={selectedChoiceKey}
         onSelectChoice={onSelectChoice}
       />
+
+      {entitlement.isLoading ? (
+        <View className="h-24" />
+      ) : entitlement.isPremium ? (
+        macros
+      ) : (
+        <PremiumGate
+          title="Subscribe to see macros"
+          subtitle="Protein, carbs, and fat unlock with Premium."
+          onViewPlans={() => router.push("/(app)/settings/subscription")}
+        >
+          {macros}
+        </PremiumGate>
+      )}
 
       <View className="gap-sm">
         <Text variant="caption" color="dark">

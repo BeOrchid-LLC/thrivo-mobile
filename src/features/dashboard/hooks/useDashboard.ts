@@ -1,9 +1,10 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/api";
 import type { ChartPeriod, Water } from "@/contracts";
 import { useAddWaterLog, useSyncFavoriteStatusesFromEntries } from "@/features/food-logging";
 import { useEntitlement } from "@/hooks/useEntitlement";
 import { localDay } from "@/utils";
+import type { FoodLogHistoryFilters } from "../api/dashboard.api";
 import {
   getDashboardCalories,
   getDashboardMacros,
@@ -63,13 +64,22 @@ export function useDashboardMealLog(day = localDay()) {
   });
 }
 
-export function useFoodLogHistory(period: ChartPeriod = "1m", day = localDay()) {
-  const query = useQuery({
-    queryKey: queryKeys.foods.logHistory(period, day),
-    queryFn: () => getFoodLogHistory(period, day),
+export function useFoodLogHistory(
+  period: ChartPeriod = "1m",
+  day = localDay(),
+  filters: FoodLogHistoryFilters = {}
+) {
+  const query = useInfiniteQuery({
+    queryKey: queryKeys.foods.logHistory(period, day, filters as Record<string, unknown>),
+    queryFn: ({ pageParam }) => getFoodLogHistory(period, day, filters, pageParam ?? undefined),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     staleTime: 1000 * 60,
   });
-  useSyncFavoriteStatusesFromEntries(query.data?.days.flatMap((historyDay) => historyDay.entries));
+  const allEntries = query.data?.pages.flatMap((page) =>
+    page.days.flatMap((historyDay) => historyDay.entries)
+  );
+  useSyncFavoriteStatusesFromEntries(allEntries);
   return query;
 }
 

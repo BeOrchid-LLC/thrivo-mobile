@@ -68,3 +68,7 @@ export { TimePicker } from "./TimePicker";
 export type { TimePickerEvent, TimePickerProps } from "./TimePicker";
 export { ToastProvider, useToast } from "./Toast";
 export type { ToastContextValue, ToastOptions } from "./Toast";
+export { SearchBar } from "./SearchBar";
+export type { SearchBarProps } from "./SearchBar";
+export { FilterChips } from "./FilterChips";
+export type { FilterChip, FilterChipsProps } from "./FilterChips";

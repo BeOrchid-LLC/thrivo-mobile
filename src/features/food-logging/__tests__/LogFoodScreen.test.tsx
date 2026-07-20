@@ -1,4 +1,5 @@
 import { act, fireEvent, render, waitFor } from "@testing-library/react-native";
+import type { FoodItem } from "@/contracts";
 import { emitTabRootReset } from "@/navigation/tab-root-reset";
 import { useFavoritesStore } from "@/stores";
 import { localDay } from "@/utils";
@@ -75,6 +76,10 @@ jest.mock("@/features/settings", () => ({
   useSettings: () => mockUseSettings(),
 }));
 
+jest.mock("@/hooks/useEntitlement", () => ({
+  useEntitlement: () => ({ isPremium: true, isLoading: false }),
+}));
+
 const food = {
   id: "food-1",
   name: "Chicken breast, grilled",
@@ -104,15 +109,10 @@ const recentEntry = {
   loggedAt: new Date().toISOString(),
 };
 
-const searchResult = {
-  externalId: "off:1234567890123",
-  name: "Chicken breast, grilled",
-  brand: null,
-  barcode: "1234567890123",
-  servingLabel: "100g",
-  servingGrams: 100,
-  nutrients: { calories: 165, proteinG: 31, carbsG: 0, fatG: 4 },
-  source: "openfoodfacts" as const,
+const searchFood: FoodItem = {
+  ...food,
+  id: "food-search-1",
+  isEstimated: true,
 };
 
 const water = {
@@ -147,11 +147,19 @@ const successQuery = <T,>(data: T) => ({
   refetch: jest.fn(),
 });
 
+const successSearch = (items: FoodItem[] = []) => ({
+  ...successQuery({ pages: [{ items, nextCursor: null, phase: "local" as const, cached: false }] }),
+  items,
+  fetchNextPage: jest.fn(),
+  hasNextPage: false,
+  isFetchingNextPage: false,
+});
+
 describe("LogFoodScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     useFavoritesStore.setState({ favoriteIds: [] });
-    mockUseFoodSearch.mockReturnValue(successQuery({ items: [] }));
+    mockUseFoodSearch.mockReturnValue(successSearch());
     mockUseRecentFoods.mockReturnValue(successQuery({ items: [] }));
     mockUseFavorites.mockReturnValue(successQuery({ items: [] }));
     mockUseLogFood.mockReturnValue({
@@ -201,12 +209,14 @@ describe("LogFoodScreen", () => {
 
   it("opens the log sheet for a selected search result, clearing the search", async () => {
     const mutate = jest.fn();
-    mockUseFoodSearch.mockReturnValue(successQuery({ items: [searchResult], cached: false }));
+    mockUseFoodSearch.mockReturnValue(successSearch([searchFood]));
     mockUseLogFood.mockReturnValue({ mutate, isPending: false, error: null, reset: jest.fn() });
 
     const screen = render(<LogFoodScreen />);
     fireEvent.changeText(screen.getByPlaceholderText("Or, search by name..."), "Chic");
+    await waitFor(() => expect(screen.getByText("Search results")).toBeTruthy());
     await waitFor(() => expect(screen.getByText("Chicken breast, grilled")).toBeTruthy());
+    expect(screen.getByText(/Estimated/)).toBeTruthy();
     fireEvent.press(screen.getByLabelText("Log Chicken breast, grilled"));
 
     // Search closes/clears once an item is selected for logging.
@@ -216,7 +226,7 @@ describe("LogFoodScreen", () => {
 
     expect(mutate).toHaveBeenCalledWith(
       expect.objectContaining({
-        externalFood: searchResult,
+        foodItemId: searchFood.id,
         servings: 1,
       }),
       expect.any(Object)
@@ -253,14 +263,13 @@ describe("LogFoodScreen", () => {
     expect(screen.getByDisplayValue("100")).toBeTruthy();
   });
 
-  it("opens a favorites-only state from the quick action", () => {
+  it("opens a favorites-only state from the quick action without duplicating the list", () => {
     mockUseFavorites.mockReturnValue(successQuery({ items: [food] }));
 
     const screen = render(<LogFoodScreen />);
     fireEvent.press(screen.getAllByText("Favorites")[0]);
 
-    expect(screen.getAllByText("Favorites").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Chicken breast, grilled").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Chicken breast, grilled")).toHaveLength(1);
   });
 
   it("opens the log sheet for a favorited item instead of logging it immediately", () => {

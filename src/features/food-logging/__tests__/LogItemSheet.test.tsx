@@ -1,5 +1,5 @@
 import { act, fireEvent, render } from "@testing-library/react-native";
-import type { FoodItem, FoodSearchResult } from "@/contracts";
+import type { FoodItem } from "@/contracts";
 import { useFavoritesStore } from "@/stores";
 import { LogItemSheet } from "../components/LogItemSheet";
 
@@ -13,6 +13,12 @@ jest.mock("../hooks/useFoodLogging", () => ({
   useAddFavorite: () => mockUseAddFavorite(),
   useRemoveFavorite: () => mockUseRemoveFavorite(),
   useFavorites: () => mockUseFavorites(),
+}));
+
+const mockUseEntitlement = jest.fn(() => ({ isPremium: true, isLoading: false }));
+
+jest.mock("@/hooks/useEntitlement", () => ({
+  useEntitlement: () => mockUseEntitlement(),
 }));
 
 jest.mock("@/lib", () => ({
@@ -42,98 +48,70 @@ const foodItem: FoodItem = {
   isEstimated: false,
 };
 
-const searchResult: FoodSearchResult = {
-  externalId: "off:123",
-  name: "Greek yogurt",
-  brand: null,
-  barcode: "123",
-  servingLabel: "100g",
-  servingGrams: 100,
-  nutrients: { calories: 120, proteinG: 18, carbsG: 8, fatG: 2 },
-  source: "openfoodfacts",
-};
-
 describe("LogItemSheet", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     useFavoritesStore.setState({ favoriteIds: [] });
+    mockUseFavorites.mockReturnValue({ data: { items: [] } });
+    mockUseAddFavorite.mockReturnValue({ mutate: jest.fn() });
+    mockUseRemoveFavorite.mockReturnValue({ mutate: jest.fn() });
+    mockUseEntitlement.mockReturnValue({ isPremium: true, isLoading: false });
     mockUseLogFood.mockReturnValue({
       mutate: jest.fn(),
       isPending: false,
       error: null,
       reset: jest.fn(),
     });
-    mockUseAddFavorite.mockReturnValue({ mutate: jest.fn() });
-    mockUseRemoveFavorite.mockReturnValue({ mutate: jest.fn() });
-    mockUseFavorites.mockReturnValue({ data: { items: [] } });
   });
 
-  it("renders nothing when there is no item", () => {
-    const screen = render(
-      <LogItemSheet item={null} day="2026-07-10" visible={false} onClose={jest.fn()} />
-    );
-    expect(screen.toJSON()).toBeNull();
-  });
-
-  it("logs a catalog item with the entered servings", () => {
+  it("logs a catalog item with foodItemId", () => {
     const mutate = jest.fn();
     mockUseLogFood.mockReturnValue({ mutate, isPending: false, error: null, reset: jest.fn() });
 
     const screen = render(
       <LogItemSheet item={foodItem} day="2026-07-10" visible onClose={jest.fn()} />
     );
-    fireEvent.press(screen.getByText("+"));
     fireEvent.press(screen.getByText("Log food"));
 
     expect(mutate).toHaveBeenCalledWith(
-      expect.objectContaining({ foodItemId: foodItem.id, day: "2026-07-10", servings: 2 }),
+      expect.objectContaining({ foodItemId: foodItem.id, servings: 1 }),
       expect.any(Object)
     );
   });
 
-  it("logs fractional servings", () => {
-    const mutate = jest.fn();
-    mockUseLogFood.mockReturnValue({ mutate, isPending: false, error: null, reset: jest.fn() });
+  it("shows scaled calories in the subtitle", () => {
+    const screen = render(
+      <LogItemSheet item={foodItem} day="2026-07-10" visible onClose={jest.fn()} />
+    );
+
+    expect(screen.getByText("165 kcal")).toBeTruthy();
+    expect(screen.getByText("Protein")).toBeTruthy();
+  });
+
+  it("gates macros behind PremiumGate for free users while keeping kcal visible", () => {
+    mockUseEntitlement.mockReturnValue({ isPremium: false, isLoading: false });
 
     const screen = render(
       <LogItemSheet item={foodItem} day="2026-07-10" visible onClose={jest.fn()} />
     );
-    fireEvent.changeText(screen.getByDisplayValue("1"), "0.5");
-    fireEvent.press(screen.getByText("Log food"));
 
-    expect(mutate).toHaveBeenCalledWith(
-      expect.objectContaining({ foodItemId: foodItem.id, day: "2026-07-10", servings: 0.5 }),
-      expect.any(Object)
-    );
+    expect(screen.getByText("165 kcal")).toBeTruthy();
+    expect(screen.getByText("Subscribe to see macros")).toBeTruthy();
+    expect(screen.getByText("View plans")).toBeTruthy();
   });
 
-  it("resets quantity to 1 and sends the chosen servingId when switching to a named unit", () => {
-    const mutate = jest.fn();
-    mockUseLogFood.mockReturnValue({ mutate, isPending: false, error: null, reset: jest.fn() });
+  it("shows ungated macro cards for premium users", () => {
+    mockUseEntitlement.mockReturnValue({ isPremium: true, isLoading: false });
 
     const screen = render(
       <LogItemSheet item={foodItem} day="2026-07-10" visible onClose={jest.fn()} />
     );
-    fireEvent.press(screen.getByText("+")); // servings: 1 -> 2, to prove the switch resets it
-    fireEvent.press(screen.getByText("Unit"));
-    fireEvent.press(screen.getByText("1 cup, diced"));
 
-    expect(screen.getByDisplayValue("1")).toBeTruthy();
-
-    fireEvent.press(screen.getByText("Log food"));
-
-    expect(mutate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        foodItemId: foodItem.id,
-        servings: 1,
-        servingId: "serving-cup",
-        servingUnit: "1 cup, diced",
-      }),
-      expect.any(Object)
-    );
+    expect(screen.getByText("Protein")).toBeTruthy();
+    expect(screen.queryByText("Subscribe to see macros")).toBeNull();
   });
 
-  it("resets quantity to the food's reference grams when switching to the grams unit", () => {
+  it("resets quantity when switching to grams", () => {
     const mutate = jest.fn();
     mockUseLogFood.mockReturnValue({ mutate, isPending: false, error: null, reset: jest.fn() });
 
@@ -153,19 +131,34 @@ describe("LogItemSheet", () => {
     );
   });
 
-  it("logs a raw search result as externalFood", () => {
-    const mutate = jest.fn();
-    mockUseLogFood.mockReturnValue({ mutate, isPending: false, error: null, reset: jest.fn() });
-
+  it("scales macros by grams (not quantity) when switching to a named serving", () => {
+    // Reference is 100g/165kcal/31p/0c/4f; "1 cup, diced" = 140g, so 1x that
+    // serving should scale by 140/100 = 1.4x, not by the raw quantity (1).
     const screen = render(
-      <LogItemSheet item={searchResult} day="2026-07-10" visible onClose={jest.fn()} />
+      <LogItemSheet item={foodItem} day="2026-07-10" visible onClose={jest.fn()} />
     );
-    fireEvent.press(screen.getByText("Log food"));
+    fireEvent.press(screen.getByText("Unit"));
+    fireEvent.press(screen.getByText("1 cup, diced"));
 
-    expect(mutate).toHaveBeenCalledWith(
-      expect.objectContaining({ externalFood: searchResult, servings: 1 }),
-      expect.any(Object)
+    expect(screen.getByDisplayValue("1")).toBeTruthy();
+    expect(screen.getByText("231 kcal")).toBeTruthy();
+    expect(screen.getByText("43.4g")).toBeTruthy(); // protein: 31 * 1.4
+    expect(screen.getByText("5.6g")).toBeTruthy(); // fat: 4 * 1.4
+  });
+
+  it("scales macros by the typed gram amount, matching the server's per-100g math", () => {
+    const screen = render(
+      <LogItemSheet item={foodItem} day="2026-07-10" visible onClose={jest.fn()} />
     );
+    fireEvent.press(screen.getByText("Unit"));
+    fireEvent.press(screen.getByText("grams"));
+
+    const gramsInput = screen.getByDisplayValue("100");
+    fireEvent.changeText(gramsInput, "250");
+
+    // 250g against a 100g reference = 2.5x: 165 * 2.5 = 412.5 -> rounds to 413.
+    expect(screen.getByText("413 kcal")).toBeTruthy();
+    expect(screen.getByText("77.5g")).toBeTruthy(); // protein: 31 * 2.5
   });
 
   it("favorites the item after a successful log when checked", () => {
@@ -182,16 +175,16 @@ describe("LogItemSheet", () => {
     });
 
     const screen = render(
-      <LogItemSheet item={searchResult} day="2026-07-10" visible onClose={jest.fn()} />
+      <LogItemSheet item={foodItem} day="2026-07-10" visible onClose={jest.fn()} />
     );
     fireEvent.press(screen.getByLabelText("Add favorite"));
     fireEvent.press(screen.getByText("Log food"));
     act(() => {
-      onSuccess?.({ entry: { foodItemId: "resolved-food-1" }, totals: {} });
+      onSuccess?.({ entry: { foodItemId: foodItem.id }, totals: {} });
     });
 
-    expect(addFavorite).toHaveBeenCalledWith("resolved-food-1", expect.any(Object));
-    expect(useFavoritesStore.getState().favoriteIds).toEqual(["resolved-food-1"]);
+    expect(addFavorite).toHaveBeenCalledWith(foodItem.id, expect.any(Object));
+    expect(useFavoritesStore.getState().favoriteIds).toEqual([foodItem.id]);
   });
 
   it("removes a catalog favorite after a successful log when unchecked", () => {

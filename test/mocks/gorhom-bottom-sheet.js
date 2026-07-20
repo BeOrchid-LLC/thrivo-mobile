@@ -1,3 +1,4 @@
+/* global jest */
 const React = require("react");
 
 function Passthrough({ children }) {
@@ -17,5 +18,6 @@ module.exports = {
   BottomSheetModalProvider: Passthrough,
   BottomSheetBackdrop: () => null,
   BottomSheetView: Passthrough,
+  BottomSheetScrollView: Passthrough,
   BottomSheetModal,
 };

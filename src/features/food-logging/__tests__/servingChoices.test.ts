@@ -1,4 +1,4 @@
-import type { FoodItem, FoodSearchResult } from "@/contracts";
+import type { FoodItem } from "@/contracts";
 import {
   buildServingChoices,
   defaultQuantityFor,
@@ -25,20 +25,10 @@ const catalogItem: FoodItem = {
   isEstimated: false,
 };
 
-const searchResultWithGrams: FoodSearchResult = {
-  externalId: "off:123",
-  name: "Rolled oats",
-  brand: null,
-  barcode: null,
-  servingLabel: "40g",
-  servingGrams: 40,
-  nutrients: { calories: 150, proteinG: 5, carbsG: 27, fatG: 3 },
-  source: "openfoodfacts",
-};
-
-const searchResultNoGrams: FoodSearchResult = {
-  ...searchResultWithGrams,
-  servingGrams: null,
+const emptyOptionsItem: FoodItem = {
+  ...catalogItem,
+  id: "food-2",
+  servingOptions: [],
 };
 
 describe("buildServingChoices", () => {
@@ -51,17 +41,10 @@ describe("buildServingChoices", () => {
     ]);
   });
 
-  it("synthesizes a default + grams choice for a search result with a known gram weight", () => {
-    const choices = buildServingChoices(searchResultWithGrams);
-    expect(choices).toEqual([
-      { key: "default", label: "40g", servingId: null, grams: 40 },
-      { key: GRAMS_SERVING_ID, label: "grams", servingId: null, grams: 1 },
+  it("falls back to the item serving label when servingOptions is empty", () => {
+    expect(buildServingChoices(emptyOptionsItem)).toEqual([
+      { key: "default", label: "1 serving", servingId: null, grams: 140 },
     ]);
-  });
-
-  it("omits the grams choice for a search result with no known gram weight", () => {
-    const choices = buildServingChoices(searchResultNoGrams);
-    expect(choices).toEqual([{ key: "default", label: "40g", servingId: null, grams: null }]);
   });
 });
 
@@ -104,23 +87,6 @@ describe("resolveCreateServingFields", () => {
     expect(resolveCreateServingFields(catalogItem, gramsChoice, 250)).toEqual({
       servings: 250,
       servingId: GRAMS_SERVING_ID,
-      servingUnit: "grams",
-    });
-  });
-
-  it("passes a search result's default choice through as a flat multiplier", () => {
-    const defaultChoice = buildServingChoices(searchResultWithGrams)[0];
-    expect(resolveCreateServingFields(searchResultWithGrams, defaultChoice, 3)).toEqual({
-      servings: 3,
-      servingUnit: "40g",
-    });
-  });
-
-  it("computes an equivalent multiplier for a search result's grams choice", () => {
-    const gramsChoice = buildServingChoices(searchResultWithGrams)[1];
-    // 80 grams / 40 grams-per-serving = 2x the base serving.
-    expect(resolveCreateServingFields(searchResultWithGrams, gramsChoice, 80)).toEqual({
-      servings: 2,
       servingUnit: "grams",
     });
   });
