@@ -2,9 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { Platform, TextInput, View } from "react-native";
+import { useSignIn, useSignUp } from "@clerk/expo";
 import { BackButton, Button, FormError, Screen, Text } from "@/components";
 import { colors } from "@/theme";
-import { useRequestOtp, useVerifyOtp } from "../hooks/useAuth";
+import { useBiometricUnlockActions, useSessionActions } from "@/stores";
 
 type OtpParams = {
   email?: string;
@@ -24,22 +25,29 @@ function notify(type: "success" | "error") {
   );
 }
 
+function clerkErrorMessage(error: { longMessage?: string; message?: string } | null): string {
+  if (!error) return "Something went wrong.";
+  return error.longMessage ?? error.message ?? "Invalid code.";
+}
+
 export function OtpVerifyScreen() {
   const { email, source } = useLocalSearchParams<OtpParams>();
-  const verify = useVerifyOtp();
-  const request = useRequestOtp();
+  const { signIn } = useSignIn();
+  const { signUp } = useSignUp();
+  const { setStatus } = useSessionActions();
+  const { setBiometricUnlocked } = useBiometricUnlockActions();
+
   const [code, setCode] = useState("");
   const [countdown, setCountdown] = useState(60);
+  const [isPending, setIsPending] = useState(false);
+  const [isResending, setIsResending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const submittedCode = useRef<string | null>(null);
   const inputs = useRef<(TextInput | null)[]>([]);
   const normalizedEmail = typeof email === "string" ? email : "";
+  const isSignUp = source === "email";
   const boxes = useMemo(() => Array.from({ length: 6 }, (_, index) => code[index] ?? ""), [code]);
-  const differentEmailTarget = source === "sign-in" ? "/(auth)/sign-in" : "/(auth)/email";
-
-  useEffect(() => {
-    const timer = setInterval(() => setCountdown((value) => Math.max(value - 1, 0)), 1000);
-    return () => clearInterval(timer);
-  }, []);
+  const differentEmailTarget = isSignUp ? "/(auth)/email" : "/(auth)/sign-in";
 
   useEffect(() => {
     if (!normalizedEmail) router.replace("/(auth)/email");
@@ -51,21 +59,100 @@ export function OtpVerifyScreen() {
   }, []);
 
   useEffect(() => {
-    if (code.length !== 6 || verify.isPending || submittedCode.current === code) return;
-    submittedCode.current = code;
-    verify.mutate(
-      { email: normalizedEmail, code },
-      {
-        onSuccess: (user) => {
-          notify("success");
-          router.replace(
-            user.isOnboarded || user.isOnboardingSkipped ? "/(app)/dashboard" : "/(onboarding)/name"
-          );
-        },
-        onError: () => notify("error"),
+    const timer = setInterval(() => setCountdown((value) => Math.max(value - 1, 0)), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const verify = async (digits: string) => {
+    setIsPending(true);
+    setError(null);
+
+    if (isSignUp) {
+      if (!signUp) {
+        setIsPending(false);
+        return;
       }
-    );
-  }, [code, normalizedEmail, verify]);
+      try {
+        const { error: verifyError } = await signUp.verifications.verifyEmailCode({ code: digits });
+        if (verifyError) {
+          notify("error");
+          setError(clerkErrorMessage(verifyError));
+          return;
+        }
+        const { error: finalizeError } = await signUp.finalize();
+        if (finalizeError) {
+          notify("error");
+          setError(clerkErrorMessage(finalizeError));
+          return;
+        }
+        notify("success");
+        setBiometricUnlocked(true);
+        setStatus("loading");
+      } finally {
+        setIsPending(false);
+      }
+    } else {
+      if (!signIn) {
+        setIsPending(false);
+        return;
+      }
+      try {
+        const { error: verifyError } = await signIn.emailCode.verifyCode({ code: digits });
+        if (verifyError) {
+          notify("error");
+          setError(clerkErrorMessage(verifyError));
+          return;
+        }
+        const { error: finalizeError } = await signIn.finalize();
+        if (finalizeError) {
+          notify("error");
+          setError(clerkErrorMessage(finalizeError));
+          return;
+        }
+        notify("success");
+        setBiometricUnlocked(true);
+        setStatus("loading");
+      } finally {
+        setIsPending(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (code.length !== 6 || isPending || submittedCode.current === code) return;
+    submittedCode.current = code;
+    void verify(code);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [code, isPending]);
+
+  const onResend = async () => {
+    if (countdown > 0 || !normalizedEmail) return;
+    setIsResending(true);
+    setError(null);
+    try {
+      if (isSignUp) {
+        if (!signUp) return;
+        const { error: resendError } = await signUp.verifications.sendEmailCode();
+        if (resendError) {
+          setError(clerkErrorMessage(resendError));
+          return;
+        }
+      } else {
+        if (!signIn) return;
+        const { error: resendError } = await signIn.emailCode.sendCode();
+        if (resendError) {
+          setError(clerkErrorMessage(resendError));
+          return;
+        }
+      }
+      setCountdown(60);
+      setCode("");
+      submittedCode.current = null;
+      inputs.current[0]?.focus();
+    } finally {
+      setIsResending(false);
+    }
+  };
 
   const onChangeAt = (index: number, value: string) => {
     const clean = digitsOnly(value);
@@ -82,15 +169,6 @@ export function OtpVerifyScreen() {
     setCode(next);
     submittedCode.current = next.length < 6 ? null : submittedCode.current;
     if (clean && index < 5) inputs.current[index + 1]?.focus();
-  };
-
-  const onResend = async () => {
-    if (countdown > 0 || !normalizedEmail) return;
-    await request.mutateAsync({ email: normalizedEmail });
-    setCountdown(60);
-    setCode("");
-    submittedCode.current = null;
-    inputs.current[0]?.focus();
   };
 
   return (
@@ -121,7 +199,7 @@ export function OtpVerifyScreen() {
                 textContentType="oneTimeCode"
                 maxLength={index === 0 ? 6 : 1}
                 value={digit}
-                editable={!verify.isPending}
+                editable={!isPending}
                 onChangeText={(value) => onChangeAt(index, value)}
                 onKeyPress={({ nativeEvent }) => {
                   if (nativeEvent.key === "Backspace" && !boxes[index] && index > 0) {
@@ -129,20 +207,20 @@ export function OtpVerifyScreen() {
                   }
                 }}
                 className={`h-[54px] w-[46px] rounded-md border bg-white text-center font-semibold text-[22px] text-dark ${
-                  verify.error ? "border-error" : digit ? "border-primary" : "border-gray-300"
+                  error ? "border-error" : digit ? "border-primary" : "border-gray-300"
                 }`}
                 style={{ borderCurve: "continuous", fontVariant: ["tabular-nums"] }}
               />
             ))}
           </View>
 
-          {verify.isPending ? (
+          {isPending ? (
             <Text variant="caption" color="muted" className="text-center">
               Verifying...
             </Text>
           ) : null}
 
-          <FormError message={verify.error?.message} center />
+          <FormError message={error} center />
         </View>
 
         <View className="gap-sm">
@@ -150,13 +228,13 @@ export function OtpVerifyScreen() {
             label={countdown > 0 ? `Resend in ${countdown}s` : "Resend code"}
             variant="outline"
             disabled={countdown > 0}
-            loading={request.isPending}
+            loading={isResending}
             onPress={onResend}
           />
           <Button
             label="Use a different email"
             variant="ghost"
-            disabled={verify.isPending}
+            disabled={isPending}
             onPress={() => router.replace(differentEmailTarget)}
           />
         </View>

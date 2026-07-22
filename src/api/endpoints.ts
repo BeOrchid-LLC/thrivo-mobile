@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { userSessionResponseSchema } from "@beorchid-llc/thrivo-contracts/auth";
 import * as c from "@/contracts";
 
 /**
@@ -29,41 +28,6 @@ export interface EndpointConfig {
 }
 
 export const ENDPOINTS = {
-  // --- Auth (public) ---
-  OAUTH_APPLE: {
-    path: "/auth/oauth/apple",
-    method: "POST",
-    auth: false,
-    payload: c.appleSignInPayloadSchema,
-    response: c.authSessionSchema,
-  },
-  OTP_REQUEST: {
-    path: "/auth/otp/request",
-    method: "POST",
-    auth: false,
-    payload: c.otpRequestPayload,
-    response: c.ackSchema,
-  },
-  OTP_VERIFY: {
-    path: "/auth/otp/verify",
-    method: "POST",
-    auth: false,
-    payload: c.otpVerifyPayload,
-    response: c.authSessionSchema,
-  },
-  LOGOUT: {
-    path: "/auth/logout",
-    method: "POST",
-    auth: true,
-    response: c.ackSchema,
-  },
-  GET_SESSION: {
-    path: "/auth/session",
-    method: "GET",
-    auth: true,
-    response: userSessionResponseSchema,
-  },
-
   // --- Push ---
   PUSH_REGISTER: {
     path: "/push/register",

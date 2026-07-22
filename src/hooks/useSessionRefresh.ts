@@ -1,16 +1,18 @@
 import { useEffect, useRef } from "react";
 import { AppState, type AppStateStatus } from "react-native";
+import { useClerk } from "@clerk/expo";
 import { queryClient, queryKeys, isApiError } from "@/api";
-import { clearToken } from "@/lib";
 import { getMe } from "@/features/profile";
 import { useSessionActions, useSessionStore } from "@/stores";
 
 /**
  * Re-validates the session when the app returns to the foreground. Refreshes the
  * full profile via `GET /users/me` and updates navigation facts if they changed.
+ * On auth error, signs out via Clerk and clears local session state.
  */
 export function useSessionRefresh(): void {
   const actions = useSessionActions();
+  const { signOut } = useClerk();
   const appState = useRef<AppStateStatus>(AppState.currentState);
 
   useEffect(() => {
@@ -31,7 +33,7 @@ export function useSessionRefresh(): void {
           });
         } catch (error) {
           if (isApiError(error) && error.isAuthError) {
-            await clearToken();
+            void signOut();
             actions.clearSession();
           }
         }
@@ -39,5 +41,5 @@ export function useSessionRefresh(): void {
     });
 
     return () => sub.remove();
-  }, [actions]);
+  }, [actions, signOut]);
 }

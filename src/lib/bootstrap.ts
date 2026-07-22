@@ -1,33 +1,33 @@
-import { setTokenGetter, setUnauthenticatedHandler, setTokenRefresher } from "@/api";
+import { setTokenGetter, setUnauthenticatedHandler } from "@/api";
 import { useSessionStore } from "@/stores";
-import { getToken, clearTokens } from "./secure-store";
-import { refreshAccessToken } from "./auth-refresh";
 import { analytics } from "./analytics";
 import { monitoring } from "./monitoring";
 
-/**
- * Wires the API client's injection seams (src/api/auth-token) to the device +
- * session layers. Kept here — not in the client — so the client never imports
- * stores or storage. Called once at app start (root layout, Phase 5).
- */
 let wired = false;
+let clerkSignOutFn: (() => Promise<void>) | null = null;
 
+/**
+ * Wires the API client's injection seams. Called once at module load in the root
+ * layout. The token getter is a no-op until ClerkTokenBridge registers Clerk's
+ * session.getToken once ClerkProvider is mounted.
+ */
 export function wireApiSeams(): void {
   if (wired) return;
   wired = true;
 
-  // The client reads the Bearer token from secure-store (source of truth).
-  setTokenGetter(() => getToken());
+  setTokenGetter(() => Promise.resolve(null));
 
-  // On a 401 the client first tries to rotate the refresh token for a new access
-  // token (single-flighted in auth-refresh) before giving up.
-  setTokenRefresher(() => refreshAccessToken());
+  // No token refresher: Clerk's getToken() always returns a fresh short-lived
+  // token. On 401 from our backend, skip retry and go straight to sign-out.
 
-  // On a 401 the refresh couldn't recover: drop both tokens + session, reset SDKs.
   setUnauthenticatedHandler(() => {
-    void clearTokens();
+    void clerkSignOutFn?.();
     useSessionStore.getState().actions.clearSession();
     analytics.reset();
     monitoring.setUser(null);
   });
+}
+
+export function wireClerkSignOut(fn: () => Promise<void>): void {
+  clerkSignOutFn = fn;
 }

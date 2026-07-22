@@ -5,7 +5,6 @@ export {
   useIsAuthenticated,
   useIsOnboarded,
   useIsOnboardingSkipped,
-  useSessionToken,
   useSessionActions,
   type AuthStatus,
 } from "./session.store";

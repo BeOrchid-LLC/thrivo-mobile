@@ -13,16 +13,21 @@ import {
 } from "@expo-google-fonts/inter";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
+import { ClerkProvider, useAuth, useClerk } from "@clerk/expo";
 import { queryClient, persistOptions, registerOfflineMutations } from "@/api";
+import { setTokenGetter } from "@/api/auth-token";
 import { BrandSplash, ErrorState, Screen, ToastProvider } from "@/components";
 import {
   wireApiSeams,
+  wireClerkSignOut,
   addNotificationResponseListener,
   initOnlineManager,
   withMonitoring,
   monitoring,
   analytics,
+  clerkTokenCache,
 } from "@/lib";
+import { env } from "@/config/env";
 import { useSessionInit, useSessionRefresh } from "@/hooks";
 import { resolveRootRedirect } from "@/navigation/root-redirect";
 import {
@@ -35,19 +40,7 @@ import {
   useSessionActions,
 } from "@/stores";
 
-// Wire the API client's token/unauthenticated seams once, at module load - kept
-// synchronous (unlike the rest of boot init below) because RootNavigator's child
-// effects (useSessionInit's session-restore fetch) can fire before RootLayout's own
-// effects run, and that first fetch needs the 401 seam wired already.
 wireApiSeams();
-// Bridge connectivity into React Query and register the resumable offline-write
-// defaults before anything can mount. Both are synchronous, in-memory, no native
-// SDK/disk I/O - so, unlike monitoring/analytics below, deferring them buys no
-// splash-hide performance and breaks an ordering guarantee: PersistQueryClientProvider
-// calls `resumePausedMutations()` as soon as its own restore effect finishes, with no
-// ordering relative to a sibling effect - if that ran first, resumed mutations (and
-// any mutation a screen fires before its own render picks up the defaults) would find
-// no mutationFn registered yet.
 initOnlineManager();
 registerOfflineMutations(queryClient);
 void SplashScreen.preventAutoHideAsync();
@@ -60,12 +53,21 @@ function bootLog(message: string): void {
 }
 
 /**
- * The single navigation guard (MOBILE_ARCHITECTURE §5). Reads auth/onboarding
- * state and redirects to the correct group so no screen re-implements the gate:
- *   no session            → (auth)
- *   session, not onboarded → (onboarding)
- *   session + onboarded    → (app)
+ * Bridges Clerk's token getter and sign-out into the API client seams.
+ * Must be inside ClerkProvider so the Clerk hooks are available.
  */
+function ClerkTokenBridge() {
+  const { getToken } = useAuth();
+  const { signOut } = useClerk();
+
+  useEffect(() => {
+    setTokenGetter(() => getToken());
+    wireClerkSignOut(() => signOut());
+  }, [getToken, signOut]);
+
+  return null;
+}
+
 function RootNavigator({ fontsReady }: { fontsReady: boolean }) {
   const status = useAuthStatus();
   const biometricEnabled = useBiometricAuthEnabled();
@@ -93,9 +95,6 @@ function RootNavigator({ fontsReady }: { fontsReady: boolean }) {
     return () => clearTimeout(timeout);
   }, [preferencesHydrated, status]);
 
-  // Route notification taps to a usable app screen. The backend sends a stable
-  // screen *key* (e.g. "checkin") so its payload never couples to Expo Router's
-  // internal route paths; we map known keys here and fall back to the dashboard.
   useEffect(() => {
     const screenRoutes: Record<string, string> = {
       checkin: "/(app)/checkin",
@@ -134,15 +133,12 @@ function RootNavigator({ fontsReady }: { fontsReady: boolean }) {
     if (target) {
       redirecting.current = true;
       router.replace(target as Parameters<typeof router.replace>[0]);
-      // Reset after a tick so the ref doesn't block the next state change.
       setTimeout(() => {
         redirecting.current = false;
       }, 0);
     }
   }, [ready, status, isOnboarded, isOnboardingSkipped, isBiometricLocked, segments, router]);
 
-  // Hold the branded splash until fonts + auth resolve so Inter never flashes
-  // the fallback face and no screen renders before the guard decides the route.
   if (!ready) {
     return <BrandSplash />;
   }
@@ -190,10 +186,6 @@ function RootLayout() {
 
   const fontsReady = fontsLoaded || Boolean(fontError) || fontTimeoutReached;
 
-  // Deferred off the synchronous module-load path (previously ran before React
-  // rendered anything) so the first frame - and native splash hideAsync() - isn't
-  // blocked behind Sentry/PostHog native SDK init. Tradeoff: a crash/error in the
-  // brief window before this effect fires won't be captured by Sentry.
   useEffect(() => {
     monitoring.init();
     analytics.init();
@@ -203,35 +195,32 @@ function RootLayout() {
   const handleRootLayout = useCallback(() => {
     if (splashHidden.current) return;
     splashHidden.current = true;
-    // First frame is laid out (BrandSplash, since fonts/auth aren't ready yet),
-    // so the native splash can drop out with nothing blank behind it.
     bootLog("first frame laid out; hiding native splash");
     void SplashScreen.hideAsync();
   }, []);
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }} onLayout={handleRootLayout}>
-      <SafeAreaProvider>
-        <PersistQueryClientProvider
-          client={queryClient}
-          persistOptions={persistOptions}
-          onSuccess={() => {
-            // Cache restored from disk → flush any offline writes that were
-            // queued before the last app kill.
-            void queryClient.resumePausedMutations();
-          }}
-        >
-          <BottomSheetModalProvider>
-            <ToastProvider>
-              <RootNavigator fontsReady={fontsReady} />
-            </ToastProvider>
-          </BottomSheetModalProvider>
-        </PersistQueryClientProvider>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <ClerkProvider publishableKey={env.clerkPublishableKey} tokenCache={clerkTokenCache}>
+      <GestureHandlerRootView style={{ flex: 1 }} onLayout={handleRootLayout}>
+        <SafeAreaProvider>
+          <PersistQueryClientProvider
+            client={queryClient}
+            persistOptions={persistOptions}
+            onSuccess={() => {
+              void queryClient.resumePausedMutations();
+            }}
+          >
+            <BottomSheetModalProvider>
+              <ToastProvider>
+                <ClerkTokenBridge />
+                <RootNavigator fontsReady={fontsReady} />
+              </ToastProvider>
+            </BottomSheetModalProvider>
+          </PersistQueryClientProvider>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    </ClerkProvider>
   );
 }
 
-// Sentry wraps the root so render errors + native crashes are captured (no-op
-// passthrough when no DSN is configured).
 export default withMonitoring(RootLayout);
