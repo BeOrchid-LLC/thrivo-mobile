@@ -8,14 +8,12 @@ describe("Phase 3 — session store", () => {
   it("starts unauthenticated after clear", () => {
     const state = useSessionStore.getState();
     expect(state.status).toBe("unauthenticated");
-    expect(state.token).toBeNull();
     expect(state.userId).toBeNull();
     expect(state.isOnboarded).toBe(false);
   });
 
   it("setSession marks the user authenticated with session facts", () => {
     useSessionStore.getState().actions.setSession({
-      token: "tok_1",
       userId: "u_1",
       accountStatus: "free_trial",
       isOnboarded: true,
@@ -23,17 +21,15 @@ describe("Phase 3 — session store", () => {
     });
     const state = useSessionStore.getState();
     expect(state.status).toBe("authenticated");
-    expect(state.token).toBe("tok_1");
     expect(state.userId).toBe("u_1");
     expect(state.accountStatus).toBe("free_trial");
     expect(state.isOnboarded).toBe(true);
     expect(state.isOnboardingSkipped).toBe(false);
   });
 
-  it("clearSession wipes the token and resets account status", () => {
+  it("clearSession resets account status", () => {
     const { actions } = useSessionStore.getState();
     actions.setSession({
-      token: "tok_1",
       userId: "u_1",
       accountStatus: "free_trial",
       isOnboarded: true,
@@ -42,7 +38,6 @@ describe("Phase 3 — session store", () => {
     actions.clearSession();
     const state = useSessionStore.getState();
     expect(state.status).toBe("unauthenticated");
-    expect(state.token).toBeNull();
     expect(state.accountStatus).toBeNull();
     expect(state.isOnboarded).toBe(false);
     expect(state.isOnboardingSkipped).toBe(false);

@@ -51,7 +51,6 @@ describe("WelcomeScreen", () => {
     mockAuthenticateBiometric.mockResolvedValue(true);
     useSessionStore.setState({
       status: "unauthenticated",
-      token: null,
       userId: null,
       accountStatus: null,
       isOnboarded: false,
@@ -92,7 +91,6 @@ describe("WelcomeScreen", () => {
     mockBiometricAvailable.mockResolvedValue(true);
     useSessionStore.setState({
       status: "authenticated",
-      token: "token",
       userId: "user-1",
       accountStatus: "free_plan",
       isOnboarded: true,
@@ -111,7 +109,6 @@ describe("WelcomeScreen", () => {
     mockBiometricAvailable.mockResolvedValue(true);
     useSessionStore.setState({
       status: "authenticated",
-      token: "token",
       userId: "user-1",
       accountStatus: "free_plan",
       isOnboarded: false,
@@ -131,7 +128,6 @@ describe("WelcomeScreen", () => {
     mockAuthenticateBiometric.mockResolvedValue(false);
     useSessionStore.setState({
       status: "authenticated",
-      token: "token",
       userId: "user-1",
       accountStatus: "free_plan",
       isOnboarded: true,

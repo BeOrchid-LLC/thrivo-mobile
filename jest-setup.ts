@@ -1,3 +1,6 @@
+// Provide required env vars before any module loads src/config/env.ts.
+process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY = "pk_test_test";
+
 // Jest setup: runs after the test framework is installed.
 // @testing-library/react-native v13 ships its matchers automatically via the
 // jest-expo preset's environment. Add global mocks for native modules here.

@@ -2,18 +2,24 @@ import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import { router } from "expo-router";
 import { OtpRequestScreen } from "../screens/OtpRequestScreen";
 
-const mockRequestOtp = jest.fn();
+const mockSignUpCreate = jest.fn();
+const mockSendEmailCode = jest.fn();
 const mockSetFields = jest.fn();
 
 jest.mock("expo-router", () => ({
   router: { push: jest.fn(), replace: jest.fn() },
 }));
 
-jest.mock("../hooks/useAuth", () => ({
-  useRequestOtp: () => ({
-    mutateAsync: mockRequestOtp,
-    isPending: false,
-    error: null,
+jest.mock("@clerk/expo", () => ({
+  useSignUp: () => ({
+    signUp: {
+      create: mockSignUpCreate,
+      verifications: {
+        sendEmailCode: mockSendEmailCode,
+        verifyEmailCode: jest.fn().mockResolvedValue({ error: null }),
+      },
+      finalize: jest.fn().mockResolvedValue({ error: null }),
+    },
   }),
 }));
 
@@ -24,21 +30,59 @@ jest.mock("@/stores", () => ({
 describe("OtpRequestScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockRequestOtp.mockResolvedValue(null);
+    mockSignUpCreate.mockResolvedValue({ error: null });
+    mockSendEmailCode.mockResolvedValue({ error: null });
   });
 
-  it("stores the full name draft and routes to OTP", async () => {
+  it("creates a sign-up and navigates to OTP screen on submit", async () => {
     const screen = render(<OtpRequestScreen />);
 
-    fireEvent.changeText(screen.getByPlaceholderText("Ada Lovelace"), "Ada Lovelace");
-    fireEvent.changeText(screen.getByPlaceholderText("you@example.com"), "ada@example.com");
+    fireEvent.changeText(screen.getByLabelText("Name"), "Ada Lovelace");
+    fireEvent.changeText(screen.getByLabelText("Email"), "ada@example.com");
     fireEvent.press(screen.getByText("Send code"));
 
-    await waitFor(() => expect(mockRequestOtp).toHaveBeenCalledWith({ email: "ada@example.com" }));
-    expect(mockSetFields).toHaveBeenCalledWith({ firstName: "Ada Lovelace", onboardingStep: 1 });
-    expect(router.push).toHaveBeenCalledWith({
-      pathname: "/(auth)/otp",
-      params: { email: "ada@example.com", source: "email" },
+    await waitFor(() => {
+      expect(mockSignUpCreate).toHaveBeenCalledWith(
+        expect.objectContaining({ emailAddress: "ada@example.com" })
+      );
+      expect(mockSendEmailCode).toHaveBeenCalled();
+      expect(router.push).toHaveBeenCalledWith(
+        expect.objectContaining({
+          pathname: "/(auth)/otp",
+          params: expect.objectContaining({ email: "ada@example.com", source: "email" }),
+        })
+      );
     });
+  });
+
+  it("stores the name draft before navigating", async () => {
+    const screen = render(<OtpRequestScreen />);
+
+    fireEvent.changeText(screen.getByLabelText("Name"), "Ada Lovelace");
+    fireEvent.changeText(screen.getByLabelText("Email"), "ada@example.com");
+    fireEvent.press(screen.getByText("Send code"));
+
+    await waitFor(() => {
+      expect(mockSetFields).toHaveBeenCalledWith(
+        expect.objectContaining({ firstName: "Ada Lovelace" })
+      );
+    });
+  });
+
+  it("shows an error when Clerk returns an API error", async () => {
+    mockSignUpCreate.mockResolvedValue({
+      error: { message: "Email taken.", longMessage: "Email address is already taken." },
+    });
+
+    const screen = render(<OtpRequestScreen />);
+
+    fireEvent.changeText(screen.getByLabelText("Name"), "Ada");
+    fireEvent.changeText(screen.getByLabelText("Email"), "ada@example.com");
+    fireEvent.press(screen.getByText("Send code"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Email address is already taken.")).toBeTruthy();
+    });
+    expect(router.push).not.toHaveBeenCalled();
   });
 });

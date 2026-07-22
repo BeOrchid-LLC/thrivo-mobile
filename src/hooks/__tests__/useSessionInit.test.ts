@@ -1,8 +1,32 @@
-import { act, renderHook, waitFor } from "@testing-library/react-native";
-import { callApi } from "@/api";
-import { getToken, clearToken } from "@/lib";
+import { renderHook, waitFor } from "@testing-library/react-native";
 import { useSessionStore } from "@/stores/session.store";
 import { useSessionInit } from "../useSessionInit";
+
+const mockGetMe = jest.fn();
+const mockSetQueryData = jest.fn();
+
+jest.mock("@clerk/expo", () => ({
+  useAuth: jest.fn(),
+}));
+
+jest.mock("@/api", () => ({
+  queryClient: { setQueryData: (...args: unknown[]) => mockSetQueryData(...args) },
+  queryKeys: { me: () => ["me"] },
+  isApiError: (error: unknown) =>
+    typeof error === "object" &&
+    error !== null &&
+    "isAuthError" in error &&
+    (error as { isAuthError: boolean }).isAuthError,
+}));
+
+jest.mock("@/features/profile", () => ({
+  getMe: (...args: unknown[]) => mockGetMe(...args),
+}));
+
+jest.mock("@/lib", () => ({
+  analytics: { identify: jest.fn(), reset: jest.fn() },
+  monitoring: { setUser: jest.fn() },
+}));
 
 jest.mock("@/stores", () => {
   const store =
@@ -13,31 +37,14 @@ jest.mock("@/stores", () => {
   };
 });
 
-jest.mock("@/api", () => ({
-  callApi: jest.fn(),
-  isApiError: (error: unknown) =>
-    typeof error === "object" &&
-    error !== null &&
-    "isAuthError" in error &&
-    (error as { isAuthError: boolean }).isAuthError,
-}));
-
-jest.mock("@/lib", () => ({
-  getToken: jest.fn(),
-  clearToken: jest.fn(),
-}));
-
-const mockCallApi = callApi as jest.MockedFunction<typeof callApi>;
-const mockGetToken = getToken as jest.MockedFunction<typeof getToken>;
-const mockClearToken = clearToken as jest.MockedFunction<typeof clearToken>;
+const { useAuth } = jest.requireMock<typeof import("@clerk/expo")>("@clerk/expo");
+const mockUseAuth = useAuth as jest.Mock;
 
 describe("useSessionInit", () => {
   beforeEach(() => {
-    jest.useRealTimers();
     jest.clearAllMocks();
     useSessionStore.setState({
       status: "loading",
-      token: null,
       userId: null,
       accountStatus: null,
       isOnboarded: false,
@@ -45,30 +52,33 @@ describe("useSessionInit", () => {
     });
   });
 
-  afterEach(() => {
-    jest.useRealTimers();
+  it("stays loading while Clerk is initializing", () => {
+    mockUseAuth.mockReturnValue({ isLoaded: false, isSignedIn: false });
+
+    renderHook(() => useSessionInit());
+
+    expect(useSessionStore.getState().status).toBe("loading");
+    expect(mockGetMe).not.toHaveBeenCalled();
   });
 
-  it("marks unauthenticated when no token is stored", async () => {
-    mockGetToken.mockResolvedValue(null);
+  it("marks unauthenticated when Clerk is loaded but not signed in", async () => {
+    mockUseAuth.mockReturnValue({ isLoaded: true, isSignedIn: false });
 
     renderHook(() => useSessionInit());
 
     await waitFor(() => {
       expect(useSessionStore.getState().status).toBe("unauthenticated");
     });
-    expect(mockCallApi).not.toHaveBeenCalled();
+    expect(mockGetMe).not.toHaveBeenCalled();
   });
 
-  it("restores session via GET_SESSION when a token exists", async () => {
-    mockGetToken.mockResolvedValue("access-token");
-    mockCallApi.mockResolvedValue({
-      session: {
-        userId: "550e8400-e29b-41d4-a716-446655440000",
-        accountStatus: "free_trial",
-        isOnboarded: false,
-        isOnboardingSkipped: false,
-      },
+  it("restores session via GET /users/me when Clerk is signed in", async () => {
+    mockUseAuth.mockReturnValue({ isLoaded: true, isSignedIn: true });
+    mockGetMe.mockResolvedValue({
+      id: "user-123",
+      accountStatus: "free_trial",
+      isOnboarded: false,
+      isOnboardingSkipped: false,
     });
 
     renderHook(() => useSessionInit());
@@ -76,67 +86,29 @@ describe("useSessionInit", () => {
     await waitFor(() => {
       expect(useSessionStore.getState().status).toBe("authenticated");
     });
-    expect(mockCallApi).toHaveBeenCalledWith(
-      "GET_SESSION",
-      expect.objectContaining({ signal: expect.any(Object) })
-    );
-    expect(useSessionStore.getState().userId).toBe("550e8400-e29b-41d4-a716-446655440000");
+    expect(useSessionStore.getState().userId).toBe("user-123");
     expect(useSessionStore.getState().isOnboarded).toBe(false);
   });
 
-  it("clears session on auth error from GET_SESSION", async () => {
-    mockGetToken.mockResolvedValue("access-token");
-    mockCallApi.mockRejectedValue({ isAuthError: true });
+  it("clears session on auth error from GET /users/me", async () => {
+    mockUseAuth.mockReturnValue({ isLoaded: true, isSignedIn: true });
+    mockGetMe.mockRejectedValue({ isAuthError: true });
 
     renderHook(() => useSessionInit());
 
     await waitFor(() => {
       expect(useSessionStore.getState().status).toBe("unauthenticated");
     });
-    expect(mockClearToken).toHaveBeenCalled();
   });
 
-  it("moves to restore_error when token restore hangs", async () => {
-    jest.useFakeTimers();
-    mockGetToken.mockReturnValue(new Promise(() => {}) as ReturnType<typeof getToken>);
+  it("moves to restore_error on a non-auth network failure", async () => {
+    mockUseAuth.mockReturnValue({ isLoaded: true, isSignedIn: true });
+    mockGetMe.mockRejectedValue(new Error("Network error"));
 
     renderHook(() => useSessionInit());
-
-    await act(async () => {
-      jest.advanceTimersByTime(8000);
-    });
 
     await waitFor(() => {
       expect(useSessionStore.getState().status).toBe("restore_error");
     });
-    expect(mockCallApi).not.toHaveBeenCalled();
-  });
-
-  it("aborts GET_SESSION and moves to restore_error when session validation hangs", async () => {
-    jest.useFakeTimers();
-    let signal: AbortSignal | undefined;
-    mockGetToken.mockResolvedValue("access-token");
-    mockCallApi.mockImplementation((_endpoint, options) => {
-      signal = options?.signal;
-      return new Promise(() => {}) as ReturnType<typeof callApi>;
-    });
-
-    renderHook(() => useSessionInit());
-
-    await act(async () => {
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-    expect(mockCallApi).toHaveBeenCalled();
-
-    await act(async () => {
-      jest.advanceTimersByTime(10000);
-      await Promise.resolve();
-    });
-
-    await waitFor(() => {
-      expect(useSessionStore.getState().status).toBe("restore_error");
-    });
-    expect(signal?.aborted).toBe(true);
   });
 });
