@@ -25,7 +25,18 @@ type BlurHandler = NonNullable<TextInputProps["onBlur"]>;
  * Tokens only.
  */
 export const Input = forwardRef<TextInput, InputProps>(function Input(
-  { label, error, leadingIcon, trailingText, uppercaseLabel, className, onFocus, onBlur, ...rest },
+  {
+    label,
+    error,
+    leadingIcon,
+    trailingText,
+    uppercaseLabel,
+    className,
+    onFocus,
+    onBlur,
+    accessibilityLabel,
+    ...rest
+  },
   ref
 ) {
   const [focused, setFocused] = useState(false);
@@ -58,6 +69,7 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
         {leadingIcon}
         <TextInput
           ref={ref}
+          accessibilityLabel={accessibilityLabel ?? label}
           placeholderTextColor={colors.gray[400]}
           onFocus={handleFocus}
           onBlur={handleBlur}

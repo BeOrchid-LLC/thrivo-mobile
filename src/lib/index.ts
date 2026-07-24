@@ -1,13 +1,4 @@
-export {
-  getToken,
-  setToken,
-  clearToken,
-  getRefreshToken,
-  setRefreshToken,
-  setTokens,
-  clearTokens,
-} from "./secure-store";
-export { refreshAccessToken } from "./auth-refresh";
+export { clerkTokenCache } from "./clerk-token-cache";
 export { getItem, setItem, removeItem, storageKeys } from "./storage";
 export {
   isNetworkReachable,
@@ -25,7 +16,7 @@ export {
   type SubscriptionProduct,
   type PurchaseResult,
 } from "./subscription";
-export { wireApiSeams } from "./bootstrap";
+export { wireApiSeams, wireClerkSignOut } from "./bootstrap";
 export { initOnlineManager } from "./online-manager";
 export { newIdempotencyKey } from "./idempotency";
 export { isBiometricAvailable, authenticateBiometric } from "./biometric";

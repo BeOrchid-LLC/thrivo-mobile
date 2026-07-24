@@ -2,10 +2,12 @@ import { router, useLocalSearchParams } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Platform, Pressable, View } from "react-native";
+import { z } from "zod";
+import { useSignIn } from "@clerk/expo";
 import { Button, FormError, Input, Screen, Text } from "@/components";
-import { otpRequestPayload, type OtpRequestPayload } from "@/contracts";
+import { emailSchema } from "@/contracts";
 import { SocialAuthButtons, type SocialAuthProvider } from "../components/SocialAuthButtons";
-import { useAppleSignIn, useGoogleSignIn, useRequestOtp } from "../hooks/useAuth";
+import { useAppleSignIn, useGoogleSignIn } from "../hooks/useAuth";
 
 type SignInParams = { authError?: string };
 
@@ -20,9 +22,17 @@ function authErrorMessage(code?: string): string | null {
   return AUTH_ERROR_MESSAGES[code] ?? AUTH_ERROR_MESSAGES.auth_failed;
 }
 
+function clerkErrorMessage(error: { longMessage?: string; message?: string } | null): string {
+  if (!error) return "Something went wrong.";
+  return error.longMessage ?? error.message ?? "Something went wrong.";
+}
+
+const signInForm = z.object({ email: emailSchema });
+type SignInForm = z.infer<typeof signInForm>;
+
 export function SignInScreen() {
   const { authError } = useLocalSearchParams<SignInParams>();
-  const requestCode = useRequestOtp();
+  const { signIn } = useSignIn();
   const google = useGoogleSignIn();
   const apple = useAppleSignIn();
   const loadingProvider: SocialAuthProvider | null = google.isPending
@@ -37,14 +47,36 @@ export function SignInScreen() {
   const {
     control,
     handleSubmit,
-    formState: { errors },
-  } = useForm<OtpRequestPayload>({
-    resolver: zodResolver(otpRequestPayload),
+    setError,
+    formState: { errors, isSubmitting },
+  } = useForm<SignInForm>({
+    resolver: zodResolver(signInForm),
     defaultValues: { email: "" },
   });
 
   const send = handleSubmit(async ({ email }) => {
-    await requestCode.mutateAsync({ email });
+    if (!signIn) return;
+
+    const { error: createError } = await signIn.create({ identifier: email });
+    if (createError) {
+      setError("root", { message: clerkErrorMessage(createError) });
+      return;
+    }
+
+    const emailFactor = signIn.supportedFirstFactors?.find(
+      (f): f is Extract<typeof f, { strategy: "email_code" }> => f.strategy === "email_code"
+    );
+    if (!emailFactor) {
+      setError("root", { message: "Email sign-in is not available for this account." });
+      return;
+    }
+
+    const { error: sendError } = await signIn.emailCode.sendCode();
+    if (sendError) {
+      setError("root", { message: clerkErrorMessage(sendError) });
+      return;
+    }
+
     router.push({ pathname: "/(auth)/otp", params: { email, source: "sign-in" } });
   });
 
@@ -86,9 +118,9 @@ export function SignInScreen() {
           )}
         />
 
-        <FormError message={requestCode.error?.message} />
+        <FormError message={errors.root?.message} />
 
-        <Button label="Send code" loading={requestCode.isPending} onPress={send} />
+        <Button label="Send code" loading={isSubmitting} onPress={send} />
 
         {showSocialAuth ? (
           <>
@@ -98,7 +130,7 @@ export function SignInScreen() {
 
             <SocialAuthButtons
               onProvider={onProvider}
-              disabled={Boolean(loadingProvider)}
+              disabled={Boolean(loadingProvider) || isSubmitting}
               hiddenProviders={google.isConfigured ? [] : ["google"]}
               loadingProvider={loadingProvider}
             />

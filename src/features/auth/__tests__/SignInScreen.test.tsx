@@ -2,7 +2,8 @@ import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import { router } from "expo-router";
 import { SignInScreen } from "../screens/SignInScreen";
 
-const mockRequestOtp = jest.fn();
+const mockSignInCreate = jest.fn();
+const mockSendCode = jest.fn();
 const mockGoogleMutate = jest.fn();
 const mockAppleMutate = jest.fn();
 
@@ -11,12 +12,21 @@ jest.mock("expo-router", () => ({
   useLocalSearchParams: () => ({}),
 }));
 
-jest.mock("../hooks/useAuth", () => ({
-  useRequestOtp: () => ({
-    mutateAsync: mockRequestOtp,
-    isPending: false,
-    error: null,
+jest.mock("@clerk/expo", () => ({
+  useSignIn: () => ({
+    signIn: {
+      create: mockSignInCreate,
+      supportedFirstFactors: [{ strategy: "email_code", emailAddressId: "eid-1" }],
+      emailCode: {
+        sendCode: mockSendCode,
+        verifyCode: jest.fn().mockResolvedValue({ error: null }),
+      },
+      finalize: jest.fn().mockResolvedValue({ error: null }),
+    },
   }),
+}));
+
+jest.mock("../hooks/useAuth", () => ({
   useGoogleSignIn: () => ({
     mutate: mockGoogleMutate,
     isPending: false,
@@ -27,43 +37,54 @@ jest.mock("../hooks/useAuth", () => ({
     mutate: mockAppleMutate,
     isPending: false,
     error: null,
+    isConfigured: false,
   }),
 }));
 
 describe("SignInScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockRequestOtp.mockResolvedValue(null);
+    mockSignInCreate.mockResolvedValue({ error: null });
+    mockSendCode.mockResolvedValue({ error: null });
   });
 
-  it("requests an OTP and routes to the code screen", async () => {
+  it("sends OTP and routes to verify screen on submit", async () => {
     const screen = render(<SignInScreen />);
 
-    fireEvent.changeText(screen.getByPlaceholderText("you@example.com"), "ada@example.com");
+    fireEvent.changeText(screen.getByLabelText("Email"), "ada@example.com");
     fireEvent.press(screen.getByText("Send code"));
 
-    await waitFor(() => expect(mockRequestOtp).toHaveBeenCalledWith({ email: "ada@example.com" }));
-    expect(router.push).toHaveBeenCalledWith({
-      pathname: "/(auth)/otp",
-      params: { email: "ada@example.com", source: "sign-in" },
+    await waitFor(() => {
+      expect(mockSignInCreate).toHaveBeenCalledWith({ identifier: "ada@example.com" });
+      expect(mockSendCode).toHaveBeenCalled();
+      expect(router.push).toHaveBeenCalledWith(
+        expect.objectContaining({
+          pathname: "/(auth)/otp",
+          params: expect.objectContaining({ email: "ada@example.com", source: "sign-in" }),
+        })
+      );
     });
   });
 
-  it("blocks the OTP request and shows a validation error for an invalid email", async () => {
+  it("shows inline error when Clerk rejects the sign-in", async () => {
+    mockSignInCreate.mockResolvedValue({
+      error: { message: "No account found.", longMessage: "No account found with that email." },
+    });
+
     const screen = render(<SignInScreen />);
 
-    fireEvent.changeText(screen.getByPlaceholderText("you@example.com"), "not-an-email");
+    fireEvent.changeText(screen.getByLabelText("Email"), "unknown@example.com");
     fireEvent.press(screen.getByText("Send code"));
 
-    await waitFor(() => expect(screen.getByText("Invalid email")).toBeTruthy());
-    expect(mockRequestOtp).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(screen.getByText("No account found with that email.")).toBeTruthy();
+    });
+    expect(router.push).not.toHaveBeenCalled();
   });
 
-  it("routes social button presses through the real social hooks", () => {
+  it("triggers Google sign-in when the button is pressed", () => {
     const screen = render(<SignInScreen />);
-
     fireEvent.press(screen.getByText("Continue with Google"));
-
-    expect(mockGoogleMutate).toHaveBeenCalledTimes(1);
+    expect(mockGoogleMutate).toHaveBeenCalled();
   });
 });

@@ -1,18 +1,4 @@
 export { SignInScreen } from "./screens/SignInScreen";
-export {
-  useAppleSignIn,
-  useGoogleSignIn,
-  useLogout,
-  useRequestOtp,
-  useVerifyOtp,
-} from "./hooks/useAuth";
+export { useAppleSignIn, useGoogleSignIn, useLogout } from "./hooks/useAuth";
 export { FigmaAuthRow } from "./components/FigmaAuthRow";
 export { SocialAuthButtons, type SocialAuthProvider } from "./components/SocialAuthButtons";
-export {
-  requestOtp,
-  verifyOtp,
-  logoutSession,
-  googleStartUrl,
-  tokenPairSchema,
-  type TokenPair,
-} from "./api/auth.api";
