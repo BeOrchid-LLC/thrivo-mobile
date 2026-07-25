@@ -16,11 +16,11 @@
     },
     "assetBundlePatterns": ["**/*"],
     "splash": {
-      "image": "./src/assets/logo.png",
+      "image": "./src/assets/splash-new.png",
       "resizeMode": "contain",
       "backgroundColor": "#F4F6F9",
       "dark": {
-        "image": "./src/assets/logo.png",
+        "image": "./src/assets/splash-new.png",
         "resizeMode": "contain",
         "backgroundColor": "#E8F7EE"
       }
@@ -30,11 +30,11 @@
       "bundleIdentifier": "com.beorchid.thrivo",
       "usesAppleSignIn": true,
       "splash": {
-        "image": "./src/assets/logo.png",
+        "image": "./src/assets/splash-new.png",
         "resizeMode": "contain",
         "backgroundColor": "#F4F6F9",
         "dark": {
-          "image": "./src/assets/logo.png",
+          "image": "./src/assets/splash-new.png",
           "resizeMode": "contain",
           "backgroundColor": "#E8F7EE"
         }
@@ -63,11 +63,11 @@
         "android.permission.ACCESS_BACKGROUND_LOCATION"
       ],
       "splash": {
-        "image": "./src/assets/logo.png",
+        "image": "./src/assets/splash-new.png",
         "resizeMode": "contain",
         "backgroundColor": "#F4F6F9",
         "dark": {
-          "image": "./src/assets/logo.png",
+          "image": "./src/assets/splash-new.png",
           "resizeMode": "contain",
           "backgroundColor": "#E8F7EE"
         }
