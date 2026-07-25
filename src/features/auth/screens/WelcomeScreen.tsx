@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { router } from "expo-router";
 import { Platform, Text, View } from "react-native";
+import { useAuth } from "@clerk/expo";
 import { LinearGradient } from "expo-linear-gradient";
 import { LockKey } from "phosphor-react-native";
 import { ThrivoMark } from "@/components";
@@ -20,6 +21,7 @@ import googleIcon from "../../../assets/auth-google.png";
 import emailIcon from "../../../assets/auth-magic-link.png";
 import { FigmaAuthRow } from "../components/FigmaAuthRow";
 import type { SocialAuthProvider } from "../components/SocialAuthButtons";
+import { logAuthError, useAuthScreenDiagnostics } from "../auth-debug";
 import { useAppleSignIn, useGoogleSignIn } from "../hooks/useAuth";
 
 const SIGN_UP_ROUTE = "/(auth)/email";
@@ -28,6 +30,7 @@ const SIGN_IN_ROUTE = "/(auth)/sign-in";
 type EmailRoute = typeof SIGN_UP_ROUTE | typeof SIGN_IN_ROUTE;
 
 export function WelcomeScreen() {
+  const clerk = useAuth({ treatPendingAsSignedOut: false });
   const google = useGoogleSignIn();
   const apple = useAppleSignIn();
   const status = useAuthStatus();
@@ -47,10 +50,16 @@ export function WelcomeScreen() {
   const disabled = Boolean(loadingProvider) || biometricBusy;
   const error = google.error ?? apple.error;
   const isAuthenticated = status === "authenticated";
+  useAuthScreenDiagnostics("welcome", status, clerk);
   const postUnlockTarget =
     isOnboarded || isOnboardingSkipped ? "/(app)/dashboard" : "/(onboarding)/name";
   const canUseBiometric =
     isAuthenticated && biometricEnabled && biometricAvailable && !isBiometricUnlocked;
+
+  useEffect(() => {
+    if (google.error) logAuthError("welcome", "Google SSO", google.error);
+    if (apple.error) logAuthError("welcome", "Apple SSO", apple.error);
+  }, [apple.error, google.error]);
 
   useEffect(() => {
     let cancelled = false;

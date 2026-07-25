@@ -4,6 +4,7 @@ import { useSessionInit } from "../useSessionInit";
 
 const mockGetMe = jest.fn();
 const mockSetQueryData = jest.fn();
+const mockHandleUnauthenticated = jest.fn();
 
 jest.mock("@clerk/expo", () => ({
   useAuth: jest.fn(),
@@ -12,6 +13,7 @@ jest.mock("@clerk/expo", () => ({
 jest.mock("@/api", () => ({
   queryClient: { setQueryData: (...args: unknown[]) => mockSetQueryData(...args) },
   queryKeys: { me: () => ["me"] },
+  handleUnauthenticated: (...args: unknown[]) => mockHandleUnauthenticated(...args),
   isApiError: (error: unknown) =>
     typeof error === "object" &&
     error !== null &&
@@ -43,6 +45,9 @@ const mockUseAuth = useAuth as jest.Mock;
 describe("useSessionInit", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockHandleUnauthenticated.mockImplementation(() => {
+      useSessionStore.getState().actions.clearSession();
+    });
     useSessionStore.setState({
       status: "loading",
       userId: null,
@@ -90,6 +95,30 @@ describe("useSessionInit", () => {
     expect(useSessionStore.getState().isOnboarded).toBe(false);
   });
 
+  it("resyncs a Clerk-authenticated session after a sign-in race marked the store unauthenticated", async () => {
+    useSessionStore.setState({
+      status: "unauthenticated",
+      userId: null,
+      accountStatus: null,
+      isOnboarded: false,
+      isOnboardingSkipped: false,
+    });
+    mockUseAuth.mockReturnValue({ isLoaded: true, isSignedIn: true });
+    mockGetMe.mockResolvedValue({
+      id: "user-after-race",
+      accountStatus: "free_trial",
+      isOnboarded: true,
+      isOnboardingSkipped: false,
+    });
+
+    renderHook(() => useSessionInit());
+
+    await waitFor(() => {
+      expect(useSessionStore.getState().status).toBe("authenticated");
+    });
+    expect(useSessionStore.getState().userId).toBe("user-after-race");
+  });
+
   it("clears session on auth error from GET /users/me", async () => {
     mockUseAuth.mockReturnValue({ isLoaded: true, isSignedIn: true });
     mockGetMe.mockRejectedValue({ isAuthError: true });
@@ -99,6 +128,7 @@ describe("useSessionInit", () => {
     await waitFor(() => {
       expect(useSessionStore.getState().status).toBe("unauthenticated");
     });
+    expect(mockHandleUnauthenticated).toHaveBeenCalled();
   });
 
   it("moves to restore_error on a non-auth network failure", async () => {
@@ -110,5 +140,33 @@ describe("useSessionInit", () => {
     await waitFor(() => {
       expect(useSessionStore.getState().status).toBe("restore_error");
     });
+  });
+
+  it("does not apply a stale profile response after auth state changes", async () => {
+    mockUseAuth.mockReturnValue({ isLoaded: true, isSignedIn: true });
+    let resolveProfile: ((value: unknown) => void) | undefined;
+    mockGetMe.mockReturnValue(
+      new Promise((resolve) => {
+        resolveProfile = resolve;
+      })
+    );
+
+    const hook = renderHook(() => useSessionInit());
+    await waitFor(() => expect(mockGetMe).toHaveBeenCalled());
+
+    mockUseAuth.mockReturnValue({ isLoaded: true, isSignedIn: false });
+    hook.rerender({});
+    await waitFor(() => expect(useSessionStore.getState().status).toBe("unauthenticated"));
+
+    resolveProfile?.({
+      id: "stale-user",
+      accountStatus: "free_trial",
+      isOnboarded: false,
+      isOnboardingSkipped: false,
+    });
+    await Promise.resolve();
+
+    expect(useSessionStore.getState().userId).toBeNull();
+    expect(useSessionStore.getState().status).toBe("unauthenticated");
   });
 });

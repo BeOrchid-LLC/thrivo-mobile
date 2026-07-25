@@ -1,6 +1,6 @@
 import { useAuth } from "@clerk/expo";
-import { useEffect } from "react";
-import { queryClient, queryKeys, isApiError } from "@/api";
+import { useEffect, useRef } from "react";
+import { queryClient, queryKeys, isApiError, handleUnauthenticated } from "@/api";
 import { getMe } from "@/features/profile";
 import { analytics, monitoring } from "@/lib";
 import { useAuthStatus, useSessionActions } from "@/stores";
@@ -20,28 +20,63 @@ function bootLog(message: string): void {
  * picks up the profile fetch for both session restore AND fresh sign-in.
  */
 export function useSessionInit(): void {
-  const { isLoaded, isSignedIn } = useAuth();
+  const { isLoaded, isSignedIn } = useAuth({ treatPendingAsSignedOut: false });
   const status = useAuthStatus();
   const actions = useSessionActions();
+  const authFailure = useRef(false);
 
   useEffect(() => {
-    if (!isLoaded) return;
+    let active = true;
+
+    if (!isLoaded)
+      return () => {
+        active = false;
+      };
 
     if (!isSignedIn) {
       bootLog("clerk: not signed in");
-      if (status === "loading" || status === "restore_error") {
+      authFailure.current = false;
+      if (active && status !== "unauthenticated") {
         actions.setStatus("unauthenticated");
       }
-      return;
+      return () => {
+        active = false;
+      };
     }
 
-    if (status !== "loading") return;
+    // A rejected API token signs Clerk out through the shared auth seam. Hold
+    // the local state at unauthenticated until Clerk reflects that sign-out;
+    // otherwise the recovery path would immediately retry the same bad token.
+    if (authFailure.current) {
+      return () => {
+        active = false;
+      };
+    }
+
+    if (status === "authenticated" || status === "restore_error") {
+      return () => {
+        active = false;
+      };
+    }
+
+    // Clerk can finish an auth operation just after this hook observed
+    // `isSignedIn === false` and marked the local store unauthenticated. Once
+    // Clerk is authoritative again, move the local store back through loading
+    // so the profile is fetched and the root guard can choose the real route.
+    if (status !== "loading") {
+      bootLog(`clerk: signed in while local status was ${status}; resyncing`);
+      actions.setStatus("loading");
+      return () => {
+        active = false;
+      };
+    }
 
     bootLog("clerk: signed in — fetching profile");
 
     void (async () => {
       try {
         const user = await getMe();
+        if (!active) return;
         queryClient.setQueryData(queryKeys.me(), user);
         actions.setSession({
           userId: user.id,
@@ -53,14 +88,20 @@ export function useSessionInit(): void {
         monitoring.setUser({ id: user.id });
         bootLog("session restore finished: authenticated");
       } catch (error) {
+        if (!active) return;
         if (isApiError(error) && error.isAuthError) {
-          bootLog("session restore finished: auth error");
-          actions.clearSession();
+          bootLog(`session restore finished: auth error (${error.status})`);
+          authFailure.current = true;
+          handleUnauthenticated();
           return;
         }
-        bootLog("session restore failed");
+        bootLog(`session restore failed${error instanceof Error ? `: ${error.message}` : ""}`);
         actions.setStatus("restore_error");
       }
     })();
+
+    return () => {
+      active = false;
+    };
   }, [isLoaded, isSignedIn, status, actions]);
 }

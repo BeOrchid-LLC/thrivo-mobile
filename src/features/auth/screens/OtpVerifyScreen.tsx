@@ -2,10 +2,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { Platform, TextInput, View } from "react-native";
-import { useSignIn, useSignUp } from "@clerk/expo";
+import { useAuth, useSignIn, useSignUp } from "@clerk/expo";
 import { BackButton, Button, FormError, Screen, Text } from "@/components";
 import { colors } from "@/theme";
-import { useBiometricUnlockActions, useSessionActions } from "@/stores";
+import { useAuthStatus, useBiometricUnlockActions, useSessionActions } from "@/stores";
+import { logAuthError, useAuthScreenDiagnostics } from "../auth-debug";
 
 type OtpParams = {
   email?: string;
@@ -25,6 +26,10 @@ function notify(type: "success" | "error") {
   );
 }
 
+function bootLog(message: string): void {
+  if (__DEV__) console.info(`[auth] ${message}`);
+}
+
 function clerkErrorMessage(error: { longMessage?: string; message?: string } | null): string {
   if (!error) return "Something went wrong.";
   return error.longMessage ?? error.message ?? "Invalid code.";
@@ -32,10 +37,13 @@ function clerkErrorMessage(error: { longMessage?: string; message?: string } | n
 
 export function OtpVerifyScreen() {
   const { email, source } = useLocalSearchParams<OtpParams>();
+  const clerk = useAuth({ treatPendingAsSignedOut: false });
   const { signIn } = useSignIn();
   const { signUp } = useSignUp();
+  const status = useAuthStatus();
   const { setStatus } = useSessionActions();
   const { setBiometricUnlocked } = useBiometricUnlockActions();
+  useAuthScreenDiagnostics("otp", status, clerk);
 
   const [code, setCode] = useState("");
   const [countdown, setCountdown] = useState(60);
@@ -66,6 +74,8 @@ export function OtpVerifyScreen() {
   const verify = async (digits: string) => {
     setIsPending(true);
     setError(null);
+    const flow = isSignUp ? "sign-up" : "sign-in";
+    bootLog(`${flow}: verifying email code`);
 
     if (isSignUp) {
       if (!signUp) {
@@ -75,19 +85,26 @@ export function OtpVerifyScreen() {
       try {
         const { error: verifyError } = await signUp.verifications.verifyEmailCode({ code: digits });
         if (verifyError) {
+          bootLog("sign-up: email code rejected");
           notify("error");
           setError(clerkErrorMessage(verifyError));
           return;
         }
+        bootLog("sign-up: email code accepted; finalizing Clerk session");
         const { error: finalizeError } = await signUp.finalize();
         if (finalizeError) {
+          bootLog("sign-up: Clerk session finalization failed");
           notify("error");
           setError(clerkErrorMessage(finalizeError));
           return;
         }
+        bootLog("sign-up: Clerk session finalized");
+        setStatus("loading");
         notify("success");
         setBiometricUnlocked(true);
-        setStatus("loading");
+      } catch (error) {
+        logAuthError("otp-sign-up", "verification", error);
+        setError("Something went wrong. Please try again.");
       } finally {
         setIsPending(false);
       }
@@ -99,19 +116,26 @@ export function OtpVerifyScreen() {
       try {
         const { error: verifyError } = await signIn.emailCode.verifyCode({ code: digits });
         if (verifyError) {
+          bootLog("sign-in: email code rejected");
           notify("error");
           setError(clerkErrorMessage(verifyError));
           return;
         }
+        bootLog("sign-in: email code accepted; finalizing Clerk session");
         const { error: finalizeError } = await signIn.finalize();
         if (finalizeError) {
+          bootLog("sign-in: Clerk session finalization failed");
           notify("error");
           setError(clerkErrorMessage(finalizeError));
           return;
         }
+        bootLog("sign-in: Clerk session finalized");
+        setStatus("loading");
         notify("success");
         setBiometricUnlocked(true);
-        setStatus("loading");
+      } catch (error) {
+        logAuthError("otp-sign-in", "verification", error);
+        setError("Something went wrong. Please try again.");
       } finally {
         setIsPending(false);
       }

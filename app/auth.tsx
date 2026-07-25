@@ -1,17 +1,30 @@
 import { useEffect } from "react";
 import { router } from "expo-router";
 import { BrandSplash } from "@/components";
+import { useAuthStatus, useIsOnboarded, useIsOnboardingSkipped } from "@/stores";
 
 /**
- * Legacy OAuth callback route. The old server-side Google OAuth flow redirected
- * to `thrivo://auth?token=...`. That flow is replaced by Clerk's client-side
- * OAuth — this route is never visited during normal operation and can be removed
- * after the next app release cycle.
+ * Clerk SSO callback route. `startSSOFlow` owns the browser callback and then
+ * activates the session; this screen stays mounted until the root session
+ * bootstrap has loaded the domain profile and can choose the final destination.
  */
 export default function AuthCallbackScreen() {
+  const status = useAuthStatus();
+  const isOnboarded = useIsOnboarded();
+  const isOnboardingSkipped = useIsOnboardingSkipped();
+
   useEffect(() => {
-    router.replace("/(auth)/welcome");
-  }, []);
+    if (status === "authenticated") {
+      router.replace(
+        isOnboarded || isOnboardingSkipped ? "/(app)/dashboard" : "/(onboarding)/name"
+      );
+      return;
+    }
+
+    // A cancelled/failed callback has no active Clerk session. Returning to
+    // welcome lets the mutation error or normal auth controls be used again.
+    if (status === "unauthenticated") router.replace("/(auth)/welcome");
+  }, [isOnboarded, isOnboardingSkipped, status]);
 
   return <BrandSplash />;
 }

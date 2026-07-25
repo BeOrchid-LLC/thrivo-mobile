@@ -14,6 +14,10 @@ jest.mock("expo-router", () => ({
   router: { push: jest.fn(), replace: jest.fn() },
 }));
 
+jest.mock("@clerk/expo", () => ({
+  useAuth: () => ({ isLoaded: true, isSignedIn: false }),
+}));
+
 jest.mock("../hooks/useAuth", () => ({
   useGoogleSignIn: () => ({
     mutate: mockGoogleMutate,
