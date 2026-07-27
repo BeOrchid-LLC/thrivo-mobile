@@ -9,8 +9,10 @@
  *    back to a dark default background for that gap, producing a dark flash before our JS
  *    splash (BrandSplash) can render.
  * 2. Expo composites the configured splash background into each generated
- *    splashscreen_logo.png. Rebuild those density assets from splash-new.png with a
- *    transparent canvas so the theme owns the full-screen background.
+ *    splashscreen_logo.png. Rebuild those density assets directly from the
+ *    vector ThrivoMark at the final density with a transparent canvas so the
+ *    theme owns the full-screen background and the icon is not resampled from
+ *    a smaller intermediate PNG.
  * 3. Theme.App.SplashScreen's icon container can render its own opaque/light contrast
  *    backdrop behind our transparent splash logo. Matching it to the splash resource
  *    prevents a separate contrasting icon background.
@@ -30,7 +32,13 @@
  */
 const fs = require("fs").promises;
 const path = require("path");
-const { generateImageAsync } = require("@expo/image-utils");
+const sharp = require("sharp");
+const { compositeImagesAsync, generateImageBackgroundAsync } = require("@expo/image-utils");
+const {
+  SPLASH_CANVAS_SIZE,
+  SPLASH_MARK_SIZE,
+  SPLASH_MARK_SOURCE,
+} = require("./brand-asset-config");
 const {
   XML,
   AndroidConfig: {
@@ -49,7 +57,7 @@ const SPLASH_DENSITIES = [
 const SPLASH_CANVAS_SIZE_DP = 288;
 
 async function regenerateAndroidSplashImages(projectRoot) {
-  const sourcePath = path.join(projectRoot, "src", "assets", "splash-new.png");
+  const sourcePath = path.join(projectRoot, SPLASH_MARK_SOURCE);
   await fs.access(sourcePath);
 
   await Promise.all(
@@ -59,16 +67,26 @@ async function regenerateAndroidSplashImages(projectRoot) {
         { directory: `drawable-${name}`, size },
         { directory: `drawable-night-${name}`, size },
       ].map(async ({ directory, size: imageSize }) => {
-        const { source } = await generateImageAsync(
-          { projectRoot },
-          {
-            src: sourcePath,
-            width: imageSize,
-            height: imageSize,
-            resizeMode: "contain",
-            backgroundColor: "transparent",
-          }
-        );
+        const markSize = Math.round((imageSize * SPLASH_MARK_SIZE) / SPLASH_CANVAS_SIZE);
+        const background = await generateImageBackgroundAsync({
+          width: imageSize,
+          height: imageSize,
+          backgroundColor: "transparent",
+        });
+        const foreground = await sharp(sourcePath)
+          .resize(markSize, markSize, {
+            fit: "contain",
+            background: { r: 0, g: 0, b: 0, alpha: 0 },
+          })
+          .ensureAlpha()
+          .png()
+          .toBuffer();
+        const source = await compositeImagesAsync({
+          background,
+          foreground,
+          x: Math.round((imageSize - markSize) / 2),
+          y: Math.round((imageSize - markSize) / 2),
+        });
         const outputDirectory = path.join(
           projectRoot,
           "android",
