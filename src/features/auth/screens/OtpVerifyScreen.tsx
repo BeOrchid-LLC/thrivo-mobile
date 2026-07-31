@@ -225,10 +225,14 @@ export function OtpVerifyScreen() {
                     inputs.current[index - 1]?.focus();
                   }
                 }}
-                className={`h-[54px] w-[46px] rounded-md border bg-white text-center text-otp text-dark ${
+                className={`h-[54px] w-[46px] rounded-md border bg-white text-center text-otp ${
                   error ? "border-error" : digit ? "border-primary" : "border-gray-300"
                 }`}
-                style={{ borderCurve: "continuous", fontVariant: ["tabular-nums"] }}
+                style={{
+                  borderCurve: "continuous",
+                  color: colors.dark,
+                  fontVariant: ["tabular-nums"],
+                }}
               />
             ))}
           </View>

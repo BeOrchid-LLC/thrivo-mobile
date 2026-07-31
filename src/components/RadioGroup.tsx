@@ -43,7 +43,8 @@ export function RadioGroup<T extends string>({ options, value, onChange }: Radio
             </View>
             <Text
               variant="body-sm"
-              className={active ? "font-semibold text-dark" : "font-regular text-gray-500"}
+              color={active ? "dark" : "gray500"}
+              className={active ? "font-semibold" : "font-regular"}
             >
               {opt.label}
             </Text>

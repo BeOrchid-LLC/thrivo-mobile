@@ -15,11 +15,11 @@ export function NoteBox({ title, children }: NoteBoxProps) {
   return (
     <View className="rounded-[10px] border-[0.667px] border-accent/[0.18] bg-accent/[0.07] px-lg py-md">
       {title ? (
-        <Text variant="caption" className="text-accentText">
+        <Text variant="caption" color="accentText">
           {title}
         </Text>
       ) : null}
-      <Text variant="caption" className="font-medium text-accentText">
+      <Text variant="caption" color="accentText" className="font-medium">
         {children}
       </Text>
     </View>

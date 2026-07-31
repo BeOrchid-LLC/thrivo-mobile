@@ -24,7 +24,7 @@ export function BrandSplash({ busy = false }: BrandSplashProps) {
     >
       <View className="h-[120px] items-center">
         <ThrivoMark size={80} />
-        <Text variant="heading3" className="mt-lg tracking-[0.44px] text-dark">
+        <Text variant="heading3" color="dark" className="mt-lg tracking-[0.44px]">
           THRIVO
         </Text>
       </View>

@@ -95,9 +95,8 @@ export function SelectSheet<T extends string | number>({
                 >
                   <Text
                     variant="body"
-                    className={`${
-                      selected ? "font-semibold" : "font-regular"
-                    } ${option.locked ? "text-gray-600" : ""}`}
+                    color={option.locked ? "gray600" : "dark"}
+                    className={selected ? "font-semibold" : "font-regular"}
                   >
                     {option.label}
                   </Text>

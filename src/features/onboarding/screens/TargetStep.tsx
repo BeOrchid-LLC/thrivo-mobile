@@ -181,7 +181,7 @@ export default function TargetStep({
       }
     >
       <View className="overflow-hidden rounded-[16px] bg-primarySoft p-lg">
-        <Text variant="heading1" className="font-bold text-primary">
+        <Text variant="heading1" color="primary" className="font-bold">
           {displayedTarget !== undefined ? displayedTarget.toLocaleString() : "—"}
         </Text>
         <Text variant="body" color="muted">
@@ -260,10 +260,14 @@ export default function TargetStep({
 function BreakRow({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
   return (
     <View className="flex-row justify-between">
-      <Text variant="caption" className={`font-regular ${strong ? "text-dark" : "text-gray-500"}`}>
+      <Text variant="caption" color={strong ? "dark" : "gray500"} className="font-regular">
         {label}
       </Text>
-      <Text variant="caption" className={strong ? "font-semibold text-dark" : "text-gray-500"}>
+      <Text
+        variant="caption"
+        color={strong ? "dark" : "gray500"}
+        className={strong ? "font-semibold" : undefined}
+      >
         {value}
       </Text>
     </View>

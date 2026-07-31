@@ -417,7 +417,8 @@ function LogWeightScreen({ day, onBack }: { day: string; onBack: () => void }) {
             value={weight}
             onChangeText={setWeight}
             keyboardType="decimal-pad"
-            className="min-h-[48px] flex-1 rounded-md bg-gray-100 px-lg text-center font-semibold text-body text-dark"
+            className="min-h-[48px] flex-1 rounded-md bg-gray-100 px-lg text-center font-semibold text-body"
+            style={{ color: colors.dark }}
           />
           <Text color="primary">{weightUnit}</Text>
           <StepperButton
@@ -678,7 +679,7 @@ function CalendarDayCell({
         day.inMonth ? "" : "opacity-60"
       }`}
     >
-      <Text color={textColor} className={day.today ? "font-semibold" : ""}>
+      <Text color={textColor} className={day.today ? "font-semibold" : undefined}>
         {day.dayOfMonth}
       </Text>
     </Pressable>

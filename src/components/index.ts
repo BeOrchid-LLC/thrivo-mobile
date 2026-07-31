@@ -1,5 +1,5 @@
 export { Text } from "./Text";
-export type { TextProps } from "./Text";
+export type { TextColor, TextProps } from "./Text";
 export { Screen } from "./Screen";
 export type { ScreenProps } from "./Screen";
 export { Button } from "./Button";

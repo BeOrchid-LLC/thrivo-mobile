@@ -58,7 +58,7 @@ export function FigmaAuthRow({
                 style={{ width: iconSize, height: iconSize }}
               />
             ) : null)}
-          <Text variant="body" className="text-center font-medium text-dark">
+          <Text variant="body" color="dark" className="text-center font-medium">
             {label}
           </Text>
         </View>

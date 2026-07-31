@@ -151,20 +151,14 @@ export function SubscriptionPlansScreen() {
       >
         <View className="flex-row items-start justify-between">
           <View>
-            <Text variant="heading1" className={`${plan === "annual" ? "text-white" : ""}`}>
+            <Text variant="heading1" color={plan === "annual" ? "inverse" : "dark"}>
               {selected.price}
-              <Text
-                variant="body-lg"
-                className={`${plan === "annual" ? "text-white" : "text-gray-500"}`}
-              >
+              <Text variant="body-lg" color={plan === "annual" ? "inverse" : "gray500"}>
                 {" "}
                 / {selected.period}
               </Text>
             </Text>
-            <Text
-              color={plan === "annual" ? "inverse" : "dark"}
-              className={`font-semibold ${plan === "annual" ? "" : "text-warning"}`}
-            >
+            <Text color={plan === "annual" ? "inverse" : "warning"} className="font-semibold">
               {selected.save}
             </Text>
           </View>
@@ -192,8 +186,10 @@ export function SubscriptionPlansScreen() {
       </View>
 
       <View className="rounded-lg border border-yellow-200 bg-yellow-50 px-lg py-md">
-        <Text className="font-semibold text-yellow-800">MVP preview</Text>
-        <Text className="mt-xs text-yellow-800">
+        <Text color="warningText" className="font-semibold">
+          MVP preview
+        </Text>
+        <Text color="warningText" className="mt-xs">
           No payment is collected in the app until store billing is enabled.
         </Text>
       </View>
@@ -297,13 +293,10 @@ function PriceRow({
 }) {
   return (
     <View className="flex-row items-center justify-between border-b border-black/10 pb-sm">
-      <Text className={`font-semibold ${inverted ? "text-white" : ""}`}>{label}</Text>
-      <Text
-        color="dark"
-        className={`font-semibold ${highlight ? "text-warning" : ""} ${
-          inverted && !highlight ? "text-white" : ""
-        }`}
-      >
+      <Text color={inverted ? "inverse" : "dark"} className="font-semibold">
+        {label}
+      </Text>
+      <Text color={highlight ? "warning" : inverted ? "inverse" : "dark"} className="font-semibold">
         {value}
       </Text>
     </View>

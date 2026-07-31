@@ -113,7 +113,7 @@ export function WaterAmountSheet({
     >
       <View className="items-center gap-xs">
         <View className="flex-row items-end gap-xs py-xs">
-          <Text variant="heading2" className="text-dark">
+          <Text variant="heading2" color="dark">
             {displayAmount}
           </Text>
           <Text variant="caption" color="muted" className="pb-[3px]">

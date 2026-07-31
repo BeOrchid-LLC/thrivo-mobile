@@ -13,7 +13,7 @@ export function InsightPill({ children }: InsightPillProps) {
   return (
     <View className="flex-row items-center gap-[10px] rounded-[12px] border-[0.667px] border-primaryBright/[0.12] bg-primaryBright/[0.08] px-lg py-md">
       <View className="h-[7px] w-[7px] rounded-pill bg-primary" />
-      <Text variant="label" className="flex-1 font-medium text-primary">
+      <Text variant="label" color="primary" className="flex-1 font-medium">
         {children}
       </Text>
     </View>

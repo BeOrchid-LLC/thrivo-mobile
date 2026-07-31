@@ -151,10 +151,10 @@ export function WelcomeScreen() {
     >
       <View className="h-[206px] items-center pt-[48px]">
         <ThrivoMark size={64} />
-        <Text variant="heading3" className="mt-md tracking-[-0.5px] text-dark">
+        <Text variant="heading3" color="dark" className="mt-md tracking-[-0.5px]">
           THRIVO
         </Text>
-        <Text variant="body" className="mt-sm text-center text-muted">
+        <Text variant="body" color="mutedText" className="mt-sm text-center">
           Weight loss that actually works
         </Text>
       </View>
@@ -203,7 +203,7 @@ export function WelcomeScreen() {
         />
 
         {error ? (
-          <Text selectable variant="caption" className="text-center text-error">
+          <Text selectable variant="caption" color="error" className="text-center">
             {error.message}
           </Text>
         ) : null}

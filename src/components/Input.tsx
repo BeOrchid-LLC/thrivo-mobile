@@ -32,6 +32,7 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
     trailingText,
     uppercaseLabel,
     className,
+    style,
     onFocus,
     onBlur,
     accessibilityLabel,
@@ -69,15 +70,16 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
         {leadingIcon}
         <TextInput
           ref={ref}
+          {...rest}
           accessibilityLabel={accessibilityLabel ?? label}
           placeholderTextColor={colors.gray[400]}
           onFocus={handleFocus}
           onBlur={handleBlur}
-          className={`flex-1 py-0 text-body text-dark ${className ?? ""}`}
-          {...rest}
+          className={`flex-1 py-0 text-body ${className ?? ""}`}
+          style={[{ color: colors.dark }, style]}
         />
         {trailingText ? (
-          <Text variant="body-sm" className="text-gray-500">
+          <Text variant="body-sm" color="gray500">
             {trailingText}
           </Text>
         ) : null}

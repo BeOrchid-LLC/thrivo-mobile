@@ -387,11 +387,7 @@ function WaterHome({ day }: { day: string }) {
           <Text variant="body" color="muted">
             of {formatWater(data.targetMl, unitSystem)} daily goal
           </Text>
-          <Text
-            variant="body"
-            color={behind ? "dark" : "primary"}
-            className={behind ? "font-semibold text-accent" : "font-semibold"}
-          >
+          <Text variant="body" color={behind ? "accent" : "primary"} className="font-semibold">
             {formatWater(data.remainingMl, unitSystem)} remaining
           </Text>
         </View>
@@ -400,11 +396,11 @@ function WaterHome({ day }: { day: string }) {
         <Card className="gap-sm border-accent bg-accentSoft px-lg py-lg">
           <View className="flex-row items-center gap-sm">
             <Warning size={20} color={colors.accent} />
-            <Text variant="heading3" className="text-accent">
+            <Text variant="heading3" color="accent">
               {data.alert.title}
             </Text>
           </View>
-          <Text variant="body" className="text-accent">
+          <Text variant="body" color="accent">
             {data.alert.message}
           </Text>
         </Card>
@@ -834,7 +830,8 @@ function DescribeMealScreen({ day, onBack }: { day: string; onBack: () => void }
           value={quantity}
           onChangeText={setQuantity}
           keyboardType="decimal-pad"
-          className="h-[48px] flex-1 rounded-md border border-gray-300 bg-white text-center text-body-lg text-dark"
+          className="h-[48px] flex-1 rounded-md border border-gray-300 bg-white text-center text-body-lg"
+          style={{ color: colors.dark }}
         />
         <Text variant="body" color="primary">
           {measure === "weight" ? "grams" : measure}
@@ -866,7 +863,7 @@ function DescribeMealScreen({ day, onBack }: { day: string; onBack: () => void }
                 kcal
               </Text>
             </Text>
-            <Text variant="caption" className="rounded-md bg-accentSoft px-sm py-xs text-accent">
+            <Text variant="caption" color="accent" className="rounded-md bg-accentSoft px-sm py-xs">
               Estimated
             </Text>
           </View>

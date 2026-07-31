@@ -111,14 +111,14 @@ export default function StartFreeStep({
           style={{ padding: 24 }}
         >
           <View className="flex-row items-end">
-            <Text variant="hero" className="font-bold text-light">
+            <Text variant="hero" color="light" className="font-bold">
               {MONTHLY_PRICE_DISPLAY}
             </Text>
-            <Text variant="body" className="mb-[3px] ml-xs text-light/70">
+            <Text variant="body" color="light70" className="mb-[3px] ml-xs">
               / month
             </Text>
           </View>
-          <Text variant="body" className="mt-xs font-bold text-accent">
+          <Text variant="body" color="accent" className="mt-xs font-bold">
             {trialDays}-day premium preview
           </Text>
           <View className="mt-md gap-sm">
@@ -151,10 +151,10 @@ export default function StartFreeStep({
 function PriceRow({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
     <View className="flex-row justify-between">
-      <Text variant="label" className="text-light/70">
+      <Text variant="label" color="light70">
         {label}
       </Text>
-      <Text variant="label" className={`font-semibold ${accent ? "text-accent" : "text-light"}`}>
+      <Text variant="label" color={accent ? "accent" : "light"} className="font-semibold">
         {value}
       </Text>
     </View>
