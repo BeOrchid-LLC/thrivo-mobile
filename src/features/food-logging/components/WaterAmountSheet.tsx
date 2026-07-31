@@ -6,6 +6,7 @@ import {
   Button,
   FormError,
   Text,
+  TimeField,
   TimePicker,
   type TimePickerEvent,
 } from "@/components";
@@ -36,10 +37,6 @@ function formatAmountDisplay(value: string, unitSystem: "metric" | "imperial"): 
   const amount = Number(value);
   if (!Number.isFinite(amount) || amount <= 0) return "0";
   return roundTo(amount, unitSystem === "imperial" ? 1 : 0).toLocaleString();
-}
-
-function formatTime(date: Date): string {
-  return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
 function mergeTime(base: Date, picked: Date): Date {
@@ -126,21 +123,11 @@ export function WaterAmountSheet({
       </View>
 
       {initialRecordedAt ? (
-        <View className="gap-sm">
-          <Text variant="caption" color="dark">
-            Time logged
-          </Text>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Change water time logged"
-            onPress={() => setShowTimePicker(true)}
-            className="h-[48px] items-center justify-center rounded-md border border-gray-300 bg-white"
-          >
-            <Text variant="body" color="dark">
-              {formatTime(recordedAt)}
-            </Text>
-          </Pressable>
-        </View>
+        <TimeField
+          value={recordedAt}
+          accessibilityLabel="Change water time logged"
+          onPress={() => setShowTimePicker(true)}
+        />
       ) : null}
 
       <View className="gap-xs">

@@ -1,13 +1,14 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Platform, Pressable, View } from "react-native";
+import { Platform, View } from "react-native";
 import { z } from "zod";
 import { useAuth, useSignIn } from "@clerk/expo";
 import { Button, FormError, Input, PageHeader, Screen, Text } from "@/components";
 import { emailSchema } from "@/contracts";
 import { useAuthStatus } from "@/stores";
 import { SocialAuthButtons, type SocialAuthProvider } from "../components/SocialAuthButtons";
+import { AuthSwitchLink } from "../components/AuthSwitchLink";
 import { logAuthError, useAuthScreenDiagnostics } from "../auth-debug";
 import { useAppleSignIn, useGoogleSignIn } from "../hooks/useAuth";
 
@@ -154,11 +155,11 @@ export function SignInScreen() {
           </>
         ) : null}
 
-        <Pressable onPress={() => router.replace("/(auth)/email")} className="mt-sm items-center">
-          <Text variant="caption" color="muted">
-            Don&apos;t have an account? <Text color="primary">Sign up</Text>
-          </Text>
-        </Pressable>
+        <AuthSwitchLink
+          prompt="Don't have an account?"
+          actionLabel="Sign up"
+          onPress={() => router.replace("/(auth)/email")}
+        />
       </View>
     </Screen>
   );

@@ -12,6 +12,10 @@ jest.mock("../hooks/useDashboard", () => ({
   useFoodLogHistory: () => mockUseFoodLogHistory(),
 }));
 
+jest.mock("@/features/food-logging/hooks/useFoodLogging", () => ({
+  useToggleFavorite: () => mockUseToggleFavorite(),
+}));
+
 jest.mock("@/features/food-logging", () => ({
   EditFoodLogSheet: (props: unknown) => mockEditFoodLogSheet(props),
   useFavorites: () => mockUseFavorites(),

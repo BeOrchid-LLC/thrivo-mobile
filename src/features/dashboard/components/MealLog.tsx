@@ -1,10 +1,10 @@
 import { Pressable, View } from "react-native";
-import { Heart, PlusCircle } from "phosphor-react-native";
+import { PlusCircle } from "phosphor-react-native";
 import { Text } from "@/components";
-import { useFavorites, useToggleFavorite } from "@/features/food-logging";
-import { useIsFavorite } from "@/stores";
 import { colors } from "@/theme";
 import type { FoodLogEntry } from "@/contracts";
+import { useFavorites } from "@/features/food-logging";
+import { FavoriteButton } from "@/features/food-logging/components/FavoriteButton";
 
 interface MealLogProps {
   entries: FoodLogEntry[];
@@ -19,6 +19,7 @@ function formatTime(iso: string): string {
 
 /** Today's logged foods in reverse consumed-time order. Tap a row to edit it. */
 export function MealLog({ entries, onLogFood, onViewAll, onEntryPress }: MealLogProps) {
+  useFavorites();
   const totalCalories = entries.reduce((sum, entry) => sum + entry.nutrients.calories, 0);
 
   return (
@@ -60,10 +61,6 @@ export function MealLog({ entries, onLogFood, onViewAll, onEntryPress }: MealLog
 }
 
 function MealLogRow({ entry, onPress }: { entry: FoodLogEntry; onPress: () => void }) {
-  useFavorites();
-  const toggleFavorite = useToggleFavorite();
-  const isFavorite = useIsFavorite(entry.foodItemId);
-
   return (
     <Pressable
       accessibilityRole="button"
@@ -85,19 +82,7 @@ function MealLogRow({ entry, onPress }: { entry: FoodLogEntry; onPress: () => vo
         <Text variant="body" color="dark">
           {entry.nutrients.calories} kcal
         </Text>
-        {entry.foodItemId ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={isFavorite ? "Remove favorite" : "Add favorite"}
-            onPress={(event) => {
-              event?.stopPropagation?.();
-              toggleFavorite(entry.foodItemId as string);
-            }}
-            hitSlop={8}
-          >
-            <Heart size={20} color={colors.primary} weight={isFavorite ? "fill" : "regular"} />
-          </Pressable>
-        ) : null}
+        {entry.foodItemId ? <FavoriteButton foodItemId={entry.foodItemId} size={20} /> : null}
       </View>
     </Pressable>
   );

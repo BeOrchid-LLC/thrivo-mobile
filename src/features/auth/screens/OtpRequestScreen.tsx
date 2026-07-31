@@ -1,7 +1,7 @@
 import { router } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Pressable, View } from "react-native";
+import { View } from "react-native";
 import { z } from "zod";
 import { useAuth, useSignUp } from "@clerk/expo";
 import {
@@ -18,6 +18,7 @@ import { colors } from "@/theme";
 import { emailSchema } from "@/contracts";
 import { useAuthStatus, useOnboardingDraftActions } from "@/stores";
 import { logAuthError, useAuthScreenDiagnostics } from "../auth-debug";
+import { AuthSwitchLink } from "../components/AuthSwitchLink";
 
 const otpRequestForm = z.object({
   name: z.string().trim().min(1, "Enter your name"),
@@ -140,11 +141,11 @@ export function OtpRequestScreen() {
           <Button label="Send code" loading={isSubmitting} onPress={send} />
         </View>
 
-        <Pressable onPress={() => router.push("/(auth)/sign-in")} className="mt-sm items-center">
-          <Text variant="caption" color="muted">
-            Already have an account? <Text color="primary">Sign in</Text>
-          </Text>
-        </Pressable>
+        <AuthSwitchLink
+          prompt="Already have an account?"
+          actionLabel="Sign in"
+          onPress={() => router.push("/(auth)/sign-in")}
+        />
       </View>
     </Screen>
   );

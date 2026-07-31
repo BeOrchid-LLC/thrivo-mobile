@@ -6,13 +6,13 @@ import { FlashList, type FlashListRef, type ListRenderItem } from "@shopify/flas
 import {
   Card,
   FilterChips,
+  HistorySkeleton,
   PageHeader,
   PremiumGate,
   SearchBar,
   SectionError,
   SelectInput,
   SelectSheet,
-  SkeletonText,
   Text,
   type FilterChip,
 } from "@/components";
@@ -24,9 +24,9 @@ import type {
   MealTime,
 } from "@/contracts";
 import { MEAL_TIME_WINDOWS } from "@/contracts";
-import { EditFoodLogSheet, useFavorites, useToggleFavorite } from "@/features/food-logging";
+import { EditFoodLogSheet, useFavorites } from "@/features/food-logging";
+import { FavoriteButton } from "@/features/food-logging/components/FavoriteButton";
 import { useDebouncedValue } from "@/hooks";
-import { useIsFavorite } from "@/stores";
 import { colors } from "@/theme";
 import type { FoodLogHistoryFilters } from "../api/dashboard.api";
 import { useFoodLogHistory } from "../hooks/useDashboard";
@@ -125,6 +125,7 @@ function getItemType(item: HistoryListItem): string {
 }
 
 export function FoodHistoryScreen({ refreshing, onRefresh }: FoodHistoryScreenProps) {
+  useFavorites();
   const [period, setPeriod] = useState<ChartPeriod>("1m");
   const [periodSheetOpen, setPeriodSheetOpen] = useState(false);
   const [sortSheetOpen, setSortSheetOpen] = useState(false);
@@ -147,8 +148,6 @@ export function FoodHistoryScreen({ refreshing, onRefresh }: FoodHistoryScreenPr
   );
 
   const history = useFoodLogHistory(period, undefined, filters);
-  useFavorites();
-  const toggleFavorite = useToggleFavorite();
   const [editingEntry, setEditingEntry] = useState<FoodLogEntry | null>(null);
 
   const suppressDateHeaders = sort === "highest" || sort === "lowest";
@@ -222,38 +221,29 @@ export function FoodHistoryScreen({ refreshing, onRefresh }: FoodHistoryScreenPr
     return chips;
   }, [sort, mealTime, favoritesOnly, selectedSortLabel, selectedMealTimeLabel, handleFilterChange]);
 
-  const renderItem = useCallback<ListRenderItem<HistoryListItem>>(
-    ({ item }) => {
-      if (item.type === "locked") {
-        return <LockedEarlierHistory historyLimitDays={item.historyLimitDays} />;
-      }
-      if (item.type === "header") return <HistoryDayHeader day={item.day} />;
-      if (item.type === "footer-spinner") {
-        return (
-          <View className="items-center py-md">
-            <ActivityIndicator color={colors.primary} />
-          </View>
-        );
-      }
-      if (item.type === "footer-end") {
-        return (
-          <View className="items-center py-md">
-            <Text variant="caption" color="muted">
-              All caught up
-            </Text>
-          </View>
-        );
-      }
+  const renderItem = useCallback<ListRenderItem<HistoryListItem>>(({ item }) => {
+    if (item.type === "locked") {
+      return <LockedEarlierHistory historyLimitDays={item.historyLimitDays} />;
+    }
+    if (item.type === "header") return <HistoryDayHeader day={item.day} />;
+    if (item.type === "footer-spinner") {
       return (
-        <HistoryEntryRow
-          entry={item.entry}
-          toggleFavorite={toggleFavorite}
-          onPress={() => setEditingEntry(item.entry)}
-        />
+        <View className="items-center py-md">
+          <ActivityIndicator color={colors.primary} />
+        </View>
       );
-    },
-    [toggleFavorite]
-  );
+    }
+    if (item.type === "footer-end") {
+      return (
+        <View className="items-center py-md">
+          <Text variant="caption" color="muted">
+            All caught up
+          </Text>
+        </View>
+      );
+    }
+    return <HistoryEntryRow entry={item.entry} onPress={() => setEditingEntry(item.entry)} />;
+  }, []);
 
   const handleRefresh = useCallback(() => {
     flashListRef.current?.scrollToOffset({ offset: 0, animated: false });
@@ -407,22 +397,6 @@ export function FoodHistoryScreen({ refreshing, onRefresh }: FoodHistoryScreenPr
   );
 }
 
-function HistorySkeleton() {
-  return (
-    <View className="gap-lg">
-      {Array.from({ length: 3 }).map((_, index) => (
-        <View key={index} className="gap-md">
-          <SkeletonText size="heading" className="w-1/3" />
-          <View className="gap-sm">
-            <SkeletonText className="w-2/3" />
-            <SkeletonText size="caption" className="w-1/4" />
-          </View>
-        </View>
-      ))}
-    </View>
-  );
-}
-
 /** Sticky — needs its own background so scrolling entries don't show through underneath it. */
 function HistoryDayHeader({ day }: { day: string }) {
   return (
@@ -436,15 +410,11 @@ function HistoryDayHeader({ day }: { day: string }) {
 
 const HistoryEntryRow = memo(function HistoryEntryRow({
   entry,
-  toggleFavorite,
   onPress,
 }: {
   entry: FoodLogEntry;
-  toggleFavorite: (foodItemId: string) => void;
   onPress: () => void;
 }) {
-  const isFavorite = useIsFavorite(entry.foodItemId);
-
   return (
     <Pressable
       accessibilityRole="button"
@@ -467,19 +437,7 @@ const HistoryEntryRow = memo(function HistoryEntryRow({
         <Text variant="body" color="dark">
           {entry.nutrients.calories} kcal
         </Text>
-        {entry.foodItemId ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={isFavorite ? "Remove favorite" : "Add favorite"}
-            onPress={(event) => {
-              event?.stopPropagation?.();
-              toggleFavorite(entry.foodItemId as string);
-            }}
-            hitSlop={8}
-          >
-            <Heart size={20} color={colors.primary} weight={isFavorite ? "fill" : "regular"} />
-          </Pressable>
-        ) : null}
+        {entry.foodItemId ? <FavoriteButton foodItemId={entry.foodItemId} size={20} /> : null}
       </View>
     </Pressable>
   );

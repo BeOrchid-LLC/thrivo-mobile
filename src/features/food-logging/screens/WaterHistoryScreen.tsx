@@ -5,12 +5,12 @@ import { FlashList, type FlashListRef, type ListRenderItem } from "@shopify/flas
 import {
   Card,
   FilterChips,
+  HistorySkeleton,
   PageHeader,
   PremiumGate,
   SectionError,
   SelectInput,
   SelectSheet,
-  SkeletonText,
   Text,
   type FilterChip,
 } from "@/components";
@@ -339,22 +339,6 @@ export function WaterHistoryScreen({ refreshing, onRefresh }: WaterHistoryScreen
         onChange={(v) => handleFilterChange({ mealTime: v as MealTime })}
         onClose={() => setMealTimeSheetOpen(false)}
       />
-    </View>
-  );
-}
-
-function HistorySkeleton() {
-  return (
-    <View className="gap-lg">
-      {Array.from({ length: 3 }).map((_, index) => (
-        <View key={index} className="gap-md">
-          <SkeletonText size="heading" className="w-1/3" />
-          <View className="gap-sm">
-            <SkeletonText className="w-2/3" />
-            <SkeletonText size="caption" className="w-1/4" />
-          </View>
-        </View>
-      ))}
     </View>
   );
 }

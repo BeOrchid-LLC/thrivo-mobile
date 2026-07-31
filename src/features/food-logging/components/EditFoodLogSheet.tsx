@@ -1,23 +1,23 @@
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Pressable, View } from "react-native";
 import { router } from "expo-router";
-import { Heart } from "phosphor-react-native";
 import {
   BottomSheetShell,
   Button,
   FormError,
   PremiumGate,
   Text,
+  TimeField,
   TimePicker,
+  formatTime,
   type TimePickerEvent,
 } from "@/components";
 import { useEntitlement } from "@/hooks/useEntitlement";
-import { useIsFavorite } from "@/stores";
-import { colors } from "@/theme";
 import { isToday } from "@/utils";
 import type { FoodLogEntry } from "@/contracts";
 import { QuantityUnitField } from "./QuantityUnitField";
 import { MacroCards } from "./MacroCards";
+import { FavoriteButton } from "./FavoriteButton";
 import {
   GRAMS_SERVING_ID,
   buildServingChoices,
@@ -28,9 +28,8 @@ import {
 import { parsePositiveQuantity } from "../utils/quantity";
 import {
   useDeleteFoodLog,
-  useFavorites,
   useFoodDetail,
-  useToggleFavorite,
+  useFavorites,
   useUpdateFoodLog,
 } from "../hooks/useFoodLogging";
 
@@ -38,10 +37,6 @@ export interface EditFoodLogSheetProps {
   entry: FoodLogEntry | null;
   visible: boolean;
   onClose: () => void;
-}
-
-function formatTime(date: Date): string {
-  return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
 function scaleEntryNutrients(entry: FoodLogEntry, quantity: number): FoodLogEntry["nutrients"] {
@@ -79,13 +74,10 @@ function scaleCatalogNutrients(
  * an already-settled day's totals.
  */
 export function EditFoodLogSheet({ entry, visible, onClose }: EditFoodLogSheetProps) {
+  useFavorites();
   const updateLog = useUpdateFoodLog();
   const deleteLog = useDeleteFoodLog();
   const entitlement = useEntitlement();
-  useFavorites(); // keeps the local favorites store synced
-  const toggleFavoriteId = useToggleFavorite();
-  const isFavorite = useIsFavorite(entry?.foodItemId);
-
   const [servings, setServings] = useState("1");
   const [consumedAt, setConsumedAt] = useState(new Date());
   const [showTimePicker, setShowTimePicker] = useState(false);
@@ -132,10 +124,6 @@ export function EditFoodLogSheet({ entry, visible, onClose }: EditFoodLogSheetPr
   }, [visible, entry?.id, choices]);
 
   if (!entry) return null;
-
-  const toggleFavorite = () => {
-    if (entry.foodItemId) toggleFavoriteId(entry.foodItemId);
-  };
 
   const servingsValue = parsePositiveQuantity(servings);
   const hasValidServings = servingsValue !== null;
@@ -216,13 +204,7 @@ export function EditFoodLogSheet({ entry, visible, onClose }: EditFoodLogSheetPr
       }
       headerAccessory={
         entry.foodItemId ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={isFavorite ? "Remove favorite" : "Add favorite"}
-            onPress={toggleFavorite}
-          >
-            <Heart size={22} color={colors.primary} weight={isFavorite ? "fill" : "regular"} />
-          </Pressable>
+          <FavoriteButton foodItemId={entry.foodItemId} size={22} hitSlop={0} />
         ) : null
       }
     >
@@ -250,21 +232,7 @@ export function EditFoodLogSheet({ entry, visible, onClose }: EditFoodLogSheetPr
             </PremiumGate>
           )}
 
-          <View className="gap-sm">
-            <Text variant="caption" color="dark">
-              Time logged
-            </Text>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Change time logged"
-              onPress={() => setShowTimePicker(true)}
-              className="h-[48px] items-center justify-center rounded-md border border-gray-300 bg-white"
-            >
-              <Text variant="body" color="dark">
-                {formatTime(consumedAt)}
-              </Text>
-            </Pressable>
-          </View>
+          <TimeField value={consumedAt} onPress={() => setShowTimePicker(true)} />
 
           {!hasValidServings ? <FormError message="Servings must be a positive number." /> : null}
           <FormError message={updateLog.error?.message ?? deleteLog.error?.message ?? null} />

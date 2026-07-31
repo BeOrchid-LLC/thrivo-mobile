@@ -41,10 +41,10 @@ import {
 import { colors } from "@/theme";
 import { useSettings } from "@/features/settings";
 import { subscribeTabRootReset } from "@/navigation/tab-root-reset";
-import { useIsFavorite } from "@/stores";
 import { formatWater, isToday, roundTo, waterFromMl, waterUnitFor } from "@/utils";
 import type { FoodItem, FoodLogEntry, PortionMeasure, WaterEntry } from "@/contracts";
 import { EditFoodLogSheet } from "../components/EditFoodLogSheet";
+import { FavoriteButton } from "../components/FavoriteButton";
 import { FoodResultRow } from "../components/FoodResultRow";
 import { FoodRowSkeleton } from "../components/FoodRowSkeleton";
 import { LogItemSheet } from "../components/LogItemSheet";
@@ -63,7 +63,6 @@ import {
   useLogEstimate,
   useLogFood,
   useRecentFoods,
-  useToggleFavorite,
   useUpdateWaterLog,
   useWater,
 } from "../hooks/useFoodLogging";
@@ -922,10 +921,6 @@ function QuickAction({
 }
 
 function RecentFoodRow({ entry, onPress }: { entry: FoodLogEntry; onPress: () => void }) {
-  useFavorites();
-  const toggleFavorite = useToggleFavorite();
-  const isFavorite = useIsFavorite(entry.foodItemId);
-
   return (
     <Pressable
       accessibilityRole="button"
@@ -950,19 +945,7 @@ function RecentFoodRow({ entry, onPress }: { entry: FoodLogEntry; onPress: () =>
             {entry.servingUnit ?? "serving"}
           </Text>
         </View>
-        {entry.foodItemId ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={isFavorite ? "Remove favorite" : "Add favorite"}
-            onPress={(event) => {
-              event?.stopPropagation?.();
-              toggleFavorite(entry.foodItemId as string);
-            }}
-            hitSlop={8}
-          >
-            <Heart size={22} color={colors.primary} weight={isFavorite ? "fill" : "regular"} />
-          </Pressable>
-        ) : null}
+        {entry.foodItemId ? <FavoriteButton foodItemId={entry.foodItemId} size={22} /> : null}
       </View>
     </Pressable>
   );

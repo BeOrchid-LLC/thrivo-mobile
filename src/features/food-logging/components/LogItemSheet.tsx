@@ -8,6 +8,7 @@ import {
   FormError,
   PremiumGate,
   Text,
+  TimeField,
   TimePicker,
   type TimePickerEvent,
 } from "@/components";
@@ -38,10 +39,6 @@ export interface LogItemSheetProps {
   day: string;
   visible: boolean;
   onClose: () => void;
-}
-
-function formatTime(date: Date): string {
-  return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
 function scaleNutrients(
@@ -207,21 +204,7 @@ export function LogItemSheet({ item, day, visible, onClose }: LogItemSheetProps)
         </PremiumGate>
       )}
 
-      <View className="gap-sm">
-        <Text variant="caption" color="dark">
-          Time logged
-        </Text>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Change time logged"
-          onPress={() => setShowTimePicker(true)}
-          className="h-[48px] items-center justify-center rounded-md border border-gray-300 bg-white"
-        >
-          <Text variant="body" color="dark">
-            {formatTime(consumedAt)}
-          </Text>
-        </Pressable>
-      </View>
+      <TimeField value={consumedAt} onPress={() => setShowTimePicker(true)} />
 
       <Pressable
         accessibilityRole="button"

@@ -36,6 +36,15 @@ jest.mock("../hooks/useDashboard", () => ({
   useAddWater: () => mockUseAddWater(),
 }));
 
+jest.mock("@/features/food-logging/hooks/useFoodLogging", () => {
+  const actual = jest.requireActual("@/features/food-logging/hooks/useFoodLogging");
+  return {
+    ...actual,
+    useFavorites: () => mockUseFavorites(),
+    useToggleFavorite: () => mockUseToggleFavorite(),
+  };
+});
+
 jest.mock("@/features/food-logging", () => {
   const actual = jest.requireActual("@/features/food-logging");
   return {
