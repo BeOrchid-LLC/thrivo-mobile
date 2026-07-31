@@ -18,7 +18,7 @@ export function PlaceholderScreen({ title, subtitle, premium }: PlaceholderScree
   return (
     <Screen>
       <View className="flex-1 items-center justify-center">
-        <Text variant="heading2" color="dark" className="mb-sm">
+        <Text variant="heading3" color="dark" className="mb-sm">
           {title}
         </Text>
         {subtitle ? (

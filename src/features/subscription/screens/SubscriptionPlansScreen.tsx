@@ -72,8 +72,10 @@ function ModalShell({
             <X size={26} color={colors.error} />
           )}
         </View>
-        <Text className="text-center font-semibold text-[18px]">{title}</Text>
-        <Text color="dark" className="text-center leading-[24px]">
+        <Text variant="body-lg" className="text-center font-semibold">
+          {title}
+        </Text>
+        <Text variant="body" color="dark" className="text-center">
           {body}
         </Text>
         {children}
@@ -138,7 +140,7 @@ export function SubscriptionPlansScreen() {
         ]}
       />
 
-      <Text color="muted" className="text-[16px] leading-[24px]">
+      <Text variant="body" color="muted">
         Premium unlocks activity history and trend charts beyond 14 days.
       </Text>
 
@@ -149,9 +151,12 @@ export function SubscriptionPlansScreen() {
       >
         <View className="flex-row items-start justify-between">
           <View>
-            <Text className={`font-semibold text-[40px] ${plan === "annual" ? "text-white" : ""}`}>
+            <Text variant="heading1" className={`${plan === "annual" ? "text-white" : ""}`}>
               {selected.price}
-              <Text className={`text-[18px] ${plan === "annual" ? "text-white" : "text-gray-500"}`}>
+              <Text
+                variant="body-lg"
+                className={`${plan === "annual" ? "text-white" : "text-gray-500"}`}
+              >
                 {" "}
                 / {selected.period}
               </Text>
@@ -165,7 +170,7 @@ export function SubscriptionPlansScreen() {
           </View>
           {plan === "annual" ? (
             <View className="rounded-md bg-warning px-md py-sm">
-              <Text className="font-semibold text-[13px]">Best value</Text>
+              <Text variant="caption">Best value</Text>
             </View>
           ) : null}
         </View>

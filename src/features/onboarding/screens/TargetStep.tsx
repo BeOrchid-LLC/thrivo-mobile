@@ -181,7 +181,7 @@ export default function TargetStep({
       }
     >
       <View className="overflow-hidden rounded-[16px] bg-primarySoft p-lg">
-        <Text className="font-bold text-[40px] leading-[48px] text-primary">
+        <Text variant="heading1" className="font-bold text-primary">
           {displayedTarget !== undefined ? displayedTarget.toLocaleString() : "—"}
         </Text>
         <Text variant="body" color="muted">

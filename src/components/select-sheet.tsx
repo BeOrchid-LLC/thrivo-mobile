@@ -61,7 +61,9 @@ export function SelectSheet<T extends string | number>({
         >
           <View className="h-[4px] w-[44px] self-center rounded-pill bg-gray-300" />
           <View className="flex-row items-center justify-between">
-            <Text className="font-semibold text-[18px]">{title}</Text>
+            <Text variant="body-lg" className="font-semibold">
+              {title}
+            </Text>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`Cancel ${title}`}
@@ -92,7 +94,8 @@ export function SelectSheet<T extends string | number>({
                   } ${divider}`}
                 >
                   <Text
-                    className={`text-[16px] ${
+                    variant="body"
+                    className={`${
                       selected ? "font-semibold" : "font-regular"
                     } ${option.locked ? "text-gray-600" : ""}`}
                   >

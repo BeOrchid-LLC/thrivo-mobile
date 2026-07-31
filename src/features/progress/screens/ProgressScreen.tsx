@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { Modal, Pressable, ScrollView, TextInput, View } from "react-native";
 import Svg, { Circle, Line, Path, Polyline } from "react-native-svg";
-import { ArrowLeft, Lock, TrendDown, Warning } from "phosphor-react-native";
+import { Lock, TrendDown, Warning } from "phosphor-react-native";
 import { router } from "expo-router";
 import { queryClient, queryKeys } from "@/api";
 import {
   Button,
   BottomSheetShell,
   Card,
+  PageHeader,
   Screen,
   SectionError,
   SelectInput,
@@ -113,9 +114,7 @@ function ProgressHome({ day, onLogWeight }: { day: string; onLogWeight: () => vo
       refreshing={refreshing}
       onRefresh={refresh}
     >
-      <Text variant="heading2" color="dark">
-        Progress
-      </Text>
+      <PageHeader title="Progress" showBack={false} />
       {data ? (
         <SummaryCards data={data} unitSystem={unitSystem} />
       ) : progress.isLoading ? (
@@ -258,8 +257,10 @@ function PremiumPeriodModal({
           <View className="h-[48px] w-[48px] items-center justify-center self-center rounded-full bg-primarySoft">
             <Warning size={26} color={colors.primary} />
           </View>
-          <Text className="text-center font-semibold text-[18px]">Premium required</Text>
-          <Text color="dark" className="text-center leading-[24px]">
+          <Text variant="body-lg" className="text-center font-semibold">
+            Premium required
+          </Text>
+          <Text variant="body" color="dark" className="text-center">
             You have to be premium to view this option.
           </Text>
           <Button label="View subscription plans" onPress={onSubscribe} />
@@ -401,17 +402,7 @@ function LogWeightScreen({ day, onBack }: { day: string; onBack: () => void }) {
 
   return (
     <Screen scroll style={{ gap: 24 }}>
-      <View className="flex-row items-center gap-md">
-        <Pressable accessibilityRole="button" onPress={onBack}>
-          <ArrowLeft size={24} color={colors.dark} />
-        </Pressable>
-        <View>
-          <Text variant="heading2" color="dark">
-            Log weight
-          </Text>
-          <Text color="muted">What does the scale say today?</Text>
-        </View>
-      </View>
+      <PageHeader title="Log weight" subtitle="What does the scale say today?" onBack={onBack} />
 
       <View className="gap-sm">
         <Text variant="body" color="dark">
@@ -426,7 +417,7 @@ function LogWeightScreen({ day, onBack }: { day: string; onBack: () => void }) {
             value={weight}
             onChangeText={setWeight}
             keyboardType="decimal-pad"
-            className="min-h-[48px] flex-1 rounded-md bg-gray-100 px-lg text-center font-semibold text-[16px] text-dark"
+            className="min-h-[48px] flex-1 rounded-md bg-gray-100 px-lg text-center font-semibold text-body text-dark"
           />
           <Text color="primary">{weightUnit}</Text>
           <StepperButton

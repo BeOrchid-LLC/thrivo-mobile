@@ -48,7 +48,7 @@ export function QuantityUnitField({
           onChangeText={onQuantityChange}
           keyboardType="decimal-pad"
           editable={!disabled}
-          className="h-[48px] flex-1 rounded-md border border-gray-300 bg-white text-center text-[18px] text-dark"
+          className="h-[48px] flex-1 rounded-md border border-gray-300 bg-white text-center text-body-lg text-dark"
         />
         <StepperButton
           label="+"

@@ -90,7 +90,9 @@ export function CaloriesSummarySection() {
           <Text variant="heading1" color="dark">
             {consumedCalories.toLocaleString()}
           </Text>
-          <Text className="mb-2 text-lg font-normal text-muted">kcal</Text>
+          <Text variant="body-lg" className="mb-2 font-normal text-muted">
+            kcal
+          </Text>
         </View>
         <Text variant="body" color="muted">
           of {targetCalories.toLocaleString()} daily target

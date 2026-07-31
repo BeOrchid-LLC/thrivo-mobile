@@ -5,11 +5,11 @@ import { Pressable, View } from "react-native";
 import { z } from "zod";
 import { useAuth, useSignUp } from "@clerk/expo";
 import {
-  BackButton,
   Button,
   FormError,
   Input,
   MailIcon,
+  PageHeader,
   Screen,
   Text,
   UserIcon,
@@ -88,16 +88,10 @@ export function OtpRequestScreen() {
   return (
     <Screen scroll backgroundColor={colors.white}>
       <View className="gap-lg">
-        <BackButton />
-
-        <View className="gap-xs">
-          <Text variant="heading2" color="dark" className="tracking-[-0.5px]">
-            Continue with email
-          </Text>
-          <Text variant="body" color="muted">
-            We&apos;ll send a one-time code to confirm it&apos;s you.
-          </Text>
-        </View>
+        <PageHeader
+          title="Continue with email"
+          subtitle="We'll send a one-time code to confirm it's you."
+        />
 
         <View className="gap-md">
           <Controller

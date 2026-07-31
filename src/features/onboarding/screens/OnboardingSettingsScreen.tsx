@@ -37,7 +37,7 @@ export function OnboardingSettingsScreen() {
         <PageHeader title="Onboarding complete" onBack={() => router.back()} />
         <View className="items-center gap-md py-2xl">
           <CheckCircle size={64} weight="fill" color={colors.successBright} />
-          <Text variant="heading2" className="text-center">
+          <Text variant="heading3" className="text-center">
             Your onboarding is complete
           </Text>
           <Text color="muted" className="text-center">

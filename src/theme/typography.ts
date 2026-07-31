@@ -6,13 +6,21 @@
  * graceful fallback before the fonts finish loading.
  *
  * Figma names map to keys as: Header 1 → heading1, Header 2 → heading2,
- * Header 3 → heading3, Body 1 → body, Body 2 → caption. Headings are Inter
- * Semi Bold (600); body is Regular (400); Body 2 is Semi Bold (600).
+ * Header 3 → heading3, Body 1 → body, Body 2 → caption. The additional
+ * variants below cover the few product-wide display, numeric, and supporting
+ * text roles; screens should consume these named variants instead of defining
+ * local font sizes or line heights.
  */
 const regular = "Inter_400Regular";
 const semiBold = "Inter_600SemiBold";
 
 export const typography = {
+  hero: {
+    fontFamily: semiBold,
+    fontSize: 36,
+    fontWeight: "600" as const,
+    lineHeight: 40,
+  },
   heading1: {
     fontFamily: semiBold,
     fontSize: 40,
@@ -29,7 +37,31 @@ export const typography = {
     fontFamily: semiBold,
     fontSize: 20,
     fontWeight: "600" as const,
+    lineHeight: 24,
+  },
+  title: {
+    fontFamily: semiBold,
+    fontSize: 28,
+    fontWeight: "600" as const,
+    lineHeight: 42,
+  },
+  metric: {
+    fontFamily: semiBold,
+    fontSize: 24,
+    fontWeight: "600" as const,
     lineHeight: 28,
+  },
+  otp: {
+    fontFamily: semiBold,
+    fontSize: 22,
+    fontWeight: "600" as const,
+    lineHeight: 28,
+  },
+  "body-lg": {
+    fontFamily: regular,
+    fontSize: 18,
+    fontWeight: "400" as const,
+    lineHeight: 24,
   },
   body: {
     fontFamily: regular,
@@ -37,11 +69,29 @@ export const typography = {
     fontWeight: "400" as const,
     lineHeight: 24,
   },
+  "body-sm": {
+    fontFamily: regular,
+    fontSize: 15,
+    fontWeight: "400" as const,
+    lineHeight: 22,
+  },
+  label: {
+    fontFamily: regular,
+    fontSize: 14,
+    fontWeight: "400" as const,
+    lineHeight: 20,
+  },
   caption: {
     fontFamily: semiBold,
     fontSize: 13,
     fontWeight: "600" as const,
     lineHeight: 18,
+  },
+  micro: {
+    fontFamily: regular,
+    fontSize: 12,
+    fontWeight: "400" as const,
+    lineHeight: 16,
   },
 };
 

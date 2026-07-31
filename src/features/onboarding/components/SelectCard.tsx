@@ -51,7 +51,7 @@ export function SelectCard({
           {label}
         </Text>
         {description ? (
-          <Text className="font-regular text-[14px] leading-[19px] text-gray-500">
+          <Text variant="label" className="text-gray-500">
             {description}
           </Text>
         ) : null}
@@ -61,10 +61,7 @@ export function SelectCard({
         <View
           className={`rounded-md px-sm py-[2px] ${selected ? "bg-primaryBright/[0.12]" : "bg-gray-100"}`}
         >
-          <Text
-            variant="caption"
-            className={`text-[13px] ${selected ? "text-primary" : "text-gray-500"}`}
-          >
+          <Text variant="caption" className={selected ? "text-primary" : "text-gray-500"}>
             {trailingText}
           </Text>
         </View>

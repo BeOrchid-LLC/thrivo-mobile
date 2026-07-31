@@ -1,7 +1,8 @@
-import { ActivityIndicator, Text, View } from "react-native";
+import { ActivityIndicator, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { colors } from "@/theme";
 import { ThrivoMark } from "./ThrivoMark";
+import { Text } from "./Text";
 
 export interface BrandSplashProps {
   /** Show the spinner under the wordmark (e.g. while session/fonts resolve). */
@@ -23,7 +24,7 @@ export function BrandSplash({ busy = false }: BrandSplashProps) {
     >
       <View className="h-[120px] items-center">
         <ThrivoMark size={80} />
-        <Text className="mt-lg font-bold text-[20px] leading-[24px] tracking-[0.44px] text-dark">
+        <Text variant="heading3" className="mt-lg tracking-[0.44px] text-dark">
           THRIVO
         </Text>
       </View>

@@ -93,7 +93,7 @@ export function BottomSheetShell({
         >
           <View className="flex-row items-center justify-between">
             <View className="flex-1">
-              <Text className="font-semibold text-[18px]" numberOfLines={1}>
+              <Text variant="body-lg" className="font-semibold" numberOfLines={1}>
                 {title}
               </Text>
               {subtitle}

@@ -44,7 +44,7 @@ export function SelectInput({
       <View
         className={`min-h-[48px] flex-row items-center gap-sm rounded-md border bg-white px-lg ${borderClass}`}
       >
-        <Text color={value ? "dark" : "muted"} className="flex-1 text-[16px]">
+        <Text variant="body" color={value ? "dark" : "muted"} className="flex-1">
           {display}
         </Text>
         <CaretDown size={20} color={colors.gray[500]} />

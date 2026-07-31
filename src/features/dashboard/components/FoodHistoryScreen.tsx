@@ -6,6 +6,7 @@ import { FlashList, type FlashListRef, type ListRenderItem } from "@shopify/flas
 import {
   Card,
   FilterChips,
+  PageHeader,
   PremiumGate,
   SearchBar,
   SectionError,
@@ -267,9 +268,7 @@ export function FoodHistoryScreen({ refreshing, onRefresh }: FoodHistoryScreenPr
 
   return (
     <View className="flex-1 gap-lg">
-      <Text variant="heading2" color="dark">
-        Food history
-      </Text>
+      <PageHeader title="Food history" showBack={false} />
 
       <SearchBar
         value={searchText}

@@ -34,7 +34,7 @@ export function PageHeader({ title, subtitle, showBack = true, onBack }: PageHea
   const titleRow = (
     <View className="flex-row items-center gap-4">
       {showBack ? <ArrowLeftIcon size={24} color={colors.dark} /> : null}
-      <Text variant="heading2" color="dark" accessibilityRole="header">
+      <Text variant="heading3" color="dark" accessibilityRole="header">
         {title}
       </Text>
     </View>

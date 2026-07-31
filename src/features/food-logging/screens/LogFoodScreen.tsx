@@ -146,14 +146,11 @@ export function LogFoodScreen() {
       refreshing={refreshing}
       onRefresh={refresh}
     >
-      <View className="gap-xs">
-        <Text variant="heading2" color="dark">
-          {segment === "food" ? "Log Food" : "Log Water"}
-        </Text>
-        <Text variant="body" color="muted">
-          What are you logging today?
-        </Text>
-      </View>
+      <PageHeader
+        title={segment === "food" ? "Log Food" : "Log Water"}
+        subtitle="What are you logging today?"
+        showBack={false}
+      />
       <Segmented
         value={segment}
         onChange={setSegment}
@@ -838,7 +835,7 @@ function DescribeMealScreen({ day, onBack }: { day: string; onBack: () => void }
           value={quantity}
           onChangeText={setQuantity}
           keyboardType="decimal-pad"
-          className="h-[48px] flex-1 rounded-md border border-gray-300 bg-white text-center text-[18px] text-dark"
+          className="h-[48px] flex-1 rounded-md border border-gray-300 bg-white text-center text-body-lg text-dark"
         />
         <Text variant="body" color="primary">
           {measure === "weight" ? "grams" : measure}

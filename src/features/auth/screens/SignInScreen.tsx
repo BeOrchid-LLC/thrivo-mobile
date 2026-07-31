@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Platform, Pressable, View } from "react-native";
 import { z } from "zod";
 import { useAuth, useSignIn } from "@clerk/expo";
-import { Button, FormError, Input, Screen, Text } from "@/components";
+import { Button, FormError, Input, PageHeader, Screen, Text } from "@/components";
 import { emailSchema } from "@/contracts";
 import { useAuthStatus } from "@/stores";
 import { SocialAuthButtons, type SocialAuthProvider } from "../components/SocialAuthButtons";
@@ -107,12 +107,11 @@ export function SignInScreen() {
   return (
     <Screen scroll>
       <View className="gap-lg pt-xl">
-        <Text variant="heading2" color="dark" className="mb-xs">
-          Sign in to Thrivo
-        </Text>
-        <Text variant="body" color="muted" className="mb-sm">
-          Welcome back. We&apos;ll email you a secure 6-digit code that expires in 5 minutes.
-        </Text>
+        <PageHeader
+          title="Sign in to Thrivo"
+          subtitle="Welcome back. We'll email you a secure 6-digit code that expires in 5 minutes."
+          showBack={false}
+        />
 
         <FormError message={callbackError} center />
 

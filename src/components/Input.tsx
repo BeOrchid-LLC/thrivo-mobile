@@ -73,11 +73,11 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
           placeholderTextColor={colors.gray[400]}
           onFocus={handleFocus}
           onBlur={handleBlur}
-          className={`flex-1 py-0 text-[16px] text-dark ${className ?? ""}`}
+          className={`flex-1 py-0 text-body text-dark ${className ?? ""}`}
           {...rest}
         />
         {trailingText ? (
-          <Text className="font-regular text-[15px] leading-[22px] text-gray-500">
+          <Text variant="body-sm" className="text-gray-500">
             {trailingText}
           </Text>
         ) : null}

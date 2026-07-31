@@ -3,7 +3,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { Platform, TextInput, View } from "react-native";
 import { useAuth, useSignIn, useSignUp } from "@clerk/expo";
-import { BackButton, Button, FormError, Screen, Text } from "@/components";
+import { Button, FormError, PageHeader, Screen, Text } from "@/components";
 import { colors } from "@/theme";
 import { useAuthStatus, useBiometricUnlockActions, useSessionActions } from "@/stores";
 import { logAuthError, useAuthScreenDiagnostics } from "../auth-debug";
@@ -198,16 +198,11 @@ export function OtpVerifyScreen() {
   return (
     <Screen scroll backgroundColor={colors.white} style={{ flexGrow: 1 }}>
       <View className="gap-xl pt-xl">
-        <BackButton onPress={() => router.replace(differentEmailTarget)} />
-
-        <View className="gap-sm">
-          <Text variant="heading2" color="dark" className="text-center tracking-[-0.5px]">
-            Enter your code
-          </Text>
-          <Text variant="body" color="muted" selectable className="text-center">
-            We sent a 6-digit code to {normalizedEmail}.
-          </Text>
-        </View>
+        <PageHeader
+          title="Enter your code"
+          subtitle={`We sent a 6-digit code to ${normalizedEmail}.`}
+          onBack={() => router.replace(differentEmailTarget)}
+        />
 
         <View className="gap-md">
           <View className="flex-row justify-center gap-sm">
@@ -230,7 +225,7 @@ export function OtpVerifyScreen() {
                     inputs.current[index - 1]?.focus();
                   }
                 }}
-                className={`h-[54px] w-[46px] rounded-md border bg-white text-center font-semibold text-[22px] text-dark ${
+                className={`h-[54px] w-[46px] rounded-md border bg-white text-center text-otp text-dark ${
                   error ? "border-error" : digit ? "border-primary" : "border-gray-300"
                 }`}
                 style={{ borderCurve: "continuous", fontVariant: ["tabular-nums"] }}
