@@ -28,6 +28,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.beorchid.thrivo",
+      "associatedDomains": ["applinks:thrivo.fit"],
       "usesAppleSignIn": true,
       "splash": {
         "image": "./src/assets/splash-new.png",
@@ -42,6 +43,19 @@
     },
     "android": {
       "package": "com.beorchid.thrivo",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            { "scheme": "https", "host": "thrivo.fit", "pathPrefix": "/dashboard" },
+            { "scheme": "https", "host": "thrivo.fit", "pathPrefix": "/log" },
+            { "scheme": "https", "host": "thrivo.fit", "pathPrefix": "/metrics" },
+            { "scheme": "https", "host": "thrivo.fit", "pathPrefix": "/settings/subscription" }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ],
       "edgeToEdgeEnabled": true,
       "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {

@@ -359,6 +359,23 @@ export function SettingsScreen() {
           onPress={settingsLoading ? undefined : () => setEditingTime("dailyFoodLogReminderTime")}
         />
         <Row
+          icon={<Bell size={22} color={colors.dark} />}
+          title="Weekly review email"
+          subtitle="Your previous week, Sundays around 9:00 AM"
+          action={
+            <Switch
+              value={Boolean(
+                userSettings?.weeklyReviewEmailEnabled ?? userSettings?.emailFoodLogReminderEnabled
+              )}
+              disabled={settingsLoading}
+              onValueChange={(weeklyReviewEmailEnabled) =>
+                updateSettings.mutate({ weeklyReviewEmailEnabled })
+              }
+              trackColor={{ true: colors.primaryBright, false: colors.gray[300] }}
+            />
+          }
+        />
+        <Row
           icon={<Clock size={24} color={colors.dark} />}
           title="Weight check"
           action={

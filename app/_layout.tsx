@@ -1,6 +1,7 @@
 import "../global.css";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Platform, useColorScheme, View } from "react-native";
+import * as Linking from "expo-linking";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
@@ -31,6 +32,11 @@ import {
 import { env } from "@/config/env";
 import { useSessionInit, useSessionRefresh } from "@/hooks";
 import { resolveRootRedirect } from "@/navigation/root-redirect";
+import {
+  consumePendingDeepLink,
+  parseAppDeepLink,
+  savePendingDeepLink,
+} from "@/navigation/pending-deep-link";
 import { colors } from "@/theme";
 import {
   useAuthStatus,
@@ -87,6 +93,7 @@ function RootNavigator({
   const isOnboardingSkipped = useIsOnboardingSkipped();
   const preferencesHydrated = usePreferencesHydrated();
   const [preferenceTimeoutReached, setPreferenceTimeoutReached] = useState(false);
+  const [pendingLinkVersion, setPendingLinkVersion] = useState(0);
   const segments = useSegments();
   const router = useRouter();
   const { setStatus } = useSessionActions();
@@ -94,6 +101,20 @@ function RootNavigator({
 
   useSessionInit();
   useSessionRefresh();
+
+  useEffect(() => {
+    const capture = async (url: string | null) => {
+      if (!url) return;
+      const target = parseAppDeepLink(url);
+      if (target) {
+        await savePendingDeepLink(target);
+        setPendingLinkVersion((version) => version + 1);
+      }
+    };
+    void Linking.getInitialURL().then(capture);
+    const subscription = Linking.addEventListener("url", ({ url }) => void capture(url));
+    return () => subscription.remove();
+  }, []);
 
   useEffect(() => {
     if (preferencesHydrated || status !== "authenticated") return undefined;
@@ -124,6 +145,30 @@ function RootNavigator({
   const ready = fontsReady && status !== "loading" && preferencesReady;
   const isBiometricLocked =
     status === "authenticated" && biometricEnabled && !isBiometricUnlocked && preferencesHydrated;
+
+  useEffect(() => {
+    if (
+      !ready ||
+      !nativeSplashReleased ||
+      status !== "authenticated" ||
+      (!isOnboarded && !isOnboardingSkipped) ||
+      isBiometricLocked
+    ) {
+      return;
+    }
+    void consumePendingDeepLink().then((target) => {
+      if (target) router.replace(target);
+    });
+  }, [
+    ready,
+    nativeSplashReleased,
+    status,
+    isOnboarded,
+    isOnboardingSkipped,
+    isBiometricLocked,
+    pendingLinkVersion,
+    router,
+  ]);
 
   useEffect(() => {
     if (!ready || !nativeSplashReleased || redirecting.current) return;
