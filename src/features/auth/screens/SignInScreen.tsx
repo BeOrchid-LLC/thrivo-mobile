@@ -3,10 +3,12 @@ import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Platform, Pressable, View } from "react-native";
 import { z } from "zod";
-import { useSignIn } from "@clerk/expo";
+import { useAuth, useSignIn } from "@clerk/expo";
 import { Button, FormError, Input, Screen, Text } from "@/components";
 import { emailSchema } from "@/contracts";
+import { useAuthStatus } from "@/stores";
 import { SocialAuthButtons, type SocialAuthProvider } from "../components/SocialAuthButtons";
+import { logAuthError, useAuthScreenDiagnostics } from "../auth-debug";
 import { useAppleSignIn, useGoogleSignIn } from "../hooks/useAuth";
 
 type SignInParams = { authError?: string };
@@ -32,7 +34,10 @@ type SignInForm = z.infer<typeof signInForm>;
 
 export function SignInScreen() {
   const { authError } = useLocalSearchParams<SignInParams>();
+  const clerk = useAuth({ treatPendingAsSignedOut: false });
   const { signIn } = useSignIn();
+  const status = useAuthStatus();
+  useAuthScreenDiagnostics("email-sign-in", status, clerk);
   const google = useGoogleSignIn();
   const apple = useAppleSignIn();
   const loadingProvider: SocialAuthProvider | null = google.isPending
@@ -55,29 +60,40 @@ export function SignInScreen() {
   });
 
   const send = handleSubmit(async ({ email }) => {
-    if (!signIn) return;
-
-    const { error: createError } = await signIn.create({ identifier: email });
-    if (createError) {
-      setError("root", { message: clerkErrorMessage(createError) });
+    if (!signIn) {
+      logAuthError("email-sign-in", "Clerk sign-in unavailable", null);
       return;
     }
 
-    const emailFactor = signIn.supportedFirstFactors?.find(
-      (f): f is Extract<typeof f, { strategy: "email_code" }> => f.strategy === "email_code"
-    );
-    if (!emailFactor) {
-      setError("root", { message: "Email sign-in is not available for this account." });
-      return;
-    }
+    try {
+      const { error: createError } = await signIn.create({ identifier: email });
+      if (createError) {
+        logAuthError("email-sign-in", "create", createError);
+        setError("root", { message: clerkErrorMessage(createError) });
+        return;
+      }
 
-    const { error: sendError } = await signIn.emailCode.sendCode();
-    if (sendError) {
-      setError("root", { message: clerkErrorMessage(sendError) });
-      return;
-    }
+      const emailFactor = signIn.supportedFirstFactors?.find(
+        (f): f is Extract<typeof f, { strategy: "email_code" }> => f.strategy === "email_code"
+      );
+      if (!emailFactor) {
+        logAuthError("email-sign-in", "email code factor unavailable", null);
+        setError("root", { message: "Email sign-in is not available for this account." });
+        return;
+      }
 
-    router.push({ pathname: "/(auth)/otp", params: { email, source: "sign-in" } });
+      const { error: sendError } = await signIn.emailCode.sendCode();
+      if (sendError) {
+        logAuthError("email-sign-in", "send email code", sendError);
+        setError("root", { message: clerkErrorMessage(sendError) });
+        return;
+      }
+
+      router.push({ pathname: "/(auth)/otp", params: { email, source: "sign-in" } });
+    } catch (error) {
+      logAuthError("email-sign-in", "request", error);
+      setError("root", { message: "Something went wrong. Please try again." });
+    }
   });
 
   const onProvider = (provider: SocialAuthProvider) => {
@@ -139,7 +155,7 @@ export function SignInScreen() {
           </>
         ) : null}
 
-        <Pressable onPress={() => router.push("/(auth)/welcome")} className="mt-sm items-center">
+        <Pressable onPress={() => router.replace("/(auth)/email")} className="mt-sm items-center">
           <Text variant="caption" color="muted">
             Don&apos;t have an account? <Text color="primary">Sign up</Text>
           </Text>

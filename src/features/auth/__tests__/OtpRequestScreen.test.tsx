@@ -11,6 +11,7 @@ jest.mock("expo-router", () => ({
 }));
 
 jest.mock("@clerk/expo", () => ({
+  useAuth: () => ({ isLoaded: true, isSignedIn: false }),
   useSignUp: () => ({
     signUp: {
       create: mockSignUpCreate,
@@ -24,6 +25,7 @@ jest.mock("@clerk/expo", () => ({
 }));
 
 jest.mock("@/stores", () => ({
+  useAuthStatus: () => "unauthenticated",
   useOnboardingDraftActions: () => ({ setFields: mockSetFields }),
 }));
 

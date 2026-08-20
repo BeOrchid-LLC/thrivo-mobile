@@ -13,6 +13,7 @@ jest.mock("expo-router", () => ({
 }));
 
 jest.mock("@clerk/expo", () => ({
+  useAuth: () => ({ isLoaded: true, isSignedIn: false }),
   useSignIn: () => ({
     signIn: {
       create: mockSignInCreate,
@@ -86,5 +87,14 @@ describe("SignInScreen", () => {
     const screen = render(<SignInScreen />);
     fireEvent.press(screen.getByText("Continue with Google"));
     expect(mockGoogleMutate).toHaveBeenCalled();
+  });
+
+  it("routes the sign-up link directly to email sign-up", () => {
+    const screen = render(<SignInScreen />);
+
+    fireEvent.press(screen.getByText("Sign up"));
+
+    expect(router.replace).toHaveBeenCalledWith("/(auth)/email");
+    expect(router.push).not.toHaveBeenCalledWith("/(auth)/welcome");
   });
 });

@@ -3,7 +3,7 @@ import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Pressable, View } from "react-native";
 import { z } from "zod";
-import { useSignUp } from "@clerk/expo";
+import { useAuth, useSignUp } from "@clerk/expo";
 import {
   BackButton,
   Button,
@@ -16,7 +16,8 @@ import {
 } from "@/components";
 import { colors } from "@/theme";
 import { emailSchema } from "@/contracts";
-import { useOnboardingDraftActions } from "@/stores";
+import { useAuthStatus, useOnboardingDraftActions } from "@/stores";
+import { logAuthError, useAuthScreenDiagnostics } from "../auth-debug";
 
 const otpRequestForm = z.object({
   name: z.string().trim().min(1, "Enter your name"),
@@ -31,8 +32,11 @@ function clerkErrorMessage(error: { longMessage?: string; message?: string } | n
 }
 
 export function OtpRequestScreen() {
+  const clerk = useAuth({ treatPendingAsSignedOut: false });
   const { signUp } = useSignUp();
+  const status = useAuthStatus();
   const { setFields } = useOnboardingDraftActions();
+  useAuthScreenDiagnostics("email-sign-up", status, clerk);
 
   const {
     control,
@@ -45,30 +49,40 @@ export function OtpRequestScreen() {
   });
 
   const send = handleSubmit(async (values) => {
-    if (!signUp) return;
-
-    const name = values.name.trim();
-    const [firstName, ...rest] = name.split(" ");
-    const lastName = rest.join(" ") || undefined;
-
-    const { error: createError } = await signUp.create({
-      firstName,
-      lastName,
-      emailAddress: values.email,
-    });
-    if (createError) {
-      setError("root", { message: clerkErrorMessage(createError) });
+    if (!signUp) {
+      logAuthError("email-sign-up", "Clerk sign-up unavailable", null);
       return;
     }
 
-    const { error: sendError } = await signUp.verifications.sendEmailCode();
-    if (sendError) {
-      setError("root", { message: clerkErrorMessage(sendError) });
-      return;
-    }
+    try {
+      const name = values.name.trim();
+      const [firstName, ...rest] = name.split(" ");
+      const lastName = rest.join(" ") || undefined;
 
-    setFields({ firstName: name, onboardingStep: 1 });
-    router.push({ pathname: "/(auth)/otp", params: { email: values.email, source: "email" } });
+      const { error: createError } = await signUp.create({
+        firstName,
+        lastName,
+        emailAddress: values.email,
+      });
+      if (createError) {
+        logAuthError("email-sign-up", "create", createError);
+        setError("root", { message: clerkErrorMessage(createError) });
+        return;
+      }
+
+      const { error: sendError } = await signUp.verifications.sendEmailCode();
+      if (sendError) {
+        logAuthError("email-sign-up", "send email code", sendError);
+        setError("root", { message: clerkErrorMessage(sendError) });
+        return;
+      }
+
+      setFields({ firstName: name, onboardingStep: 1 });
+      router.push({ pathname: "/(auth)/otp", params: { email: values.email, source: "email" } });
+    } catch (error) {
+      logAuthError("email-sign-up", "request", error);
+      setError("root", { message: "Something went wrong. Please try again." });
+    }
   });
 
   return (

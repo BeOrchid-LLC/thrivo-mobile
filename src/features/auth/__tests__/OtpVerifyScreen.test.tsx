@@ -22,6 +22,7 @@ jest.mock("expo-haptics", () => ({
 }));
 
 jest.mock("@clerk/expo", () => ({
+  useAuth: () => ({ isLoaded: true, isSignedIn: false }),
   useSignUp: () => ({
     signUp: {
       verifications: {
@@ -43,6 +44,7 @@ jest.mock("@clerk/expo", () => ({
 }));
 
 jest.mock("@/stores", () => ({
+  useAuthStatus: () => "unauthenticated",
   useSessionActions: () => ({ setStatus: mockSetStatus }),
   useBiometricUnlockActions: () => ({ setBiometricUnlocked: mockSetBiometricUnlocked }),
 }));
