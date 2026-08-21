@@ -114,7 +114,6 @@ export function SignInScreen() {
         <PageHeader
           title="Sign in to Thrivo"
           subtitle="Welcome back. We'll email you a secure 6-digit code that expires in 5 minutes."
-          showBack={false}
         />
 
         <FormError message={callbackError} center />

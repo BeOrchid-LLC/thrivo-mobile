@@ -92,7 +92,6 @@ export function OtpRequestScreen() {
         <PageHeader
           title="Sign up for Thrivo"
           subtitle="Create your account. We'll email a secure code to confirm it's you."
-          showBack={false}
         />
 
         <View className="gap-md">
