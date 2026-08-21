@@ -137,7 +137,8 @@
           "project": "thrivo"
         }
       ],
-      "expo-localization"
+      "expo-localization",
+      "@clerk/expo-google-signin"
     ],
     "scheme": "thrivo",
     "extra": {
