@@ -2,6 +2,11 @@
   "name": "thrivo-mobile",
   "version": "1.0.0",
   "main": "expo-router/entry",
+  "expo": {
+    "autolinking": {
+      "exclude": ["@solana-mobile/mobile-wallet-adapter-protocol"]
+    }
+  },
   "scripts": {
     "dev": "expo start",
     "dev:client": "expo start --dev-client",
@@ -44,6 +49,7 @@
     "expo-application": "~7.0.8",
     "expo-auth-session": "~7.0.11",
     "expo-blur": "~15.0.8",
+    "expo-build-properties": "~1.0.10",
     "expo-camera": "~17.0.10",
     "expo-constants": "~18.0.13",
     "expo-crypto": "~15.0.9",

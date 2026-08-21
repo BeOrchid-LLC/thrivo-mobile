@@ -138,7 +138,17 @@
         }
       ],
       "expo-localization",
-      "@clerk/expo-google-signin"
+      "@clerk/expo-google-signin",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "packagingOptions": {
+              "pickFirst": ["META-INF/versions/9/OSGI-INF/MANIFEST.MF"]
+            }
+          }
+        }
+      ]
     ],
     "scheme": "thrivo",
     "extra": {
