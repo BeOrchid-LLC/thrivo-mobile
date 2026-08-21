@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Platform, View } from "react-native";
+import { View } from "react-native";
 import { z } from "zod";
 import { useAuth, useSignIn } from "@clerk/expo";
 import { Button, FormError, Input, PageHeader, Screen, Text } from "@/components";
@@ -47,7 +47,10 @@ export function SignInScreen() {
       ? "apple"
       : null;
   const socialError = google.error ?? apple.error;
-  const showSocialAuth = google.isConfigured || Platform.OS === "ios";
+  const showSocialAuth = google.isConfigured || apple.isConfigured;
+  const hiddenProviders: SocialAuthProvider[] = (["google", "apple"] as const).filter((provider) =>
+    provider === "google" ? !google.isConfigured : !apple.isConfigured
+  );
   const callbackError = authErrorMessage(typeof authError === "string" ? authError : undefined);
 
   const {
@@ -147,7 +150,7 @@ export function SignInScreen() {
             <SocialAuthButtons
               onProvider={onProvider}
               disabled={Boolean(loadingProvider) || isSubmitting}
-              hiddenProviders={google.isConfigured ? [] : ["google"]}
+              hiddenProviders={hiddenProviders}
               loadingProvider={loadingProvider}
             />
 

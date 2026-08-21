@@ -74,7 +74,9 @@ export function useAppleSignIn() {
   const { setStatus } = useSessionActions();
   const { setBiometricUnlocked } = useBiometricUnlockActions();
   const queryClient = useQueryClient();
-  const isConfigured = Platform.OS === "ios";
+  // iOS-only, and gated behind the feature flag (default off) since Apple's Clerk
+  // flow needs no client-side credential to react to.
+  const isConfigured = Platform.OS === "ios" && env.appleAuthEnabled;
 
   const mutation = useMutation({
     mutationFn: async () => {

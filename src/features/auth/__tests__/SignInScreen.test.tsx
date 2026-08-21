@@ -89,6 +89,11 @@ describe("SignInScreen", () => {
     expect(mockGoogleMutate).toHaveBeenCalled();
   });
 
+  it("hides the Apple button when Apple is not configured", () => {
+    const screen = render(<SignInScreen />);
+    expect(screen.queryByText("Continue with Apple")).toBeNull();
+  });
+
   it("routes the sign-up link directly to email sign-up", () => {
     const screen = render(<SignInScreen />);
 
