@@ -90,8 +90,9 @@ export function OtpRequestScreen() {
     <Screen scroll backgroundColor={colors.white}>
       <View className="gap-lg">
         <PageHeader
-          title="Continue with email"
-          subtitle="We'll send a one-time code to confirm it's you."
+          title="Sign up for Thrivo"
+          subtitle="Create your account. We'll email a secure code to confirm it's you."
+          showBack={false}
         />
 
         <View className="gap-md">
@@ -144,7 +145,7 @@ export function OtpRequestScreen() {
         <AuthSwitchLink
           prompt="Already have an account?"
           actionLabel="Sign in"
-          onPress={() => router.push("/(auth)/sign-in")}
+          onPress={() => router.replace("/(auth)/sign-in")}
         />
       </View>
     </Screen>
