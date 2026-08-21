@@ -94,7 +94,7 @@ export function OtpRequestScreen() {
           subtitle="Create your account. We'll email a secure code to confirm it's you."
         />
 
-        <View className="gap-md">
+        <View className="mt-md gap-md">
           <Controller
             control={control}
             name="name"

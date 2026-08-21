@@ -116,46 +116,48 @@ export function SignInScreen() {
           subtitle="Welcome back. We'll email you a secure 6-digit code that expires in 5 minutes."
         />
 
-        <FormError message={callbackError} center />
+        <View className="mt-md gap-lg">
+          <FormError message={callbackError} center />
 
-        <Controller
-          control={control}
-          name="email"
-          render={({ field: { onChange, onBlur, value } }) => (
-            <Input
-              label="Email"
-              placeholder="you@example.com"
-              autoCapitalize="none"
-              keyboardType="email-address"
-              autoComplete="email"
-              value={value}
-              onChangeText={onChange}
-              onBlur={onBlur}
-              error={errors.email?.message}
-            />
-          )}
-        />
+          <Controller
+            control={control}
+            name="email"
+            render={({ field: { onChange, onBlur, value } }) => (
+              <Input
+                label="Email"
+                placeholder="you@example.com"
+                autoCapitalize="none"
+                keyboardType="email-address"
+                autoComplete="email"
+                value={value}
+                onChangeText={onChange}
+                onBlur={onBlur}
+                error={errors.email?.message}
+              />
+            )}
+          />
 
-        <FormError message={errors.root?.message} />
+          <FormError message={errors.root?.message} />
 
-        <Button label="Send code" loading={isSubmitting} onPress={send} />
+          <Button label="Send code" loading={isSubmitting} onPress={send} />
 
-        {showSocialAuth ? (
-          <>
-            <Text variant="caption" color="muted" className="my-xs text-center">
-              or continue with
-            </Text>
+          {showSocialAuth ? (
+            <>
+              <Text variant="caption" color="muted" className="my-xs text-center">
+                or continue with
+              </Text>
 
-            <SocialAuthButtons
-              onProvider={onProvider}
-              disabled={Boolean(loadingProvider) || isSubmitting}
-              hiddenProviders={hiddenProviders}
-              loadingProvider={loadingProvider}
-            />
+              <SocialAuthButtons
+                onProvider={onProvider}
+                disabled={Boolean(loadingProvider) || isSubmitting}
+                hiddenProviders={hiddenProviders}
+                loadingProvider={loadingProvider}
+              />
 
-            <FormError message={socialError?.message} center />
-          </>
-        ) : null}
+              <FormError message={socialError?.message} center />
+            </>
+          ) : null}
+        </View>
 
         <AuthSwitchLink
           prompt="Don't have an account?"
