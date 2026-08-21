@@ -71,6 +71,14 @@ describe("OtpRequestScreen", () => {
     });
   });
 
+  it("routes the sign-in link to the email sign-in screen", () => {
+    const screen = render(<OtpRequestScreen />);
+
+    fireEvent.press(screen.getByText("Sign in"));
+
+    expect(router.replace).toHaveBeenCalledWith("/(auth)/sign-in");
+  });
+
   it("shows an error when Clerk returns an API error", async () => {
     mockSignUpCreate.mockResolvedValue({
       error: { message: "Email taken.", longMessage: "Email address is already taken." },

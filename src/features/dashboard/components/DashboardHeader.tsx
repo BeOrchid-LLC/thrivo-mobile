@@ -1,5 +1,5 @@
 import { View } from "react-native";
-import { Text } from "@/components";
+import { PageHeader } from "@/components";
 import { useMe } from "@/features/profile";
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -21,12 +21,11 @@ export function DashboardHeader() {
 
   return (
     <View className="mb-xs">
-      <Text variant="heading2" color="dark">
-        Hi, {firstName(me.data?.name)}
-      </Text>
-      <Text variant="body" color="muted">
-        {todayLabel()}
-      </Text>
+      <PageHeader
+        title={`Hi, ${firstName(me.data?.name)}`}
+        subtitle={todayLabel()}
+        showBack={false}
+      />
     </View>
   );
 }

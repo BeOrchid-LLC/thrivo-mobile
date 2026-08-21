@@ -8,6 +8,7 @@ import ToastMessage, {
 import { CheckCircle, WarningCircle } from "phosphor-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "@/theme";
+import { typography } from "@/theme/typography";
 
 type ToastVariant = "success" | "error";
 
@@ -62,8 +63,8 @@ function AppToast({
       text1Style={{
         color: isError ? colors.error : colors.dark,
         fontFamily: "Inter_500Medium",
-        fontSize: 14,
-        lineHeight: 20,
+        fontSize: typography.caption.fontSize,
+        lineHeight: typography.caption.lineHeight,
       }}
       renderLeadingIcon={() => (
         <View className={iconContainerClassName}>

@@ -17,7 +17,7 @@ export function StreakBanner({ days, onPress }: StreakBannerProps) {
       className="flex-row items-center gap-sm rounded-[16px] bg-accentSoft px-lg py-md"
     >
       <Flame size={20} color={colors.accent} weight="fill" />
-      <Text variant="body" className="flex-1 font-semibold text-accent">
+      <Text variant="body" color="accent" className="flex-1 font-semibold">
         {days}-day streak - keep it up!
       </Text>
       <ArrowRight size={18} color={colors.accent} />

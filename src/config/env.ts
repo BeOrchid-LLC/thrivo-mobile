@@ -22,6 +22,17 @@ const envSchema = z
   .object({
     EXPO_PUBLIC_API_URL: z.string().url(),
     EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: z.string().min(1),
+    // Native Google Sign-In (Clerk `@clerk/expo/google`). Optional: when unset the
+    // Google button is hidden rather than crashing at flow start. The web client ID
+    // is required on both platforms; the iOS client ID is additionally required on
+    // iOS. (The iOS URL scheme is a build-time-only var consumed by the config
+    // plugin — not validated here.)
+    EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID: z.string().min(1).optional(),
+    EXPO_PUBLIC_CLERK_GOOGLE_IOS_CLIENT_ID: z.string().min(1).optional(),
+    // Apple sign-in has no client-side credential (Clerk handles it via the iOS
+    // entitlement), so its button is gated by an explicit feature flag rather than
+    // a credential. Default OFF: only the literal string "true" shows the button.
+    EXPO_PUBLIC_APPLE_AUTH_ENABLED: z.string().optional(),
     // Observability (Sentry crash reporting + PostHog product analytics).
     EXPO_PUBLIC_SENTRY_DSN: z.string().url().optional(),
     EXPO_PUBLIC_POSTHOG_KEY: z.string().min(1).optional(),
@@ -49,6 +60,12 @@ const envSchema = z
 const parsed = envSchema.safeParse({
   EXPO_PUBLIC_API_URL: process.env.EXPO_PUBLIC_API_URL?.trim() || DEFAULT_API_URL,
   EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim(),
+  EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID:
+    process.env.EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID?.trim() || undefined,
+  EXPO_PUBLIC_CLERK_GOOGLE_IOS_CLIENT_ID:
+    process.env.EXPO_PUBLIC_CLERK_GOOGLE_IOS_CLIENT_ID?.trim() || undefined,
+  EXPO_PUBLIC_APPLE_AUTH_ENABLED:
+    process.env.EXPO_PUBLIC_APPLE_AUTH_ENABLED?.trim().toLowerCase() || undefined,
   EXPO_PUBLIC_SENTRY_DSN: process.env.EXPO_PUBLIC_SENTRY_DSN?.trim() || undefined,
   EXPO_PUBLIC_POSTHOG_KEY: process.env.EXPO_PUBLIC_POSTHOG_KEY?.trim() || undefined,
   EXPO_PUBLIC_POSTHOG_HOST: process.env.EXPO_PUBLIC_POSTHOG_HOST?.trim() || DEFAULT_POSTHOG_HOST,
@@ -62,6 +79,10 @@ if (!parsed.success) {
 export const env = {
   apiUrl: parsed.data.EXPO_PUBLIC_API_URL,
   clerkPublishableKey: parsed.data.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY,
+  googleWebClientId: parsed.data.EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID,
+  googleIosClientId: parsed.data.EXPO_PUBLIC_CLERK_GOOGLE_IOS_CLIENT_ID,
+  /** Feature flag (default off): shows the Apple sign-in button only when "true". */
+  appleAuthEnabled: parsed.data.EXPO_PUBLIC_APPLE_AUTH_ENABLED === "true",
   sentryDsn: parsed.data.EXPO_PUBLIC_SENTRY_DSN,
   posthogKey: parsed.data.EXPO_PUBLIC_POSTHOG_KEY,
   posthogHost: parsed.data.EXPO_PUBLIC_POSTHOG_HOST,

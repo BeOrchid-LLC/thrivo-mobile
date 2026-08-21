@@ -1,5 +1,7 @@
 import "../global.css";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Platform, useColorScheme, View } from "react-native";
+import * as Linking from "expo-linking";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
@@ -31,6 +33,12 @@ import { env } from "@/config/env";
 import { useSessionInit, useSessionRefresh } from "@/hooks";
 import { resolveRootRedirect } from "@/navigation/root-redirect";
 import {
+  consumePendingDeepLink,
+  parseAppDeepLink,
+  savePendingDeepLink,
+} from "@/navigation/pending-deep-link";
+import { colors } from "@/theme";
+import {
   useAuthStatus,
   useBiometricAuthEnabled,
   useIsBiometricUnlocked,
@@ -47,6 +55,7 @@ void SplashScreen.preventAutoHideAsync();
 
 const FONT_GATE_TIMEOUT_MS = 3000;
 const PREFERENCE_GATE_TIMEOUT_MS = 1000;
+const NATIVE_SPLASH_EXIT_SETTLE_MS = 250;
 
 function bootLog(message: string): void {
   if (__DEV__) console.info(`[boot] ${message}`);
@@ -68,7 +77,15 @@ function ClerkTokenBridge() {
   return null;
 }
 
-function RootNavigator({ fontsReady }: { fontsReady: boolean }) {
+function RootNavigator({
+  fontsReady,
+  nativeSplashReleased,
+  neutralBackground,
+}: {
+  fontsReady: boolean;
+  nativeSplashReleased: boolean;
+  neutralBackground: string;
+}) {
   const status = useAuthStatus();
   const biometricEnabled = useBiometricAuthEnabled();
   const isBiometricUnlocked = useIsBiometricUnlocked();
@@ -76,6 +93,7 @@ function RootNavigator({ fontsReady }: { fontsReady: boolean }) {
   const isOnboardingSkipped = useIsOnboardingSkipped();
   const preferencesHydrated = usePreferencesHydrated();
   const [preferenceTimeoutReached, setPreferenceTimeoutReached] = useState(false);
+  const [pendingLinkVersion, setPendingLinkVersion] = useState(0);
   const segments = useSegments();
   const router = useRouter();
   const { setStatus } = useSessionActions();
@@ -83,6 +101,20 @@ function RootNavigator({ fontsReady }: { fontsReady: boolean }) {
 
   useSessionInit();
   useSessionRefresh();
+
+  useEffect(() => {
+    const capture = async (url: string | null) => {
+      if (!url) return;
+      const target = parseAppDeepLink(url);
+      if (target) {
+        await savePendingDeepLink(target);
+        setPendingLinkVersion((version) => version + 1);
+      }
+    };
+    void Linking.getInitialURL().then(capture);
+    const subscription = Linking.addEventListener("url", ({ url }) => void capture(url));
+    return () => subscription.remove();
+  }, []);
 
   useEffect(() => {
     if (preferencesHydrated || status !== "authenticated") return undefined;
@@ -115,7 +147,31 @@ function RootNavigator({ fontsReady }: { fontsReady: boolean }) {
     status === "authenticated" && biometricEnabled && !isBiometricUnlocked && preferencesHydrated;
 
   useEffect(() => {
-    if (!ready || redirecting.current) return;
+    if (
+      !ready ||
+      !nativeSplashReleased ||
+      status !== "authenticated" ||
+      (!isOnboarded && !isOnboardingSkipped) ||
+      isBiometricLocked
+    ) {
+      return;
+    }
+    void consumePendingDeepLink().then((target) => {
+      if (target) router.replace(target);
+    });
+  }, [
+    ready,
+    nativeSplashReleased,
+    status,
+    isOnboarded,
+    isOnboardingSkipped,
+    isBiometricLocked,
+    pendingLinkVersion,
+    router,
+  ]);
+
+  useEffect(() => {
+    if (!ready || !nativeSplashReleased || redirecting.current) return;
 
     const group = segments[0];
     const target = resolveRootRedirect({
@@ -137,7 +193,20 @@ function RootNavigator({ fontsReady }: { fontsReady: boolean }) {
         redirecting.current = false;
       }, 0);
     }
-  }, [ready, status, isOnboarded, isOnboardingSkipped, isBiometricLocked, segments, router]);
+  }, [
+    nativeSplashReleased,
+    ready,
+    status,
+    isOnboarded,
+    isOnboardingSkipped,
+    isBiometricLocked,
+    segments,
+    router,
+  ]);
+
+  if (!nativeSplashReleased) {
+    return <View style={{ flex: 1, backgroundColor: neutralBackground }} />;
+  }
 
   if (!ready) {
     return <BrandSplash />;
@@ -160,6 +229,7 @@ function RootNavigator({ fontsReady }: { fontsReady: boolean }) {
 }
 
 function RootLayout() {
+  const colorScheme = useColorScheme();
   const [fontsLoaded, fontError] = useFonts({
     Inter_400Regular,
     Inter_500Medium,
@@ -185,23 +255,46 @@ function RootLayout() {
   }, [fontError, fontsLoaded]);
 
   const fontsReady = fontsLoaded || Boolean(fontError) || fontTimeoutReached;
+  const [nativeSplashReleased, setNativeSplashReleased] = useState(false);
 
   useEffect(() => {
     monitoring.init();
     analytics.init();
   }, []);
 
-  const splashHidden = useRef(false);
+  const splashHandoffStarted = useRef(false);
   const handleRootLayout = useCallback(() => {
-    if (splashHidden.current) return;
-    splashHidden.current = true;
-    bootLog("first frame laid out; hiding native splash");
-    void SplashScreen.hideAsync();
+    if (splashHandoffStarted.current) return;
+    splashHandoffStarted.current = true;
+    bootLog("neutral frame laid out; hiding native splash");
+
+    void SplashScreen.hideAsync()
+      .then(() => {
+        const release = () => {
+          bootLog("native splash exit settled; releasing React splash handoff");
+          setNativeSplashReleased(true);
+        };
+
+        if (Platform.OS === "android") {
+          setTimeout(release, NATIVE_SPLASH_EXIT_SETTLE_MS);
+        } else {
+          requestAnimationFrame(release);
+        }
+      })
+      .catch((error: unknown) => {
+        bootLog(`native splash hide failed; releasing handoff: ${String(error)}`);
+        setNativeSplashReleased(true);
+      });
   }, []);
+
+  const neutralBackground = colorScheme === "dark" ? colors.primarySoft : colors.light;
 
   return (
     <ClerkProvider publishableKey={env.clerkPublishableKey} tokenCache={clerkTokenCache}>
-      <GestureHandlerRootView style={{ flex: 1 }} onLayout={handleRootLayout}>
+      <GestureHandlerRootView
+        style={{ flex: 1, backgroundColor: neutralBackground }}
+        onLayout={handleRootLayout}
+      >
         <SafeAreaProvider>
           <PersistQueryClientProvider
             client={queryClient}
@@ -213,7 +306,11 @@ function RootLayout() {
             <BottomSheetModalProvider>
               <ToastProvider>
                 <ClerkTokenBridge />
-                <RootNavigator fontsReady={fontsReady} />
+                <RootNavigator
+                  fontsReady={fontsReady}
+                  nativeSplashReleased={nativeSplashReleased}
+                  neutralBackground={neutralBackground}
+                />
               </ToastProvider>
             </BottomSheetModalProvider>
           </PersistQueryClientProvider>

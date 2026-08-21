@@ -1,13 +1,14 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Platform, Pressable, View } from "react-native";
+import { View } from "react-native";
 import { z } from "zod";
 import { useAuth, useSignIn } from "@clerk/expo";
-import { Button, FormError, Input, Screen, Text } from "@/components";
+import { Button, FormError, Input, PageHeader, Screen, Text } from "@/components";
 import { emailSchema } from "@/contracts";
 import { useAuthStatus } from "@/stores";
 import { SocialAuthButtons, type SocialAuthProvider } from "../components/SocialAuthButtons";
+import { AuthSwitchLink } from "../components/AuthSwitchLink";
 import { logAuthError, useAuthScreenDiagnostics } from "../auth-debug";
 import { useAppleSignIn, useGoogleSignIn } from "../hooks/useAuth";
 
@@ -46,7 +47,10 @@ export function SignInScreen() {
       ? "apple"
       : null;
   const socialError = google.error ?? apple.error;
-  const showSocialAuth = google.isConfigured || Platform.OS === "ios";
+  const showSocialAuth = google.isConfigured || apple.isConfigured;
+  const hiddenProviders: SocialAuthProvider[] = (["google", "apple"] as const).filter((provider) =>
+    provider === "google" ? !google.isConfigured : !apple.isConfigured
+  );
   const callbackError = authErrorMessage(typeof authError === "string" ? authError : undefined);
 
   const {
@@ -107,59 +111,59 @@ export function SignInScreen() {
   return (
     <Screen scroll>
       <View className="gap-lg pt-xl">
-        <Text variant="heading2" color="dark" className="mb-xs">
-          Sign in to Thrivo
-        </Text>
-        <Text variant="body" color="muted" className="mb-sm">
-          Welcome back. We&apos;ll email you a secure 6-digit code that expires in 5 minutes.
-        </Text>
-
-        <FormError message={callbackError} center />
-
-        <Controller
-          control={control}
-          name="email"
-          render={({ field: { onChange, onBlur, value } }) => (
-            <Input
-              label="Email"
-              placeholder="you@example.com"
-              autoCapitalize="none"
-              keyboardType="email-address"
-              autoComplete="email"
-              value={value}
-              onChangeText={onChange}
-              onBlur={onBlur}
-              error={errors.email?.message}
-            />
-          )}
+        <PageHeader
+          title="Sign in to Thrivo"
+          subtitle="Welcome back. We'll email you a secure 6-digit code that expires in 5 minutes."
         />
 
-        <FormError message={errors.root?.message} />
+        <View className="mt-md gap-lg">
+          <FormError message={callbackError} center />
 
-        <Button label="Send code" loading={isSubmitting} onPress={send} />
+          <Controller
+            control={control}
+            name="email"
+            render={({ field: { onChange, onBlur, value } }) => (
+              <Input
+                label="Email"
+                placeholder="you@example.com"
+                autoCapitalize="none"
+                keyboardType="email-address"
+                autoComplete="email"
+                value={value}
+                onChangeText={onChange}
+                onBlur={onBlur}
+                error={errors.email?.message}
+              />
+            )}
+          />
 
-        {showSocialAuth ? (
-          <>
-            <Text variant="caption" color="muted" className="my-xs text-center">
-              or continue with
-            </Text>
+          <FormError message={errors.root?.message} />
 
-            <SocialAuthButtons
-              onProvider={onProvider}
-              disabled={Boolean(loadingProvider) || isSubmitting}
-              hiddenProviders={google.isConfigured ? [] : ["google"]}
-              loadingProvider={loadingProvider}
-            />
+          <Button label="Send code" loading={isSubmitting} onPress={send} />
 
-            <FormError message={socialError?.message} center />
-          </>
-        ) : null}
+          {showSocialAuth ? (
+            <>
+              <Text variant="caption" color="muted" className="my-xs text-center">
+                or continue with
+              </Text>
 
-        <Pressable onPress={() => router.replace("/(auth)/email")} className="mt-sm items-center">
-          <Text variant="caption" color="muted">
-            Don&apos;t have an account? <Text color="primary">Sign up</Text>
-          </Text>
-        </Pressable>
+              <SocialAuthButtons
+                onProvider={onProvider}
+                disabled={Boolean(loadingProvider) || isSubmitting}
+                hiddenProviders={hiddenProviders}
+                loadingProvider={loadingProvider}
+              />
+
+              <FormError message={socialError?.message} center />
+            </>
+          ) : null}
+        </View>
+
+        <AuthSwitchLink
+          prompt="Don't have an account?"
+          actionLabel="Sign up"
+          onPress={() => router.replace("/(auth)/email")}
+        />
       </View>
     </Screen>
   );

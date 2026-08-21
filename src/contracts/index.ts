@@ -36,11 +36,19 @@ export const subscriptionSchema = pkg.subscriptionStateSchema;
 export const subscriptionStatusSchema = pkg.publicSubscriptionStatusSchema;
 export const updateLogPayload = pkg.updateLogPayloadSchema;
 export const updateProfilePayload = pkg.updateProfilePayloadSchema;
-export const updateUserSettingsPayload = pkg.updateUserSettingsPayloadSchema;
+// Compatibility seam until the locally updated contracts package is published.
+// The backend returns/writes both fields for one release.
+export const updateUserSettingsPayload = pkg.updateUserSettingsPayloadSchema.extend({
+  weeklyReviewEmailEnabled: z.boolean().optional(),
+});
+export const userSettingsCompatSchema = pkg.userSettingsSchema.extend({
+  weeklyReviewEmailEnabled: z.boolean(),
+});
 export const updateWaterPayload = pkg.updateWaterPayloadSchema;
 export const upsertFoodPayload = pkg.upsertFoodPayloadSchema;
 export const userSchema = pkg.userProfileSchema;
 export type UpdateProfilePayload = z.infer<typeof updateProfilePayload>;
+export type UpdateUserSettingsPayload = z.infer<typeof updateUserSettingsPayload>;
 export const errorEnvelope = pkg.apiErrorSchema;
 
 // `*ResultSchema` are already the inner data shape — alias directly.
@@ -135,6 +143,7 @@ export type Subscription = pkg.SubscriptionState;
 export type SubscriptionStatus = pkg.PublicSubscriptionStatus;
 export type UpdateWaterPayload = z.infer<typeof pkg.updateWaterPayloadSchema>;
 export type User = pkg.UserProfile;
+export type UserSettings = z.infer<typeof userSettingsCompatSchema>;
 export type ErrorEnvelope = pkg.ApiError;
 
 // Response types mirror the unwrapped `data` (see value aliases above).

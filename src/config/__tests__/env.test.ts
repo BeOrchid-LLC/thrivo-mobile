@@ -33,6 +33,27 @@ describe("env bootstrap validation", () => {
     }).toThrow(/EXPO_PUBLIC_SENTRY_DSN|EXPO_PUBLIC_POSTHOG_KEY/);
   });
 
+  it('gates Apple auth off unless the flag is exactly "true"', () => {
+    (global as { __DEV__?: boolean }).__DEV__ = true;
+
+    process.env.EXPO_PUBLIC_APPLE_AUTH_ENABLED = "true";
+    jest.isolateModules(() => {
+      expect(require("../env").env.appleAuthEnabled).toBe(true);
+    });
+
+    for (const value of ["false", "1", "yes", ""]) {
+      process.env.EXPO_PUBLIC_APPLE_AUTH_ENABLED = value;
+      jest.isolateModules(() => {
+        expect(require("../env").env.appleAuthEnabled).toBe(false);
+      });
+    }
+
+    delete process.env.EXPO_PUBLIC_APPLE_AUTH_ENABLED;
+    jest.isolateModules(() => {
+      expect(require("../env").env.appleAuthEnabled).toBe(false);
+    });
+  });
+
   it("passes in a production build when both are configured", () => {
     (global as { __DEV__?: boolean }).__DEV__ = false;
     process.env.EXPO_PUBLIC_SENTRY_DSN = "https://public@o0.ingest.sentry.io/1";

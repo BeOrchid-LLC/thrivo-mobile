@@ -20,6 +20,7 @@ export const colors = {
   accent: "#F39C12", // Figma: Orange
   accentSoft: "#FEF5E7", // light amber tint — warning/expired badges (V2 auth screens)
   accentText: "#8A6A2A", // amber-dark — tint-on-tint note copy on accentSoft (onboarding NoteBox)
+  warningText: "#854D0E", // Tailwind yellow-800 equivalent for the subscription preview notice
   hairline: "#D8D8D8", // light outline — auth row / input border (Figma auth screens)
   stepText: "#737373", // neutral body copy on onboarding step screens
   white: "#FFFFFF", // Figma: White

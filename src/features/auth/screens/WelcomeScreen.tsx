@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { router } from "expo-router";
-import { Platform, Text, View } from "react-native";
+import { Platform, View } from "react-native";
 import { useAuth } from "@clerk/expo";
 import { LinearGradient } from "expo-linear-gradient";
 import { LockKey } from "phosphor-react-native";
-import { ThrivoMark } from "@/components";
+import { Text, ThrivoMark } from "@/components";
 import { getItem, setItem, storageKeys } from "@/lib/storage";
 import { authenticateBiometric, isBiometricAvailable } from "@/lib/biometric";
 import {
@@ -151,10 +151,10 @@ export function WelcomeScreen() {
     >
       <View className="h-[206px] items-center pt-[48px]">
         <ThrivoMark size={64} />
-        <Text className="mt-md font-bold text-[28px] leading-[42px] tracking-[-0.5px] text-dark">
+        <Text variant="heading3" color="dark" className="mt-md tracking-[-0.5px]">
           THRIVO
         </Text>
-        <Text className="mt-sm text-center font-regular text-[16px] leading-[24px] text-muted">
+        <Text variant="body" color="mutedText" className="mt-sm text-center">
           Weight loss that actually works
         </Text>
       </View>
@@ -203,10 +203,7 @@ export function WelcomeScreen() {
         />
 
         {error ? (
-          <Text
-            selectable
-            className="text-center font-regular text-[13px] leading-[18px] text-error"
-          >
+          <Text selectable variant="caption" color="error" className="text-center">
             {error.message}
           </Text>
         ) : null}

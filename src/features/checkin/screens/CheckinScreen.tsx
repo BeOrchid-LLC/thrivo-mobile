@@ -2,7 +2,16 @@ import { useState } from "react";
 import { Pressable, View } from "react-native";
 import { useRouter } from "expo-router";
 import { queryClient, queryKeys } from "@/api";
-import { Button, Card, Input, Screen, SectionError, SkeletonText, Text } from "@/components";
+import {
+  Button,
+  Card,
+  Input,
+  PageHeader,
+  Screen,
+  SectionError,
+  SkeletonText,
+  Text,
+} from "@/components";
 import { useCurrentDay } from "@/hooks/useCurrentDay";
 import type { Mood } from "@/contracts";
 import { useCheckins, useCreateCheckin } from "../hooks/useCheckin";
@@ -52,20 +61,10 @@ export function CheckinScreen() {
       refreshing={refreshing}
       onRefresh={refresh}
     >
-      <View className="gap-xs">
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-          onPress={() => router.back()}
-        >
-          <Text variant="heading2" color="dark">
-            Daily check-in
-          </Text>
-        </Pressable>
-        <Text variant="body" color="muted">
-          How are you feeling today? A quick check-in keeps your streak alive.
-        </Text>
-      </View>
+      <PageHeader
+        title="Daily check-in"
+        subtitle="How are you feeling today? A quick check-in keeps your streak alive."
+      />
 
       {submitted ? (
         <Card className="gap-md bg-primarySoft">

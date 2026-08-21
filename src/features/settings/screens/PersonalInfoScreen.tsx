@@ -166,7 +166,7 @@ export function PersonalInfoScreen() {
               transition={150}
             />
           ) : initialsFrom(user?.name ?? "") ? (
-            <Text variant="heading2" color="muted">
+            <Text variant="heading3" color="muted">
               {initialsFrom(user?.name ?? "")}
             </Text>
           ) : (
@@ -179,7 +179,7 @@ export function PersonalInfoScreen() {
           disabled={avatarUpload.isPending}
           hitSlop={8}
         >
-          <Text color="muted" className="text-[14px]">
+          <Text variant="label" color="muted">
             Change photo
           </Text>
         </Pressable>

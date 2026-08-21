@@ -41,10 +41,10 @@ import {
 import { colors } from "@/theme";
 import { useSettings } from "@/features/settings";
 import { subscribeTabRootReset } from "@/navigation/tab-root-reset";
-import { useIsFavorite } from "@/stores";
 import { formatWater, isToday, roundTo, waterFromMl, waterUnitFor } from "@/utils";
 import type { FoodItem, FoodLogEntry, PortionMeasure, WaterEntry } from "@/contracts";
 import { EditFoodLogSheet } from "../components/EditFoodLogSheet";
+import { FavoriteButton } from "../components/FavoriteButton";
 import { FoodResultRow } from "../components/FoodResultRow";
 import { FoodRowSkeleton } from "../components/FoodRowSkeleton";
 import { LogItemSheet } from "../components/LogItemSheet";
@@ -63,7 +63,6 @@ import {
   useLogEstimate,
   useLogFood,
   useRecentFoods,
-  useToggleFavorite,
   useUpdateWaterLog,
   useWater,
 } from "../hooks/useFoodLogging";
@@ -146,14 +145,11 @@ export function LogFoodScreen() {
       refreshing={refreshing}
       onRefresh={refresh}
     >
-      <View className="gap-xs">
-        <Text variant="heading2" color="dark">
-          {segment === "food" ? "Log Food" : "Log Water"}
-        </Text>
-        <Text variant="body" color="muted">
-          What are you logging today?
-        </Text>
-      </View>
+      <PageHeader
+        title={segment === "food" ? "Log Food" : "Log Water"}
+        subtitle="What are you logging today?"
+        showBack={false}
+      />
       <Segmented
         value={segment}
         onChange={setSegment}
@@ -391,11 +387,7 @@ function WaterHome({ day }: { day: string }) {
           <Text variant="body" color="muted">
             of {formatWater(data.targetMl, unitSystem)} daily goal
           </Text>
-          <Text
-            variant="body"
-            color={behind ? "dark" : "primary"}
-            className={behind ? "font-semibold text-accent" : "font-semibold"}
-          >
+          <Text variant="body" color={behind ? "accent" : "primary"} className="font-semibold">
             {formatWater(data.remainingMl, unitSystem)} remaining
           </Text>
         </View>
@@ -404,11 +396,11 @@ function WaterHome({ day }: { day: string }) {
         <Card className="gap-sm border-accent bg-accentSoft px-lg py-lg">
           <View className="flex-row items-center gap-sm">
             <Warning size={20} color={colors.accent} />
-            <Text variant="heading3" className="text-accent">
+            <Text variant="heading3" color="accent">
               {data.alert.title}
             </Text>
           </View>
-          <Text variant="body" className="text-accent">
+          <Text variant="body" color="accent">
             {data.alert.message}
           </Text>
         </Card>
@@ -838,7 +830,8 @@ function DescribeMealScreen({ day, onBack }: { day: string; onBack: () => void }
           value={quantity}
           onChangeText={setQuantity}
           keyboardType="decimal-pad"
-          className="h-[48px] flex-1 rounded-md border border-gray-300 bg-white text-center text-[18px] text-dark"
+          className="h-[48px] flex-1 rounded-md border border-gray-300 bg-white text-center text-body-lg"
+          style={{ color: colors.dark }}
         />
         <Text variant="body" color="primary">
           {measure === "weight" ? "grams" : measure}
@@ -870,7 +863,7 @@ function DescribeMealScreen({ day, onBack }: { day: string; onBack: () => void }
                 kcal
               </Text>
             </Text>
-            <Text variant="caption" className="rounded-md bg-accentSoft px-sm py-xs text-accent">
+            <Text variant="caption" color="accent" className="rounded-md bg-accentSoft px-sm py-xs">
               Estimated
             </Text>
           </View>
@@ -925,10 +918,6 @@ function QuickAction({
 }
 
 function RecentFoodRow({ entry, onPress }: { entry: FoodLogEntry; onPress: () => void }) {
-  useFavorites();
-  const toggleFavorite = useToggleFavorite();
-  const isFavorite = useIsFavorite(entry.foodItemId);
-
   return (
     <Pressable
       accessibilityRole="button"
@@ -953,19 +942,7 @@ function RecentFoodRow({ entry, onPress }: { entry: FoodLogEntry; onPress: () =>
             {entry.servingUnit ?? "serving"}
           </Text>
         </View>
-        {entry.foodItemId ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={isFavorite ? "Remove favorite" : "Add favorite"}
-            onPress={(event) => {
-              event?.stopPropagation?.();
-              toggleFavorite(entry.foodItemId as string);
-            }}
-            hitSlop={8}
-          >
-            <Heart size={22} color={colors.primary} weight={isFavorite ? "fill" : "regular"} />
-          </Pressable>
-        ) : null}
+        {entry.foodItemId ? <FavoriteButton foodItemId={entry.foodItemId} size={22} /> : null}
       </View>
     </Pressable>
   );

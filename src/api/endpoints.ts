@@ -55,14 +55,14 @@ export const ENDPOINTS = {
     path: "/users/me/settings",
     method: "GET",
     auth: true,
-    response: c.userSettingsSchema,
+    response: c.userSettingsCompatSchema,
   },
   UPDATE_SETTINGS: {
     path: "/users/me/settings",
     method: "PATCH",
     auth: true,
     payload: c.updateUserSettingsPayload,
-    response: c.userSettingsSchema,
+    response: c.userSettingsCompatSchema,
   },
 
   // --- Uploads (presigned direct-to-R2) ---

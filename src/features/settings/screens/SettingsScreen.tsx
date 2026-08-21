@@ -16,6 +16,7 @@ import {
 } from "phosphor-react-native";
 import {
   Button,
+  PageHeader,
   Screen,
   SectionError,
   SelectSheet,
@@ -106,9 +107,11 @@ function Row({
     <View className="min-h-[72px] flex-row items-center gap-md border-b border-gray-200 px-lg py-md">
       <View className={`${iconWide ? "w-[64px]" : "w-[32px]"} items-center`}>{icon}</View>
       <View className="flex-1">
-        <Text className="font-semibold text-[16px]">{title}</Text>
+        <Text variant="body" className="font-semibold">
+          {title}
+        </Text>
         {typeof subtitle === "string" ? (
-          <Text variant="caption" color="muted" className="mt-xxs text-[13px]">
+          <Text variant="caption" color="muted" className="mt-xxs">
             {subtitle}
           </Text>
         ) : subtitle ? (
@@ -130,7 +133,7 @@ function Row({
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <View className="gap-sm">
-      <Text className="text-[17px]">{title}</Text>
+      <Text variant="body">{title}</Text>
       <View className="overflow-hidden rounded-lg border border-gray-200 bg-white">{children}</View>
     </View>
   );
@@ -213,7 +216,7 @@ export function SettingsScreen() {
       refreshing={refreshing}
       onRefresh={refresh}
     >
-      <Text variant="heading2">Settings</Text>
+      <PageHeader title="Settings" showBack={false} />
 
       <Section title="Profile">
         <Row
@@ -229,7 +232,7 @@ export function SettingsScreen() {
                   transition={150}
                 />
               ) : (
-                <Text className="font-semibold text-[20px]">{initials(user?.name)}</Text>
+                <Text variant="heading3">{initials(user?.name)}</Text>
               )}
             </View>
           }
@@ -354,6 +357,23 @@ export function SettingsScreen() {
             </View>
           }
           onPress={settingsLoading ? undefined : () => setEditingTime("dailyFoodLogReminderTime")}
+        />
+        <Row
+          icon={<Bell size={22} color={colors.dark} />}
+          title="Weekly review email"
+          subtitle="Your previous week, Sundays around 9:00 AM"
+          action={
+            <Switch
+              value={Boolean(
+                userSettings?.weeklyReviewEmailEnabled ?? userSettings?.emailFoodLogReminderEnabled
+              )}
+              disabled={settingsLoading}
+              onValueChange={(weeklyReviewEmailEnabled) =>
+                updateSettings.mutate({ weeklyReviewEmailEnabled })
+              }
+              trackColor={{ true: colors.primaryBright, false: colors.gray[300] }}
+            />
+          }
         />
         <Row
           icon={<Clock size={24} color={colors.dark} />}

@@ -48,10 +48,7 @@ export function Segmented<T extends string>({
             className={`min-h-[33px] flex-1 items-center justify-center rounded-[8px] ${active ? "bg-white" : ""}`}
             style={active ? thumbShadow : undefined}
           >
-            <Text
-              variant="caption"
-              className={`text-[14px] ${active ? "text-dark" : "text-gray-500"}`}
-            >
+            <Text variant="label" color={active ? "dark" : "gray500"}>
               {opt.label}
             </Text>
           </Pressable>

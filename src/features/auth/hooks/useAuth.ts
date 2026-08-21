@@ -2,12 +2,15 @@ import { Platform } from "react-native";
 import * as WebBrowser from "expo-web-browser";
 import * as AuthSession from "expo-auth-session";
 import { useSSO, useClerk } from "@clerk/expo";
+import { useSignInWithGoogle } from "@clerk/expo/google";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "@/api/errors";
+import { env } from "@/config/env";
 import { useBiometricUnlockActions, useSessionActions } from "@/stores";
 import { logAuthError } from "../auth-debug";
 
-// Required by @clerk/expo to properly close the auth session on Android.
+// Required by @clerk/expo to properly close the auth session on Android (Apple
+// browser SSO below still relies on this).
 WebBrowser.maybeCompleteAuthSession();
 
 function bootLog(message: string): void {
@@ -15,28 +18,32 @@ function bootLog(message: string): void {
 }
 
 /**
- * Google OAuth via Clerk. On success: sets Clerk session active, then triggers
- * the session store to transition to "loading" so useSessionInit fetches the
- * profile. Always shown — Clerk manages the OAuth provider configuration.
+ * Native Google Sign-In via Clerk (`@clerk/expo/google`). Uses the platform
+ * credential picker — Android Credential Manager / iOS ASAuthorization — so the
+ * account chooser appears as an in-app modal with no browser round-trip. On
+ * success: sets the Clerk session active, then transitions the session store to
+ * "loading" so useSessionInit fetches the profile.
+ *
+ * `isConfigured` is driven by the runtime client IDs: the web client ID is
+ * required on both platforms, and the iOS client ID is additionally required on
+ * iOS. When unset the button is hidden rather than throwing at flow start.
  */
 export function useGoogleSignIn() {
-  const { startSSOFlow } = useSSO();
+  const { startGoogleAuthenticationFlow } = useSignInWithGoogle();
   const { setStatus } = useSessionActions();
   const { setBiometricUnlocked } = useBiometricUnlockActions();
   const queryClient = useQueryClient();
 
+  const isConfigured = Boolean(
+    env.googleWebClientId && (Platform.OS !== "ios" || env.googleIosClientId)
+  );
+
   const mutation = useMutation({
     mutationFn: async () => {
-      // Keep the callback on a real Expo Router route so a deep-link return
-      // cannot be mistaken for the app root while Clerk is activating the session.
-      const redirectUrl = AuthSession.makeRedirectUri({ scheme: "thrivo", path: "auth" });
-      bootLog(`google: starting SSO with redirect ${redirectUrl}`);
-      const { createdSessionId, setActive } = await startSSOFlow({
-        strategy: "oauth_google",
-        redirectUrl,
-      });
+      bootLog("google: starting native credential flow");
+      const { createdSessionId, setActive } = await startGoogleAuthenticationFlow();
 
-      bootLog(`google: SSO returned a session=${Boolean(createdSessionId)}`);
+      bootLog(`google: native flow returned a session=${Boolean(createdSessionId)}`);
 
       if (!createdSessionId || !setActive) {
         throw new ApiError({
@@ -52,10 +59,10 @@ export function useGoogleSignIn() {
       setBiometricUnlocked(true);
       queryClient.clear();
     },
-    onError: (error) => logAuthError("google", "SSO", error),
+    onError: (error) => logAuthError("google", "native", error),
   });
 
-  return { ...mutation, isConfigured: true as const };
+  return { ...mutation, isConfigured };
 }
 
 /**
@@ -67,7 +74,9 @@ export function useAppleSignIn() {
   const { setStatus } = useSessionActions();
   const { setBiometricUnlocked } = useBiometricUnlockActions();
   const queryClient = useQueryClient();
-  const isConfigured = Platform.OS === "ios";
+  // iOS-only, and gated behind the feature flag (default off) since Apple's Clerk
+  // flow needs no client-side credential to react to.
+  const isConfigured = Platform.OS === "ios" && env.appleAuthEnabled;
 
   const mutation = useMutation({
     mutationFn: async () => {

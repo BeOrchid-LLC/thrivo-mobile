@@ -26,7 +26,7 @@ export function WaterTracker({
     >
       <View className="flex-row items-center">
         <PintGlassIcon size={22} color={colors.primary} weight="regular" />
-        <Text variant="body" className="ml-sm flex-1 font-semibold text-primary">
+        <Text variant="body" color="primary" className="ml-sm flex-1 font-semibold">
           Drink water
         </Text>
         <Pressable

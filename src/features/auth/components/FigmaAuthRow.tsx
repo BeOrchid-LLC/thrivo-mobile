@@ -2,7 +2,6 @@ import {
   ActivityIndicator,
   Image,
   Pressable,
-  Text,
   View,
   type ImageSourcePropType,
   type PressableProps,
@@ -10,6 +9,7 @@ import {
 } from "react-native";
 import type { ReactNode } from "react";
 import { colors } from "@/theme";
+import { Text } from "@/components/Text";
 
 interface FigmaAuthRowProps extends Omit<PressableProps, "children" | "style"> {
   icon?: ImageSourcePropType;
@@ -58,7 +58,7 @@ export function FigmaAuthRow({
                 style={{ width: iconSize, height: iconSize }}
               />
             ) : null)}
-          <Text className="text-center font-medium text-[16px] leading-[24px] text-dark">
+          <Text variant="body" color="dark" className="text-center font-medium">
             {label}
           </Text>
         </View>

@@ -178,7 +178,7 @@ export default function NotificationsStep({
               <View
                 className={`h-[28px] w-[28px] items-center justify-center rounded-pill ${accent ? "bg-primaryBright" : "bg-gray-200"}`}
               >
-                <Text variant="caption" className={accent ? "text-white" : "text-gray-500"}>
+                <Text variant="caption" color={accent ? "inverse" : "gray500"}>
                   {index + 1}
                 </Text>
               </View>
@@ -191,7 +191,7 @@ export default function NotificationsStep({
                 onPress={() => setEditing(index)}
                 className={`flex-row items-center gap-xs rounded-md px-md py-sm ${accent ? "bg-primaryBright/[0.12]" : "bg-gray-100"}`}
               >
-                <Text variant="caption" className={accent ? "text-primary" : "text-dark"}>
+                <Text variant="caption" color={accent ? "primary" : "dark"}>
                   {to12h(time)}
                 </Text>
                 <ChevronDownIcon size={13} color={accent ? colors.primary : colors.gray[500]} />

@@ -63,10 +63,12 @@ export function CalorieRing({
           </Text>
         ) : (
           <>
-            <Text color="dark" className="font-semibold text-[1.5rem] leading-7">
+            <Text variant="metric" color="dark">
               {Math.round(ratio * 100)}%
             </Text>
-            <Text className="font-semibold text-xs text-muted">Used</Text>
+            <Text variant="micro" color="mutedText" className="font-semibold">
+              Used
+            </Text>
           </>
         )}
       </View>

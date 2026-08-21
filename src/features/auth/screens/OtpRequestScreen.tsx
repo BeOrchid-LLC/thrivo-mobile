@@ -1,15 +1,15 @@
 import { router } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Pressable, View } from "react-native";
+import { View } from "react-native";
 import { z } from "zod";
 import { useAuth, useSignUp } from "@clerk/expo";
 import {
-  BackButton,
   Button,
   FormError,
   Input,
   MailIcon,
+  PageHeader,
   Screen,
   Text,
   UserIcon,
@@ -18,6 +18,7 @@ import { colors } from "@/theme";
 import { emailSchema } from "@/contracts";
 import { useAuthStatus, useOnboardingDraftActions } from "@/stores";
 import { logAuthError, useAuthScreenDiagnostics } from "../auth-debug";
+import { AuthSwitchLink } from "../components/AuthSwitchLink";
 
 const otpRequestForm = z.object({
   name: z.string().trim().min(1, "Enter your name"),
@@ -88,18 +89,12 @@ export function OtpRequestScreen() {
   return (
     <Screen scroll backgroundColor={colors.white}>
       <View className="gap-lg">
-        <BackButton />
+        <PageHeader
+          title="Sign up for Thrivo"
+          subtitle="Create your account. We'll email a secure code to confirm it's you."
+        />
 
-        <View className="gap-xs">
-          <Text variant="heading2" color="dark" className="tracking-[-0.5px]">
-            Continue with email
-          </Text>
-          <Text variant="body" color="muted">
-            We&apos;ll send a one-time code to confirm it&apos;s you.
-          </Text>
-        </View>
-
-        <View className="gap-md">
+        <View className="mt-md gap-md">
           <Controller
             control={control}
             name="name"
@@ -146,11 +141,11 @@ export function OtpRequestScreen() {
           <Button label="Send code" loading={isSubmitting} onPress={send} />
         </View>
 
-        <Pressable onPress={() => router.push("/(auth)/sign-in")} className="mt-sm items-center">
-          <Text variant="caption" color="muted">
-            Already have an account? <Text color="primary">Sign in</Text>
-          </Text>
-        </Pressable>
+        <AuthSwitchLink
+          prompt="Already have an account?"
+          actionLabel="Sign in"
+          onPress={() => router.replace("/(auth)/sign-in")}
+        />
       </View>
     </Screen>
   );

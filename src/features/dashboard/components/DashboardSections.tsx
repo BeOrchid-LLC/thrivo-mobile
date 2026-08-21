@@ -90,7 +90,9 @@ export function CaloriesSummarySection() {
           <Text variant="heading1" color="dark">
             {consumedCalories.toLocaleString()}
           </Text>
-          <Text className="mb-2 text-lg font-normal text-muted">kcal</Text>
+          <Text variant="body-lg" color="mutedText" className="mb-2 font-normal">
+            kcal
+          </Text>
         </View>
         <Text variant="body" color="muted">
           of {targetCalories.toLocaleString()} daily target
@@ -309,7 +311,7 @@ export function TodayMealLogSection() {
       <Text variant="heading3" color="dark" className="text-center">
         Nothing logged yet
       </Text>
-      <Text variant="body" className="text-center text-muted">
+      <Text variant="body" color="mutedText" className="text-center">
         Scan a barcode, search the database or describe what you ate to get started.
       </Text>
       <Button label="Log first meal" onPress={() => goToLog()} />
