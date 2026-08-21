@@ -2,7 +2,7 @@ import { useAuth } from "@clerk/expo";
 import { useEffect, useRef } from "react";
 import { queryClient, queryKeys, isApiError, handleUnauthenticated } from "@/api";
 import { getMe } from "@/features/profile";
-import { analytics, monitoring } from "@/lib";
+import { analytics, monitoring, subscription } from "@/lib";
 import { useAuthStatus, useSessionActions } from "@/stores";
 
 function bootLog(message: string): void {
@@ -86,6 +86,11 @@ export function useSessionInit(): void {
         });
         analytics.identify(user.id);
         monitoring.setUser({ id: user.id });
+        // Identify to the store by our own user id so entitlements follow the
+        // person across devices and reinstalls (restore-on-second-device).
+        void subscription.configure(user.id).catch((error: unknown) => {
+          monitoring.captureException(error, { seam: "billing-configure" });
+        });
         bootLog("session restore finished: authenticated");
       } catch (error) {
         if (!active) return;

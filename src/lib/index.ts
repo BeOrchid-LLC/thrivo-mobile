@@ -12,6 +12,8 @@ export { monitoring, withMonitoring, type Monitoring } from "./monitoring";
 export { analytics, type Analytics, type AnalyticsEvent } from "./analytics";
 export {
   subscription,
+  isBillingConfigured,
+  PREMIUM_ENTITLEMENT_ID,
   type SubscriptionAdapter,
   type SubscriptionProduct,
   type PurchaseResult,

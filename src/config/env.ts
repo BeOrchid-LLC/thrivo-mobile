@@ -1,3 +1,4 @@
+import { Platform } from "react-native";
 import { z } from "zod";
 
 /**
@@ -37,6 +38,10 @@ const envSchema = z
     EXPO_PUBLIC_SENTRY_DSN: z.string().url().optional(),
     EXPO_PUBLIC_POSTHOG_KEY: z.string().min(1).optional(),
     EXPO_PUBLIC_POSTHOG_HOST: z.string().url().default(DEFAULT_POSTHOG_HOST),
+    // In-app purchases (RevenueCat). Public SDK keys — one per store, safe to
+    // ship in the bundle. Absent in development, where billing runs as a no-op.
+    EXPO_PUBLIC_REVENUECAT_IOS_KEY: z.string().min(1).optional(),
+    EXPO_PUBLIC_REVENUECAT_ANDROID_KEY: z.string().min(1).optional(),
   })
   .superRefine((parsed, ctx) => {
     if (!isProductionBuild) return;
@@ -55,6 +60,20 @@ const envSchema = z
         message: "Required in production builds (product analytics).",
       });
     }
+    // Only the running platform's key matters — an iOS release does not need the
+    // Play key to be present. A release build that shipped without its own key
+    // would show an empty paywall and take no payment, so fail fast instead.
+    const billingKeyPath =
+      Platform.OS === "android"
+        ? ("EXPO_PUBLIC_REVENUECAT_ANDROID_KEY" as const)
+        : ("EXPO_PUBLIC_REVENUECAT_IOS_KEY" as const);
+    if (!parsed[billingKeyPath]) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [billingKeyPath],
+        message: "Required in production builds (in-app purchases).",
+      });
+    }
   });
 
 const parsed = envSchema.safeParse({
@@ -69,6 +88,9 @@ const parsed = envSchema.safeParse({
   EXPO_PUBLIC_SENTRY_DSN: process.env.EXPO_PUBLIC_SENTRY_DSN?.trim() || undefined,
   EXPO_PUBLIC_POSTHOG_KEY: process.env.EXPO_PUBLIC_POSTHOG_KEY?.trim() || undefined,
   EXPO_PUBLIC_POSTHOG_HOST: process.env.EXPO_PUBLIC_POSTHOG_HOST?.trim() || DEFAULT_POSTHOG_HOST,
+  EXPO_PUBLIC_REVENUECAT_IOS_KEY: process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY?.trim() || undefined,
+  EXPO_PUBLIC_REVENUECAT_ANDROID_KEY:
+    process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY?.trim() || undefined,
 });
 
 if (!parsed.success) {
@@ -86,6 +108,11 @@ export const env = {
   sentryDsn: parsed.data.EXPO_PUBLIC_SENTRY_DSN,
   posthogKey: parsed.data.EXPO_PUBLIC_POSTHOG_KEY,
   posthogHost: parsed.data.EXPO_PUBLIC_POSTHOG_HOST,
+  /** RevenueCat SDK key for the running platform — undefined disables billing. */
+  revenueCatKey:
+    Platform.OS === "android"
+      ? parsed.data.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY
+      : parsed.data.EXPO_PUBLIC_REVENUECAT_IOS_KEY,
   /** True in release bundles — gates dev-only logging and prod-only requirements. */
   isProduction: isProductionBuild,
   /** Versioned API prefix applied by the API client. */

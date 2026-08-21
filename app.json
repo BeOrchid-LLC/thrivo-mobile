@@ -138,6 +138,7 @@
         }
       ],
       "expo-localization",
+      "@clerk/expo",
       "@clerk/expo-google-signin",
       [
         "expo-build-properties",

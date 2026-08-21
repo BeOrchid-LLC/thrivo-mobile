@@ -51,6 +51,12 @@ export const ENDPOINTS = {
     payload: c.updateProfilePayload,
     response: c.userSchema,
   },
+  DELETE_ME: {
+    path: "/users/me",
+    method: "DELETE",
+    auth: true,
+    response: c.deleteMeResponse,
+  },
   GET_SETTINGS: {
     path: "/users/me/settings",
     method: "GET",

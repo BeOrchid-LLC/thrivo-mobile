@@ -12,6 +12,7 @@ import {
   Ruler,
   ShieldCheck,
   Ticket,
+  Trash,
   X,
 } from "phosphor-react-native";
 import {
@@ -524,6 +525,16 @@ export function SettingsScreen() {
           title="Cancellation policy"
           action={<CaretRight size={18} color={colors.gray[500]} />}
           onPress={() => Linking.openURL(LEGAL_LINKS.cancellation)}
+        />
+      </Section>
+
+      <Section title="Account">
+        <Row
+          icon={<Trash size={23} color={colors.error} />}
+          title="Delete account"
+          subtitle="Permanently remove your account and all of your data"
+          action={<CaretRight size={18} color={colors.gray[500]} />}
+          onPress={() => router.push("/(app)/settings/delete-account")}
         />
       </Section>
 

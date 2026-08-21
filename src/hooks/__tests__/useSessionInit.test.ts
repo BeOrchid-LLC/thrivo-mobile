@@ -27,7 +27,11 @@ jest.mock("@/features/profile", () => ({
 
 jest.mock("@/lib", () => ({
   analytics: { identify: jest.fn(), reset: jest.fn() },
-  monitoring: { setUser: jest.fn() },
+  monitoring: { setUser: jest.fn(), captureException: jest.fn() },
+  subscription: {
+    configure: jest.fn(async () => undefined),
+    logOut: jest.fn(async () => undefined),
+  },
 }));
 
 jest.mock("@/stores", () => {

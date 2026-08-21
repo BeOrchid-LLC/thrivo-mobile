@@ -13,10 +13,11 @@ describe("env bootstrap validation", () => {
     jest.resetModules();
   });
 
-  it("allows missing observability vars in development", () => {
+  it("allows missing observability and billing vars in development", () => {
     (global as { __DEV__?: boolean }).__DEV__ = true;
     delete process.env.EXPO_PUBLIC_SENTRY_DSN;
     delete process.env.EXPO_PUBLIC_POSTHOG_KEY;
+    delete process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY;
 
     expect(() => {
       jest.isolateModules(() => require("../env"));
@@ -31,6 +32,19 @@ describe("env bootstrap validation", () => {
     expect(() => {
       jest.isolateModules(() => require("../env"));
     }).toThrow(/EXPO_PUBLIC_SENTRY_DSN|EXPO_PUBLIC_POSTHOG_KEY/);
+  });
+
+  it("throws in a production build when the billing key is unset", () => {
+    // A release that shipped without its store key would render an empty paywall
+    // and silently take no money — fail at bootstrap instead.
+    (global as { __DEV__?: boolean }).__DEV__ = false;
+    process.env.EXPO_PUBLIC_SENTRY_DSN = "https://public@o0.ingest.sentry.io/1";
+    process.env.EXPO_PUBLIC_POSTHOG_KEY = "phc_test_key";
+    delete process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY;
+
+    expect(() => {
+      jest.isolateModules(() => require("../env"));
+    }).toThrow(/EXPO_PUBLIC_REVENUECAT_IOS_KEY/);
   });
 
   it('gates Apple auth off unless the flag is exactly "true"', () => {
@@ -54,10 +68,11 @@ describe("env bootstrap validation", () => {
     });
   });
 
-  it("passes in a production build when both are configured", () => {
+  it("passes in a production build when all are configured", () => {
     (global as { __DEV__?: boolean }).__DEV__ = false;
     process.env.EXPO_PUBLIC_SENTRY_DSN = "https://public@o0.ingest.sentry.io/1";
     process.env.EXPO_PUBLIC_POSTHOG_KEY = "phc_test_key";
+    process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY = "appl_test_key";
 
     expect(() => {
       jest.isolateModules(() => require("../env"));

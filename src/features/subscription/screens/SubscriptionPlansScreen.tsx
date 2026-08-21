@@ -4,10 +4,14 @@ import { router } from "expo-router";
 import { Check, SealCheck, X } from "phosphor-react-native";
 import { Button, PageHeader, Screen, Segmented, Text } from "@/components";
 import type { SubscriptionPlan } from "@/contracts";
+import { analytics, isBillingConfigured } from "@/lib";
 import { colors } from "@/theme";
 import {
+  productForPlan,
   useCancelSubscription,
+  useOfferings,
   usePurchaseSubscription,
+  useRestorePurchases,
   useStartTrial,
   useSubscription,
 } from "../index";
@@ -40,6 +44,12 @@ function formatShortDate(value: Date | string | null | undefined) {
   }).format(new Date(value));
 }
 
+/**
+ * Fallback copy for when the store has not returned offerings (development
+ * without billing keys, or a transient failure). Live store prices always win —
+ * Apple and Google localise them per storefront, and a paywall that disagrees
+ * with the purchase sheet is a review rejection.
+ */
 function planPrice(plan: SubscriptionPlan) {
   return plan === "annual"
     ? { price: "$150", period: "year", save: "Save $29", after: "$150/year" }
@@ -89,12 +99,21 @@ export function SubscriptionPlansScreen() {
   const [confirmCancelOpen, setConfirmCancelOpen] = useState(false);
   const [cancelledOpen, setCancelledOpen] = useState(false);
   const subscription = useSubscription();
+  const offerings = useOfferings();
   const startTrial = useStartTrial();
   const purchase = usePurchaseSubscription();
+  const restore = useRestorePurchases();
   const cancel = useCancelSubscription();
 
   const sub = subscription.data?.subscription;
-  const selected = planPrice(plan);
+  const storeProduct = productForPlan(offerings.data, plan);
+  const fallback = planPrice(plan);
+  const selected = storeProduct
+    ? { ...fallback, price: storeProduct.priceLabel, after: storeProduct.priceLabel }
+    : fallback;
+  const billingLive = isBillingConfigured();
+  // With billing live we can only sell what the store actually returned.
+  const canTransact = !billingLive || Boolean(storeProduct);
   const trialDays = sub?.trialDays ?? 14;
   const trialEnd = useMemo(() => addDays(new Date(), trialDays), [trialDays]);
   const firstChargeDate = formatShortDate(trialEnd);
@@ -103,6 +122,10 @@ export function SubscriptionPlansScreen() {
   const canStartTrial = !hasPremiumAccess && !sub?.trialUsed;
   const canSubscribe = !hasPremiumAccess && Boolean(sub?.trialUsed);
   const accessEndsAt = sub?.accessEndsAt ? formatLongDate(sub.accessEndsAt) : "";
+
+  useEffect(() => {
+    analytics.track("thrivo.paywall_viewed");
+  }, []);
 
   useEffect(() => {
     if (!cancelledOpen) return undefined;
@@ -114,10 +137,15 @@ export function SubscriptionPlansScreen() {
   }, [cancelledOpen]);
 
   const primaryAction = () => {
+    // Without a store product there is nothing to charge against; the button is
+    // disabled in that state, so this is a guard rather than a branch users hit.
+    const productId = storeProduct?.id;
+    if (billingLive && !productId) return;
+
     if (canStartTrial) {
-      startTrial.mutate({ plan });
+      startTrial.mutate({ plan, productId });
     } else if (canSubscribe) {
-      purchase.mutate({ plan });
+      purchase.mutate({ plan, productId, isTrial: false });
     }
   };
 
@@ -185,14 +213,16 @@ export function SubscriptionPlansScreen() {
         </View>
       </View>
 
-      <View className="rounded-lg border border-yellow-200 bg-yellow-50 px-lg py-md">
-        <Text color="warningText" className="font-semibold">
-          MVP preview
-        </Text>
-        <Text color="warningText" className="mt-xs">
-          No payment is collected in the app until store billing is enabled.
-        </Text>
-      </View>
+      {billingLive ? null : (
+        <View className="rounded-lg border border-yellow-200 bg-yellow-50 px-lg py-md">
+          <Text color="warningText" className="font-semibold">
+            Store billing not configured
+          </Text>
+          <Text color="warningText" className="mt-xs">
+            No payment is collected in this build.
+          </Text>
+        </View>
+      )}
 
       <View className="gap-lg">
         {FEATURES.map((feature) => (
@@ -202,6 +232,19 @@ export function SubscriptionPlansScreen() {
           </View>
         ))}
       </View>
+
+      {billingLive ? (
+        <Pressable
+          accessibilityRole="button"
+          className="min-h-[48px] items-center justify-center"
+          disabled={restore.isPending}
+          onPress={() => restore.mutate()}
+        >
+          <Text color="primary" className="font-semibold">
+            {restore.isPending ? "Restoring…" : "Restore purchases"}
+          </Text>
+        </Pressable>
+      ) : null}
 
       {hasPremiumAccess ? (
         <Pressable
@@ -222,14 +265,21 @@ export function SubscriptionPlansScreen() {
           </Text>
           <Button
             label={primaryLabel}
-            loading={startTrial.isPending || purchase.isPending}
+            loading={startTrial.isPending || purchase.isPending || offerings.isLoading}
+            disabled={!canTransact}
             onPress={primaryAction}
           />
-          <Text color="muted" className="text-center">
-            {canStartTrial
-              ? "You can manage access in Settings."
-              : "No in-app payment will be collected in this MVP build."}
-          </Text>
+          {billingLive && !storeProduct && !offerings.isLoading ? (
+            <Text color="error" className="text-center">
+              This plan is unavailable right now. Please try again shortly.
+            </Text>
+          ) : (
+            <Text color="muted" className="text-center">
+              {canStartTrial
+                ? "Cancel any time from Settings before the preview ends."
+                : "You'll be charged through your app store account."}
+            </Text>
+          )}
         </View>
       )}
 
@@ -237,11 +287,15 @@ export function SubscriptionPlansScreen() {
         <ModalShell
           tone="danger"
           title="Cancel your subscription?"
-          body={`You'll keep premium access until ${accessEndsAt || "the end of your billing period"}. No partial refunds.`}
+          body={
+            billingLive
+              ? `We'll take you to your app store subscription settings to cancel. You'll keep premium access until ${accessEndsAt || "the end of your billing period"}.`
+              : `You'll keep premium access until ${accessEndsAt || "the end of your billing period"}. No partial refunds.`
+          }
         >
           <Button label="Keep premium" onPress={() => setConfirmCancelOpen(false)} />
           <Button
-            label="Cancel my subscription"
+            label={billingLive ? "Manage in app store" : "Cancel my subscription"}
             variant="secondary"
             loading={cancel.isPending}
             className="bg-red-100"
@@ -249,9 +303,11 @@ export function SubscriptionPlansScreen() {
               cancel.mutate(
                 {},
                 {
-                  onSuccess: () => {
+                  onSuccess: (result) => {
                     setConfirmCancelOpen(false);
-                    setCancelledOpen(true);
+                    // Only claim it is cancelled when we actually recorded it.
+                    // Store cancellations complete outside the app.
+                    if (!result.openedStore) setCancelledOpen(true);
                   },
                 }
               )

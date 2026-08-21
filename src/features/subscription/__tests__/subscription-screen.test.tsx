@@ -6,6 +6,9 @@ const mockUseSubscription = jest.fn();
 const mockStartTrialMutate = jest.fn();
 const mockPurchaseMutate = jest.fn();
 const mockCancelMutate = jest.fn();
+const mockRestoreMutate = jest.fn();
+const mockUseOfferings = jest.fn();
+const mockBillingConfigured = jest.fn();
 
 jest.mock("expo-router", () => ({
   router: { back: jest.fn(), replace: jest.fn() },
@@ -13,9 +16,20 @@ jest.mock("expo-router", () => ({
 
 jest.mock("../index", () => ({
   useSubscription: () => mockUseSubscription(),
+  useOfferings: () => mockUseOfferings(),
+  productForPlan: (products: { plan: string }[] | undefined, plan: string) =>
+    products?.find((product) => product.plan === plan),
   useStartTrial: () => ({ mutate: mockStartTrialMutate, isPending: false }),
   usePurchaseSubscription: () => ({ mutate: mockPurchaseMutate, isPending: false }),
+  useRestorePurchases: () => ({ mutate: mockRestoreMutate, isPending: false }),
   useCancelSubscription: () => ({ mutate: mockCancelMutate, isPending: false }),
+}));
+
+jest.mock("@/lib", () => ({
+  analytics: { track: jest.fn() },
+  // Billing off by default keeps the existing backend-path assertions valid;
+  // the store-path cases override it.
+  isBillingConfigured: () => mockBillingConfigured(),
 }));
 
 const baseSubscription = {
@@ -36,6 +50,8 @@ describe("SubscriptionPlansScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useRealTimers();
+    mockBillingConfigured.mockReturnValue(false);
+    mockUseOfferings.mockReturnValue({ data: [], isLoading: false });
     mockUseSubscription.mockReturnValue({
       data: { subscription: baseSubscription },
       isLoading: false,
@@ -50,7 +66,7 @@ describe("SubscriptionPlansScreen", () => {
     ).toBeTruthy();
     fireEvent.press(screen.getByText("Start premium preview"));
 
-    expect(mockStartTrialMutate).toHaveBeenCalledWith({ plan: "monthly" });
+    expect(mockStartTrialMutate).toHaveBeenCalledWith({ plan: "monthly", productId: undefined });
   });
 
   it("shows activation copy for users who already used a trial", () => {
@@ -62,12 +78,18 @@ describe("SubscriptionPlansScreen", () => {
 
     fireEvent.press(screen.getByText("Activate monthly preview"));
 
-    expect(mockPurchaseMutate).toHaveBeenCalledWith({ plan: "monthly" });
+    expect(mockPurchaseMutate).toHaveBeenCalledWith({
+      plan: "monthly",
+      productId: undefined,
+      isTrial: false,
+    });
   });
 
   it("cancels an active subscription and auto-closes success after 30 seconds", () => {
     jest.useFakeTimers();
-    mockCancelMutate.mockImplementation((_payload, options) => options?.onSuccess?.());
+    mockCancelMutate.mockImplementation((_payload, options) =>
+      options?.onSuccess?.({ openedStore: false })
+    );
     mockUseSubscription.mockReturnValue({
       data: {
         subscription: {

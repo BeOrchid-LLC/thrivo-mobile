@@ -37,6 +37,24 @@ jest.mock("posthog-react-native", () => ({
   })),
 }));
 
+// RevenueCat native module. Purchases never happen under test — the billing seam
+// is exercised through its own unit tests, and screens only need the SDK import
+// to resolve. Default to "no offerings, nothing entitled".
+jest.mock("react-native-purchases", () => ({
+  __esModule: true,
+  default: {
+    configure: jest.fn(),
+    setLogLevel: jest.fn(async () => undefined),
+    getOfferings: jest.fn(async () => ({ current: { availablePackages: [] } })),
+    purchasePackage: jest.fn(async () => ({ customerInfo: { entitlements: { active: {} } } })),
+    restorePurchases: jest.fn(async () => ({ entitlements: { active: {} } })),
+    getCustomerInfo: jest.fn(async () => ({ managementURL: null, entitlements: { active: {} } })),
+    logOut: jest.fn(async () => ({ entitlements: { active: {} } })),
+  },
+  LOG_LEVEL: { DEBUG: "DEBUG" },
+  PACKAGE_TYPE: { ANNUAL: "ANNUAL", MONTHLY: "MONTHLY", UNKNOWN: "UNKNOWN", CUSTOM: "CUSTOM" },
+}));
+
 // Biometric native module — default to "available + unlock succeeds" so screens
 // render; individual tests override these per case.
 jest.mock("expo-local-authentication", () => ({

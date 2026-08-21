@@ -97,6 +97,8 @@ export const logMutationResponse = pkg.logMutationResponseSchema.shape.data.exte
   entry: foodLogEntryWithFavoriteSchema,
 });
 export const meResponse = pkg.getMeResponseSchema.shape.data;
+/** `DELETE /users/me` returns no payload — the account is gone. */
+export const deleteMeResponse = pkg.deleteMeResponseSchema;
 export const progressResponse = pkg.progressResponseSchema.shape.data;
 export const recentFoodsResponse = z.object({ items: z.array(foodLogEntryWithFavoriteSchema) });
 export const subscriptionResponse = pkg.subscriptionResponseSchema.shape.data;
