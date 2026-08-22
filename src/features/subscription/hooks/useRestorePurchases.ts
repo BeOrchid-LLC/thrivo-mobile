@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { subscription as billing } from "@/lib";
+import { syncSubscription } from "../api/subscription.api";
 
 /**
  * Re-applies purchases already made with this store account.
@@ -16,10 +17,19 @@ export function useRestorePurchases() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: () => billing.restore(),
-    onSuccess: () => {
-      // RevenueCat's webhook updates the backend; re-read rather than guess.
-      void queryClient.invalidateQueries({ queryKey: ["subscription"] });
+    mutationFn: async () => {
+      const restored = await billing.restore();
+      let response;
+      for (const seconds of [0, 1, 2, 4, 8, 15]) {
+        if (seconds) await new Promise((resolve) => setTimeout(resolve, seconds * 1000));
+        response = await syncSubscription().catch(() => undefined);
+        if (response?.subscription.entitlement === "premium") break;
+      }
+      return { ...restored, response };
+    },
+    onSuccess: (result) => {
+      if (result.response) queryClient.setQueryData(["subscription"], result.response);
+      else void queryClient.invalidateQueries({ queryKey: ["subscription"] });
     },
   });
 }

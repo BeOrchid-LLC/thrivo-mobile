@@ -4,7 +4,7 @@ import * as Haptics from "expo-haptics";
 import { Platform, TextInput, View } from "react-native";
 import { useAuth, useSignIn, useSignUp } from "@clerk/expo";
 import { Button, FormError, PageHeader, Screen, Text } from "@/components";
-import { analytics } from "@/lib";
+import { queueSignup } from "@/lib";
 import { colors } from "@/theme";
 import { useAuthStatus, useBiometricUnlockActions, useSessionActions } from "@/stores";
 import { logAuthError, useAuthScreenDiagnostics } from "../auth-debug";
@@ -102,7 +102,7 @@ export function OtpVerifyScreen() {
         bootLog("sign-up: Clerk session finalized");
         // Top of the funnel. Fires on the sign-up path only — a returning user
         // verifying a code is a sign-in, not a new account.
-        analytics.track("thrivo.signup", { method: "email_code" });
+        queueSignup();
         setStatus("loading");
         notify("success");
         setBiometricUnlocked(true);

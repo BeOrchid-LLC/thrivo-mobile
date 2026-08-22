@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Modal, Pressable, View } from "react-native";
 import { router } from "expo-router";
 import { Check, SealCheck, X } from "phosphor-react-native";
@@ -13,7 +13,6 @@ import {
   useOfferingsDiagnostics,
   usePurchaseSubscription,
   useRestorePurchases,
-  useStartTrial,
   useSubscription,
 } from "../index";
 
@@ -24,10 +23,6 @@ const FEATURES = [
   "Premium insights as they become available",
 ];
 
-function addDays(date: Date, days: number) {
-  return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
-}
-
 function formatLongDate(value: Date | string | null | undefined) {
   if (!value) return "";
   return new Intl.DateTimeFormat("en-US", {
@@ -37,26 +32,12 @@ function formatLongDate(value: Date | string | null | undefined) {
   }).format(new Date(value));
 }
 
-function formatShortDate(value: Date | string | null | undefined) {
-  if (!value) return "";
-  return new Intl.DateTimeFormat("en-US", {
-    day: "numeric",
-    month: "short",
-  }).format(new Date(value));
-}
-
 /**
  * Fallback copy for when the store has not returned offerings (development
  * without billing keys, or a transient failure). Live store prices always win —
  * Apple and Google localise them per storefront, and a paywall that disagrees
  * with the purchase sheet is a review rejection.
  */
-function planPrice(plan: SubscriptionPlan) {
-  return plan === "annual"
-    ? { price: "$150", period: "year", save: "Save $29", after: "$150/year" }
-    : { price: "$14.99", period: "month", save: "14-day premium preview", after: "$14.99/month" };
-}
-
 function ModalShell({
   tone,
   title,
@@ -102,7 +83,6 @@ export function SubscriptionPlansScreen() {
   const subscription = useSubscription();
   const offerings = useOfferings();
   useOfferingsDiagnostics(offerings);
-  const startTrial = useStartTrial();
   const purchase = usePurchaseSubscription();
   const restore = useRestorePurchases();
   const cancel = useCancelSubscription();
@@ -110,22 +90,15 @@ export function SubscriptionPlansScreen() {
 
   const sub = subscription.data?.subscription;
   const storeProduct = productForPlan(offerings.data, plan);
-  const fallback = planPrice(plan);
-  const selected = storeProduct
-    ? { ...fallback, price: storeProduct.priceLabel, after: storeProduct.priceLabel }
-    : fallback;
+  const selected = storeProduct;
   const billingLive = isBillingConfigured();
   // With billing live we can only sell what the store actually returned.
-  const canTransact = !billingLive || Boolean(storeProduct);
-  const trialDays = sub?.trialDays ?? 14;
-  const trialEnd = useMemo(() => addDays(new Date(), trialDays), [trialDays]);
-  const firstChargeDate = formatShortDate(trialEnd);
-  const firstChargeLabel = `Paid plan after ${firstChargeDate}`;
+  const canTransact = billingLive && Boolean(storeProduct);
   const hasPremiumAccess = sub?.entitlement === "premium";
   // With billing live the store is authoritative on trial eligibility — it, not
   // our `trialUsed` flag, decides whether the intro offer applies. A user who
   // already consumed the offer is simply charged full price.
-  const trialAvailable = billingLive && storeProduct ? storeProduct.hasFreeTrial : !sub?.trialUsed;
+  const trialAvailable = storeProduct?.hasFreeTrial === true;
   const canStartTrial = !hasPremiumAccess && trialAvailable;
   const canSubscribe = !hasPremiumAccess && !trialAvailable;
   const accessEndsAt = sub?.accessEndsAt ? formatLongDate(sub.accessEndsAt) : "";
@@ -146,8 +119,8 @@ export function SubscriptionPlansScreen() {
   const primaryAction = () => {
     // Without a store product there is nothing to charge against; the button is
     // disabled in that state, so this is a guard rather than a branch users hit.
-    const productId = storeProduct?.id;
-    if (billingLive && !productId) return;
+    const packageId = storeProduct?.id;
+    if (!packageId) return;
 
     // A purchase that fails after the sheet opens (store outage, payment
     // declined) must say so — silence here reads as "the button is broken".
@@ -162,26 +135,26 @@ export function SubscriptionPlansScreen() {
     // dismisses itself, and entitlement can take a moment to come back from the
     // backend, so without this the screen looks unchanged and the user cannot
     // tell whether they just paid.
-    const onSuccess = (result: { completed: boolean }) => {
+    const onSuccess = (result: { completed: boolean; confirmed?: boolean }) => {
       if (!result.completed) return; // dismissed sheet — nothing to announce
       showToast({
-        message: canStartTrial ? "Your premium preview has started." : "Premium unlocked.",
+        message: result.confirmed
+          ? canStartTrial
+            ? "Your free offer is active."
+            : "Premium unlocked."
+          : "Purchase received. Activation is delayed; try again shortly.",
         variant: "success",
       });
     };
 
-    if (canStartTrial) {
-      startTrial.mutate({ plan, productId }, { onError, onSuccess });
-    } else if (canSubscribe) {
-      purchase.mutate({ plan, productId, isTrial: false }, { onError, onSuccess });
+    if (canStartTrial || canSubscribe) {
+      purchase.mutate({ plan, packageId, isTrial: canStartTrial }, { onError, onSuccess });
     }
   };
 
   const primaryLabel = canStartTrial
-    ? "Start premium preview"
-    : plan === "annual"
-      ? "Activate annual preview"
-      : "Activate monthly preview";
+    ? `Free for ${selected?.trialLabel ?? "a limited time"}`
+    : `Subscribe ${selected?.priceLabel ?? ""}/${selected?.periodLabel ?? "period"}`;
 
   return (
     <Screen scroll backgroundColor={colors.light} style={{ gap: 18, paddingBottom: 120 }}>
@@ -208,14 +181,14 @@ export function SubscriptionPlansScreen() {
         <View className="flex-row items-start justify-between">
           <View>
             <Text variant="heading1" color={plan === "annual" ? "inverse" : "dark"}>
-              {selected.price}
+              {selected?.priceLabel ?? "—"}
               <Text variant="body-lg" color={plan === "annual" ? "inverse" : "gray500"}>
                 {" "}
-                / {selected.period}
+                / {selected?.periodLabel ?? "period"}
               </Text>
             </Text>
             <Text color={plan === "annual" ? "inverse" : "warning"} className="font-semibold">
-              {selected.save}
+              {selected?.hasFreeTrial ? selected.trialLabel : null}
             </Text>
           </View>
           {plan === "annual" ? (
@@ -227,17 +200,18 @@ export function SubscriptionPlansScreen() {
 
         <View className="mt-xl gap-md">
           <PriceRow
-            label="Preview ends"
-            value={formatShortDate(trialEnd)}
+            label="Store price"
+            value={selected?.priceLabel ?? "Unavailable"}
             inverted={plan === "annual"}
           />
-          <PriceRow label="Plan price" value={selected.after} inverted={plan === "annual"} />
-          <PriceRow
-            label={firstChargeLabel}
-            value="Pay nothing"
-            highlight
-            inverted={plan === "annual"}
-          />
+          {selected?.hasFreeTrial ? (
+            <PriceRow
+              label="Introductory offer"
+              value={selected.trialLabel ?? "Free"}
+              highlight
+              inverted={plan === "annual"}
+            />
+          ) : null}
         </View>
       </View>
 
@@ -247,7 +221,7 @@ export function SubscriptionPlansScreen() {
             Store billing not configured
           </Text>
           <Text color="warningText" className="mt-xs">
-            No payment is collected in this build.
+            Store plans are unavailable. Try again when billing is configured.
           </Text>
         </View>
       )}
@@ -299,8 +273,8 @@ export function SubscriptionPlansScreen() {
         <View className="gap-md">
           <Text color="muted" className="text-center">
             {canStartTrial
-              ? `Preview access runs through ${formatLongDate(trialEnd)}.`
-              : `Activate premium access with the ${plan} plan preview.`}
+              ? `The store will show the free period before checkout.`
+              : `Subscribe through your app store account.`}
           </Text>
           {offerings.isLoading ? (
             // Still fetching: neither a purchase button nor a failure message is
@@ -313,13 +287,13 @@ export function SubscriptionPlansScreen() {
                 // offerings query left the button spinning *and* disabled
                 // whenever the store was slow — a dead control, no explanation.
                 label={offerings.isLoading ? "Loading plans…" : primaryLabel}
-                loading={startTrial.isPending || purchase.isPending}
+                loading={purchase.isPending}
                 disabled={offerings.isLoading}
                 onPress={primaryAction}
               />
               <Text color="muted" className="text-center">
                 {canStartTrial
-                  ? "Cancel any time from Settings before the preview ends."
+                  ? "The introductory offer is supplied by your app store."
                   : "You'll be charged through your app store account."}
               </Text>
             </>

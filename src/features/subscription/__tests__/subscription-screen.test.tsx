@@ -3,7 +3,6 @@ import { router } from "expo-router";
 import { SubscriptionPlansScreen } from "../screens/SubscriptionPlansScreen";
 
 const mockUseSubscription = jest.fn();
-const mockStartTrialMutate = jest.fn();
 const mockPurchaseMutate = jest.fn();
 const mockCancelMutate = jest.fn();
 const mockRestoreMutate = jest.fn();
@@ -22,7 +21,6 @@ jest.mock("../index", () => ({
   useOfferingsDiagnostics: jest.fn(),
   productForPlan: (products: { plan: string }[] | undefined, plan: string) =>
     products?.find((product) => product.plan === plan),
-  useStartTrial: () => ({ mutate: mockStartTrialMutate, isPending: false }),
   usePurchaseSubscription: () => ({ mutate: mockPurchaseMutate, isPending: false }),
   useRestorePurchases: () => ({ mutate: mockRestoreMutate, isPending: false }),
   useCancelSubscription: () => ({ mutate: mockCancelMutate, isPending: false }),
@@ -35,8 +33,6 @@ jest.mock("@/components", () => ({
 
 jest.mock("@/lib", () => ({
   analytics: { track: jest.fn() },
-  // Billing off by default keeps the existing backend-path assertions valid;
-  // the store-path cases override it.
   isBillingConfigured: () => mockBillingConfigured(),
 }));
 
@@ -58,45 +54,70 @@ describe("SubscriptionPlansScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useRealTimers();
-    mockBillingConfigured.mockReturnValue(false);
-    mockUseOfferings.mockReturnValue({ data: [], isLoading: false });
+    mockBillingConfigured.mockReturnValue(true);
+    mockUseOfferings.mockReturnValue({
+      data: [
+        {
+          id: "thrivo_monthly",
+          plan: "monthly",
+          priceLabel: "£12.99",
+          periodLabel: "month",
+          hasFreeTrial: true,
+          trialLabel: "1 month free",
+        },
+      ],
+      isLoading: false,
+    });
     mockUseSubscription.mockReturnValue({
       data: { subscription: baseSubscription },
       isLoading: false,
     });
   });
 
-  it("starts a premium preview for users who have not used one", () => {
+  it("purchases the exact store package for an eligible free offer", () => {
     const screen = render(<SubscriptionPlansScreen />);
 
     expect(
       screen.getByText("Premium unlocks activity history and trend charts beyond 14 days.")
     ).toBeTruthy();
-    fireEvent.press(screen.getByText("Start premium preview"));
+    fireEvent.press(screen.getByText("Free for 1 month free"));
 
-    expect(mockStartTrialMutate).toHaveBeenCalledWith(
-      { plan: "monthly", productId: undefined },
+    expect(mockPurchaseMutate).toHaveBeenCalledWith(
+      { plan: "monthly", packageId: "thrivo_monthly", isTrial: true },
       expect.objectContaining({ onError: expect.any(Function) })
     );
   });
 
-  it("shows activation copy for users who already used a trial", () => {
+  it("uses standard paid copy when the store reports no free offer", () => {
     mockUseSubscription.mockReturnValue({
-      data: { subscription: { ...baseSubscription, trialUsed: true, status: "expired" } },
+      data: { subscription: { ...baseSubscription, status: "expired" } },
       isLoading: false,
     });
-    const screen = render(<SubscriptionPlansScreen />);
-
-    fireEvent.press(screen.getByText("Activate monthly preview"));
+    mockUseOfferings.mockReturnValue({
+      data: [
+        {
+          id: "thrivo_monthly",
+          plan: "monthly",
+          priceLabel: "£12.99",
+          periodLabel: "month",
+          hasFreeTrial: false,
+          trialLabel: null,
+        },
+      ],
+      isLoading: false,
+    });
+    const paidScreen = render(<SubscriptionPlansScreen />);
+    fireEvent.press(paidScreen.getByText("Subscribe £12.99/month"));
 
     expect(mockPurchaseMutate).toHaveBeenCalledWith(
-      { plan: "monthly", productId: undefined, isTrial: false },
+      { plan: "monthly", packageId: "thrivo_monthly", isTrial: false },
       expect.objectContaining({ onError: expect.any(Function) })
     );
   });
 
   it("cancels an active subscription and auto-closes success after 30 seconds", () => {
     jest.useFakeTimers();
+    mockBillingConfigured.mockReturnValue(false);
     mockCancelMutate.mockImplementation((_payload, options) =>
       options?.onSuccess?.({ openedStore: false })
     );
@@ -134,7 +155,16 @@ describe("SubscriptionPlansScreen", () => {
     beforeEach(() => {
       mockBillingConfigured.mockReturnValue(true);
       mockUseOfferings.mockReturnValue({
-        data: [{ id: "thrivo_monthly", plan: "monthly", priceLabel: "£12.99", hasFreeTrial: true }],
+        data: [
+          {
+            id: "thrivo_monthly",
+            plan: "monthly",
+            priceLabel: "£12.99",
+            periodLabel: "month",
+            hasFreeTrial: true,
+            trialLabel: "1 month free",
+          },
+        ],
         isLoading: false,
       });
     });
@@ -156,7 +186,7 @@ describe("SubscriptionPlansScreen", () => {
       const screen = render(<SubscriptionPlansScreen />);
 
       expect(screen.getByText("We couldn't load plans from the App Store.")).toBeTruthy();
-      expect(mockStartTrialMutate).not.toHaveBeenCalled();
+      expect(mockPurchaseMutate).not.toHaveBeenCalled();
     });
 
     it("offers a retry instead of a dead spinner when plans fail to load", () => {
@@ -213,34 +243,32 @@ describe("SubscriptionPlansScreen", () => {
     });
 
     it("confirms the purchase, so a completed payment is never silent", () => {
-      mockStartTrialMutate.mockImplementation((_vars, options) =>
+      mockPurchaseMutate.mockImplementation((_vars, options) =>
         options?.onSuccess?.({ completed: true })
       );
       const screen = render(<SubscriptionPlansScreen />);
 
-      fireEvent.press(screen.getByText("Start premium preview"));
+      fireEvent.press(screen.getByText("Free for 1 month free"));
 
       expect(mockShowToast).toHaveBeenCalledWith(expect.objectContaining({ variant: "success" }));
     });
 
     it("stays quiet when the user dismisses the store sheet", () => {
-      mockStartTrialMutate.mockImplementation((_vars, options) =>
+      mockPurchaseMutate.mockImplementation((_vars, options) =>
         options?.onSuccess?.({ completed: false })
       );
       const screen = render(<SubscriptionPlansScreen />);
 
-      fireEvent.press(screen.getByText("Start premium preview"));
+      fireEvent.press(screen.getByText("Free for 1 month free"));
 
       expect(mockShowToast).not.toHaveBeenCalled();
     });
 
     it("tells the user they were not charged when a purchase fails", () => {
-      mockStartTrialMutate.mockImplementation((_vars, options) =>
-        options?.onError?.(new Error("x"))
-      );
+      mockPurchaseMutate.mockImplementation((_vars, options) => options?.onError?.(new Error("x")));
       const screen = render(<SubscriptionPlansScreen />);
 
-      fireEvent.press(screen.getByText("Start premium preview"));
+      fireEvent.press(screen.getByText("Free for 1 month free"));
 
       expect(mockShowToast).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -254,14 +282,21 @@ describe("SubscriptionPlansScreen", () => {
       // The store decides eligibility, not our backend `trialUsed` flag.
       mockUseOfferings.mockReturnValue({
         data: [
-          { id: "thrivo_monthly", plan: "monthly", priceLabel: "£12.99", hasFreeTrial: false },
+          {
+            id: "thrivo_monthly",
+            plan: "monthly",
+            priceLabel: "£12.99",
+            periodLabel: "month",
+            hasFreeTrial: false,
+            trialLabel: null,
+          },
         ],
         isLoading: false,
       });
       const screen = render(<SubscriptionPlansScreen />);
 
-      expect(screen.queryByText("Start premium preview")).toBeNull();
-      expect(screen.getByText("Activate monthly preview")).toBeTruthy();
+      expect(screen.queryByText("Free for a limited time")).toBeNull();
+      expect(screen.getByText("Subscribe £12.99/month")).toBeTruthy();
     });
   });
 });

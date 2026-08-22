@@ -30,11 +30,6 @@ export function useCancelSubscription() {
 
   return useMutation({
     mutationFn: async (payload: CancelSubscriptionPayload = {}) => {
-      analytics.track(
-        "thrivo.subscription_cancelled",
-        payload.reason ? { reason: payload.reason } : undefined
-      );
-
       if (!isBillingConfigured()) {
         const response = await cancelSubscription(payload);
         return { openedStore: false as const, response };
@@ -42,6 +37,9 @@ export function useCancelSubscription() {
 
       const managementUrl = (await billing.getManagementUrl()) ?? STORE_SUBSCRIPTIONS_URL;
       await Linking.openURL(managementUrl);
+      analytics.track("thrivo.subscription_management_opened", {
+        platform: Platform.OS,
+      });
       return { openedStore: true as const };
     },
     onSuccess: (result) => {

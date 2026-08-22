@@ -32,7 +32,10 @@ export const otpVerifyPayload = pkg.otpVerifyPayloadSchema;
 export const purchaseSubscriptionPayload = pkg.purchaseSubscriptionPayloadSchema;
 export const requestUploadPayload = pkg.requestUploadPayloadSchema;
 export const startTrialPayload = pkg.startTrialPayloadSchema;
-export const subscriptionSchema = pkg.subscriptionStateSchema;
+export const subscriptionSchema = pkg.subscriptionStateSchema.extend({
+  billingAvailable: z.boolean().default(false),
+  lastSyncedAt: z.string().nullable().default(null),
+});
 export const subscriptionStatusSchema = pkg.publicSubscriptionStatusSchema;
 export const updateLogPayload = pkg.updateLogPayloadSchema;
 export const updateProfilePayload = pkg.updateProfilePayloadSchema;
@@ -49,7 +52,11 @@ export const upsertFoodPayload = pkg.upsertFoodPayloadSchema;
 export const userSchema = pkg.userProfileSchema;
 export type UpdateProfilePayload = z.infer<typeof updateProfilePayload>;
 export type UpdateUserSettingsPayload = z.infer<typeof updateUserSettingsPayload>;
-export const errorEnvelope = pkg.apiErrorSchema;
+export const errorEnvelope = pkg.apiErrorSchema.extend({
+  error: pkg.apiErrorSchema.shape.error.extend({
+    code: z.union([pkg.errorCodeSchema, z.literal("APP_UPDATE_REQUIRED")]),
+  }),
+});
 
 // `*ResultSchema` are already the inner data shape — alias directly.
 export const requestUploadResult = pkg.requestUploadResultSchema;
@@ -101,7 +108,9 @@ export const meResponse = pkg.getMeResponseSchema.shape.data;
 export const deleteMeResponse = pkg.deleteMeResponseSchema;
 export const progressResponse = pkg.progressResponseSchema.shape.data;
 export const recentFoodsResponse = z.object({ items: z.array(foodLogEntryWithFavoriteSchema) });
-export const subscriptionResponse = pkg.subscriptionResponseSchema.shape.data;
+export const subscriptionResponse = pkg.subscriptionResponseSchema.shape.data.extend({
+  subscription: subscriptionSchema,
+});
 export const waterResponse = pkg.waterResponseSchema.shape.data;
 export const waterHistoryResponse = z.object({
   history: z.object({
@@ -141,7 +150,7 @@ export type ChartPoint = z.infer<typeof pkg.chartPointSchema>;
 export type Goal = z.infer<typeof pkg.goalSchema>;
 export type ProgressSummary = z.infer<typeof pkg.progressSummarySchema>;
 export type Sex = z.infer<typeof pkg.sexSchema>;
-export type Subscription = pkg.SubscriptionState;
+export type Subscription = z.infer<typeof subscriptionSchema>;
 export type SubscriptionStatus = pkg.PublicSubscriptionStatus;
 export type UpdateWaterPayload = z.infer<typeof pkg.updateWaterPayloadSchema>;
 export type User = pkg.UserProfile;
@@ -170,7 +179,7 @@ export type MeResponse = z.infer<typeof pkg.getMeResponseSchema.shape.data>;
 export type ProgressResponse = z.infer<typeof pkg.progressResponseSchema.shape.data>;
 export type RecentFoodsResponse = z.infer<typeof recentFoodsResponse>;
 // Shadow the package's envelope-typed `SubscriptionResponse` with the unwrapped shape.
-export type SubscriptionResponse = z.infer<typeof pkg.subscriptionResponseSchema.shape.data>;
+export type SubscriptionResponse = z.infer<typeof subscriptionResponse>;
 export type WaterResponse = z.infer<typeof pkg.waterResponseSchema.shape.data>;
 export type WaterHistoryResponse = z.infer<typeof waterHistoryResponse>;
 export type WeightContextResponse = z.infer<typeof pkg.weightContextResponseSchema.shape.data>;

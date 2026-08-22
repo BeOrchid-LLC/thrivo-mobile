@@ -6,12 +6,10 @@ import { useDeleteAccount } from "../hooks/useDeleteAccount";
 /**
  * Deletion spans two systems, so the ordering guarantees are the thing worth
  * pinning down: the backend is authoritative, local state must not be cleared
- * before it confirms, and a Clerk failure after a successful backend delete must
- * not make a completed deletion look failed.
+ * before it confirms, and mobile never deletes the Clerk identity directly.
  */
 
 const mockCallApi = jest.fn();
-const mockClerkDelete = jest.fn();
 const mockSignOut = jest.fn();
 const mockClearSession = jest.fn();
 const mockSetBiometricUnlocked = jest.fn();
@@ -25,7 +23,6 @@ jest.mock("@/api", () => ({
 }));
 
 jest.mock("@clerk/expo", () => ({
-  useUser: () => ({ user: { delete: mockClerkDelete } }),
   useClerk: () => ({ signOut: mockSignOut }),
 }));
 
@@ -51,19 +48,15 @@ describe("useDeleteAccount", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockCallApi.mockResolvedValue(null);
-    mockClerkDelete.mockResolvedValue(undefined);
     mockSignOut.mockResolvedValue(undefined);
     mockClearStorage.mockResolvedValue(undefined);
     mockClearQueryCache.mockResolvedValue(undefined);
   });
 
-  it("deletes on the backend, then removes the Clerk identity, then signs out", async () => {
+  it("queues backend erasure, then signs out without deleting Clerk locally", async () => {
     const order: string[] = [];
     mockCallApi.mockImplementation(async () => {
       order.push("backend");
-    });
-    mockClerkDelete.mockImplementation(async () => {
-      order.push("clerk");
     });
     mockSignOut.mockImplementation(async () => {
       order.push("signOut");
@@ -74,10 +67,11 @@ describe("useDeleteAccount", () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(mockCallApi).toHaveBeenCalledWith("DELETE_ME");
-    expect(order).toEqual(["backend", "clerk", "signOut"]);
+    expect(order).toEqual(["backend", "signOut"]);
+    expect(mockCaptureException).not.toHaveBeenCalled();
   });
 
-  it("aborts without touching Clerk or local state when the backend delete fails", async () => {
+  it("aborts without signing out or purging local state when backend deletion fails", async () => {
     // Signing out here would look like success while the data still exists.
     mockCallApi.mockRejectedValue(new Error("500"));
 
@@ -85,21 +79,8 @@ describe("useDeleteAccount", () => {
     result.current.mutate();
 
     await waitFor(() => expect(result.current.isError).toBe(true));
-    expect(mockClerkDelete).not.toHaveBeenCalled();
     expect(mockSignOut).not.toHaveBeenCalled();
     expect(mockClearSession).not.toHaveBeenCalled();
-  });
-
-  it("still succeeds when Clerk deletion throws because the backend already removed the identity", async () => {
-    mockClerkDelete.mockRejectedValue(new Error("user not found"));
-
-    const { result } = renderHook(() => useDeleteAccount(), { wrapper });
-    result.current.mutate();
-
-    await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(mockSignOut).toHaveBeenCalled();
-    expect(mockClearSession).toHaveBeenCalled();
-    expect(mockCaptureException).toHaveBeenCalled();
   });
 
   it("clears local session state only after a confirmed deletion", async () => {

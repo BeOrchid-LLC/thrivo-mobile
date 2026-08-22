@@ -1,8 +1,8 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useClerk, useUser } from "@clerk/expo";
+import { useClerk } from "@clerk/expo";
 import { callApi, clearPersistedQueryCache } from "@/api";
-import { clearUserScopedStorage, monitoring } from "@/lib";
-import { useBiometricUnlockActions, useSessionActions } from "@/stores";
+import { analytics, clearUserScopedStorage, monitoring } from "@/lib";
+import { useBiometricUnlockActions, resetUserStores, useSessionActions } from "@/stores";
 
 /**
  * Permanently deletes the signed-in user's account.
@@ -27,7 +27,6 @@ import { useBiometricUnlockActions, useSessionActions } from "@/stores";
  * Steps 2 and 3 run only after step 1 succeeds.
  */
 export function useDeleteAccount() {
-  const { user } = useUser();
   const { signOut } = useClerk();
   const { clearSession } = useSessionActions();
   const { setBiometricUnlocked } = useBiometricUnlockActions();
@@ -37,15 +36,6 @@ export function useDeleteAccount() {
     mutationFn: async () => {
       // Authoritative deletion. A throw here aborts the flow by design.
       await callApi("DELETE_ME");
-
-      try {
-        await user?.delete();
-      } catch (error) {
-        // Expected when the backend already removed the Clerk identity — the
-        // token backing this call no longer resolves to a user. Recorded rather
-        // than surfaced so a successful deletion never reads as a failure.
-        monitoring.captureException(error, { seam: "clerk-user-delete-after-backend" });
-      }
 
       try {
         await signOut();
@@ -71,7 +61,9 @@ export function useDeleteAccount() {
       // Only clear local state once the server confirmed deletion.
       clearSession();
       setBiometricUnlocked(false);
+      resetUserStores?.();
       queryClient.clear();
+      analytics?.reset?.();
       monitoring.setUser(null);
     },
   });

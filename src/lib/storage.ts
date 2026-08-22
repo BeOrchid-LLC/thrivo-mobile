@@ -31,6 +31,9 @@ export const storageKeys = {
   biometricAuthEnabled: "thrivo.pref.biometricAuthEnabled",
   deviceHasOpened: "thrivo.device.hasOpened",
   offlineBarcodeScans: "thrivo.food.offlineBarcodeScans",
+  favorites: "thrivo.favorites",
+  onboardingDraft: "thrivo.onboarding-draft",
+  preferences: "thrivo.preferences",
 } as const;
 
 /**
@@ -44,6 +47,9 @@ const USER_SCOPED_KEYS: string[] = [
   storageKeys.unitSystem,
   storageKeys.biometricAuthEnabled,
   storageKeys.offlineBarcodeScans,
+  storageKeys.favorites,
+  storageKeys.onboardingDraft,
+  storageKeys.preferences,
 ];
 
 /**

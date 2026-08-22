@@ -24,7 +24,7 @@ const REQUIRED_EVENTS = [
   "thrivo.upgrade_prompt_shown",
   "thrivo.trial_started",
   "thrivo.subscription_started",
-  "thrivo.subscription_cancelled",
+  "thrivo.subscription_management_opened",
   "thrivo.reminder_set",
   "thrivo.checkin_submitted",
 ];

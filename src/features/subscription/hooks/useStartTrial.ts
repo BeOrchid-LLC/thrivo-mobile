@@ -1,8 +1,5 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { SubscriptionPlan } from "@/contracts";
-import { analytics, isBillingConfigured, monitoring, subscription as billing } from "@/lib";
-import { startTrial } from "../api/subscription.api";
-import { syncSubscriptionCaches } from "./mutation-cache";
+import { usePurchaseSubscription } from "./usePurchaseSubscription";
 
 export interface StartTrialVariables {
   plan: SubscriptionPlan;
@@ -21,37 +18,21 @@ export interface StartTrialVariables {
  * backend's `trialUsed` flag must never be treated as authoritative for billing.
  */
 export function useStartTrial() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ plan, productId }: StartTrialVariables) => {
-      // See usePurchaseSubscription — the no-billing path keeps development usable.
-      if (!isBillingConfigured()) {
-        const response = await startTrial({ plan });
-        return { completed: true as const, response };
-      }
-
-      if (!productId) throw new Error(`No store product for the ${plan} plan`);
-      const result = await billing.purchase(productId);
-      if (!result.completed) return { completed: false as const };
-
-      analytics.track("thrivo.trial_started", { plan, productId });
-
-      try {
-        const response = await startTrial({ plan });
-        return { completed: true as const, response };
-      } catch (error) {
-        monitoring.captureException(error, { seam: "trial-mirror", plan, productId });
-        return { completed: true as const };
-      }
-    },
-    onSuccess: (result) => {
-      if (!result.completed) return;
-      if (result.response) {
-        syncSubscriptionCaches(queryClient, result.response);
-        return;
-      }
-      void queryClient.invalidateQueries({ queryKey: ["subscription"] });
-    },
-  });
+  const purchase = usePurchaseSubscription();
+  const mutation = purchase as any as typeof purchase & {
+    mutate: (variables: StartTrialVariables, options?: unknown) => void;
+    mutateAsync: (variables: StartTrialVariables) => ReturnType<typeof purchase.mutateAsync>;
+  };
+  mutation.mutate = (variables, options) =>
+    purchase.mutate(
+      { plan: (variables as any).plan, packageId: (variables as any).productId, isTrial: true },
+      options as never
+    );
+  mutation.mutateAsync = (variables) =>
+    purchase.mutateAsync({
+      plan: (variables as any).plan,
+      packageId: (variables as any).productId,
+      isTrial: true,
+    });
+  return mutation;
 }

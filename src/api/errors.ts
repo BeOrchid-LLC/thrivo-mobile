@@ -14,6 +14,7 @@ export type ApiErrorCode =
   | "CONFLICT"
   | "RATE_LIMITED"
   | "SERVER_ERROR"
+  | "APP_UPDATE_REQUIRED"
   | "NETWORK" // request never completed (offline / DNS / reset)
   | "TIMEOUT"
   | "PARSE_ERROR" // response shape did not match the Zod contract
@@ -70,6 +71,7 @@ const KNOWN_BACKEND_CODES = new Set<string>([
   "CONFLICT",
   "RATE_LIMITED",
   "SERVER_ERROR",
+  "APP_UPDATE_REQUIRED",
 ]);
 
 /** Build an ApiError from an HTTP error response body + status. */

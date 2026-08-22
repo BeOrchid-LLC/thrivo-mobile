@@ -7,6 +7,8 @@ import type {
 
 export const getSubscription = () => callApi("GET_SUBSCRIPTION");
 
+export const syncSubscription = () => callApi("SYNC_SUBSCRIPTION");
+
 export const startTrial = (payload: StartTrialPayload) => callApi("START_TRIAL", { payload });
 
 export const purchaseSubscription = (payload: PurchaseSubscriptionPayload) =>
