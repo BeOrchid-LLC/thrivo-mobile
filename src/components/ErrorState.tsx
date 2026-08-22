@@ -7,6 +7,9 @@ export interface ErrorStateProps {
   message?: string;
   onRetry?: () => void;
   retryLabel?: string;
+  /** Optional escape hatch for errors a retry cannot resolve. */
+  onSecondary?: () => void;
+  secondaryLabel?: string;
 }
 
 /**
@@ -18,6 +21,8 @@ export function ErrorState({
   message = "Please try again.",
   onRetry,
   retryLabel = "Retry",
+  onSecondary,
+  secondaryLabel,
 }: ErrorStateProps) {
   return (
     <View className="flex-1 items-center justify-center gap-sm p-xl" accessibilityRole="alert">
@@ -29,6 +34,9 @@ export function ErrorState({
       </Text>
       {onRetry ? (
         <Button label={retryLabel} variant="secondary" fullWidth={false} onPress={onRetry} />
+      ) : null}
+      {onSecondary && secondaryLabel ? (
+        <Button label={secondaryLabel} variant="ghost" fullWidth={false} onPress={onSecondary} />
       ) : null}
     </View>
   );

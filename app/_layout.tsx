@@ -30,7 +30,7 @@ import {
   clerkTokenCache,
 } from "@/lib";
 import { env } from "@/config/env";
-import { useSessionInit, useSessionRefresh } from "@/hooks";
+import { useBillingSync, useSessionInit, useSessionRefresh } from "@/hooks";
 import { resolveRootRedirect } from "@/navigation/root-redirect";
 import {
   consumePendingDeepLink,
@@ -96,11 +96,13 @@ function RootNavigator({
   const [pendingLinkVersion, setPendingLinkVersion] = useState(0);
   const segments = useSegments();
   const router = useRouter();
-  const { setStatus } = useSessionActions();
+  const { setStatus, clearSession } = useSessionActions();
+  const { signOut: clerkSignOut } = useClerk();
   const redirecting = useRef(false);
 
   useSessionInit();
   useSessionRefresh();
+  useBillingSync();
 
   useEffect(() => {
     const capture = async (url: string | null) => {
@@ -220,6 +222,15 @@ function RootNavigator({
           message="Check your connection and try again."
           retryLabel="Try again"
           onRetry={() => setStatus("loading")}
+          // Escape hatch. Some restore failures cannot be retried away — a
+          // deleted account, a revoked session, a backend that stays down — and
+          // without this the only screen the user can reach is one whose single
+          // button never succeeds.
+          secondaryLabel="Sign out"
+          onSecondary={() => {
+            void clerkSignOut().catch(() => undefined);
+            clearSession();
+          }}
         />
       </Screen>
     );

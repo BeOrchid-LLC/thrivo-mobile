@@ -29,6 +29,7 @@ import {
 import { queryClient, queryKeys } from "@/api";
 import { LEGAL_LINKS } from "@/config/links";
 import { useLogout } from "@/features/auth/hooks/useAuth";
+import { analytics } from "@/lib";
 import { useMe } from "@/features/profile";
 import { useSubscription } from "@/features/subscription";
 import { authenticateBiometric, isBiometricAvailable } from "@/lib/biometric";
@@ -188,6 +189,8 @@ export function SettingsScreen() {
     const field = editingTime;
     setEditingTime(null); // Android dialog is one-shot; iOS spinner closes too.
     if (event.type !== "set" || !date || !field) return;
+    // Dismissing the picker is not a reminder change; only a confirmed time is.
+    analytics.track("thrivo.reminder_set", { reminder: field });
     updateSettings.mutate({ [field]: dateToTime(date) });
   };
 

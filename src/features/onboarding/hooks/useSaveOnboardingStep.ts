@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import type { UpdateProfilePayload } from "@/contracts";
 import { useMe, useUpdateProfile } from "@/features/profile";
 import { useUpdateSettings } from "@/features/settings";
+import { analytics } from "@/lib";
 import type { OnboardingDraft } from "@/stores";
 
 export function useSaveOnboardingStep() {
@@ -23,6 +24,9 @@ export function useSaveOnboardingStep() {
       if (unitSystem) {
         await updateSettings.mutateAsync({ unitSystem });
       }
+      // Only the final step counts as completing onboarding; the intermediate
+      // saves are progress, not conversion.
+      if (complete) analytics.track("thrivo.onboarding_completed");
     },
     [profile.data?.onboardingStep, updateProfile, updateSettings]
   );

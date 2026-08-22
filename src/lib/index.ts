@@ -1,5 +1,5 @@
 export { clerkTokenCache } from "./clerk-token-cache";
-export { getItem, setItem, removeItem, storageKeys } from "./storage";
+export { getItem, setItem, removeItem, storageKeys, clearUserScopedStorage } from "./storage";
 export {
   isNetworkReachable,
   queueBarcodeScan,

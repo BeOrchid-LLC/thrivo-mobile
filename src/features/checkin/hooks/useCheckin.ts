@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/api";
 import type { CreateCheckinPayload } from "@/contracts";
+import { analytics } from "@/lib";
 import { createCheckin, getCheckins } from "../api/checkin.api";
 
 export function useCheckins() {
@@ -16,6 +17,7 @@ export function useCreateCheckin() {
   return useMutation({
     mutationFn: (payload: CreateCheckinPayload) => createCheckin(payload),
     onSuccess: () => {
+      analytics.track("thrivo.checkin_submitted");
       // A check-in feeds both its own history and the streak surfaced on the dashboard.
       void queryClient.invalidateQueries({ queryKey: queryKeys.checkins.list() });
       void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.streak() });

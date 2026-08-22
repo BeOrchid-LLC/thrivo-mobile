@@ -73,6 +73,15 @@ const envSchema = z
         path: [billingKeyPath],
         message: "Required in production builds (in-app purchases).",
       });
+    } else if (parsed[billingKeyPath]?.startsWith("test_")) {
+      // RevenueCat Test Store keys simulate purchases and take no money. Shipping
+      // one would present a fake purchase modal to real users — fail the build
+      // instead of discovering it in review.
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [billingKeyPath],
+        message: "RevenueCat Test Store key must never ship in a production build.",
+      });
     }
   });
 

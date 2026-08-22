@@ -1,7 +1,8 @@
 import { BlurView } from "expo-blur";
 import { Lock } from "phosphor-react-native";
-import { type ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
+import { analytics } from "@/lib";
 import { colors } from "@/theme";
 import { Button } from "./Button";
 import { Text } from "./Text";
@@ -15,6 +16,12 @@ export interface PremiumGateProps {
 
 /** Blurred premium content with the standard in-context upgrade prompt. */
 export function PremiumGate({ children, title, subtitle, onViewPlans }: PremiumGateProps) {
+  // Every in-context upgrade prompt is a funnel impression — this is the
+  // `upgrade_prompt_shown` step the PRD tracks, distinct from a paywall view.
+  useEffect(() => {
+    analytics.track("thrivo.upgrade_prompt_shown", { title });
+  }, [title]);
+
   return (
     <View className="overflow-hidden rounded-lg">
       {children}

@@ -5,7 +5,7 @@ export {
   startTrial,
 } from "./api/subscription.api";
 export { useCancelSubscription } from "./hooks/useCancelSubscription";
-export { useOfferings, productForPlan } from "./hooks/useOfferings";
+export { useOfferings, useOfferingsDiagnostics, productForPlan } from "./hooks/useOfferings";
 export { usePurchaseSubscription, type PurchaseVariables } from "./hooks/usePurchaseSubscription";
 export { useRestorePurchases } from "./hooks/useRestorePurchases";
 export { useStartTrial, type StartTrialVariables } from "./hooks/useStartTrial";

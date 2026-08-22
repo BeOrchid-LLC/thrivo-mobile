@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useClerk, useUser } from "@clerk/expo";
-import { callApi } from "@/api";
-import { monitoring } from "@/lib";
+import { callApi, clearPersistedQueryCache } from "@/api";
+import { clearUserScopedStorage, monitoring } from "@/lib";
 import { useBiometricUnlockActions, useSessionActions } from "@/stores";
 
 /**
@@ -20,7 +20,9 @@ import { useBiometricUnlockActions, useSessionActions } from "@/stores";
  *    the identity this throws (the session is gone), which is the expected
  *    outcome, not a failure. It only does real work if the backend left the
  *    identity behind, and that is exactly the orphan we must not ship.
- * 3. Sign out and clear every local trace.
+ * 3. Sign out and clear every local trace — in-memory state, the on-disk query
+ *    cache, and the user's preferences and queued offline writes. "All their
+ *    data is gone" has to include this device, not just the server.
  *
  * Steps 2 and 3 run only after step 1 succeeds.
  */
@@ -52,6 +54,18 @@ export function useDeleteAccount() {
         // local cleanup below or the user is stranded on a dead session.
         monitoring.captureException(error, { seam: "sign-out-after-delete" });
       }
+
+      // Purge this device. A queued barcode scan left behind would replay into
+      // whichever account signs in next, and the dehydrated query cache would
+      // let the deleted user's dashboard render before the first refetch.
+      await Promise.all([
+        clearUserScopedStorage().catch((error: unknown) => {
+          monitoring.captureException(error, { seam: "clear-user-storage" });
+        }),
+        clearPersistedQueryCache().catch((error: unknown) => {
+          monitoring.captureException(error, { seam: "clear-query-cache" });
+        }),
+      ]);
     },
     onSuccess: () => {
       // Only clear local state once the server confirmed deletion.

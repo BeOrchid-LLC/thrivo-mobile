@@ -32,3 +32,28 @@ export const storageKeys = {
   deviceHasOpened: "thrivo.device.hasOpened",
   offlineBarcodeScans: "thrivo.food.offlineBarcodeScans",
 } as const;
+
+/**
+ * Keys holding data that belongs to the signed-in person rather than the device.
+ *
+ * `deviceHasOpened` is deliberately excluded — it records that *this handset* has
+ * run the app before, which stays true no matter who is signed in.
+ */
+const USER_SCOPED_KEYS: string[] = [
+  storageKeys.notifyAt,
+  storageKeys.unitSystem,
+  storageKeys.biometricAuthEnabled,
+  storageKeys.offlineBarcodeScans,
+];
+
+/**
+ * Wipes everything on this device belonging to the signed-in user.
+ *
+ * Account deletion promises the data is gone; leaving preferences behind makes
+ * that untrue, and leaving `offlineBarcodeScans` behind is worse than untidy —
+ * a scan queued by the deleted account would replay into whichever account signs
+ * in next, writing one person's food into another person's log.
+ */
+export async function clearUserScopedStorage(): Promise<void> {
+  await AsyncStorage.multiRemove(USER_SCOPED_KEYS);
+}

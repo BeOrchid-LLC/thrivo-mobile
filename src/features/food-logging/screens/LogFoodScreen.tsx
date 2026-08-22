@@ -33,6 +33,7 @@ import {
 import { queryClient, queryKeys } from "@/api";
 import { useCurrentDay } from "@/hooks/useCurrentDay";
 import {
+  analytics,
   isNetworkReachable,
   queueBarcodeScan,
   readQueuedBarcodeScans,
@@ -612,6 +613,9 @@ function ScanBarcodeScreen({ day, onBack }: { day: string; onBack: () => void })
     setBarcode(normalized);
     setFormat(result.type);
     setMessage("Barcode captured. Looking up nutrition...");
+    // A decoded barcode, not a lookup result — the funnel step is the scan
+    // itself. The `lastScanRef` guard above keeps a steady camera to one event.
+    analytics.track("thrivo.barcode_scanned", { format: result.type });
     void (async () => {
       const online = await isNetworkReachable();
       if (!online) {

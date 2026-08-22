@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Modal, Pressable, View } from "react-native";
 import { router } from "expo-router";
 import { Check, SealCheck, X } from "phosphor-react-native";
-import { Button, PageHeader, Screen, Segmented, Text } from "@/components";
+import { Button, PageHeader, Screen, Segmented, Text, useToast } from "@/components";
 import type { SubscriptionPlan } from "@/contracts";
 import { analytics, isBillingConfigured } from "@/lib";
 import { colors } from "@/theme";
@@ -10,6 +10,7 @@ import {
   productForPlan,
   useCancelSubscription,
   useOfferings,
+  useOfferingsDiagnostics,
   usePurchaseSubscription,
   useRestorePurchases,
   useStartTrial,
@@ -100,10 +101,12 @@ export function SubscriptionPlansScreen() {
   const [cancelledOpen, setCancelledOpen] = useState(false);
   const subscription = useSubscription();
   const offerings = useOfferings();
+  useOfferingsDiagnostics(offerings);
   const startTrial = useStartTrial();
   const purchase = usePurchaseSubscription();
   const restore = useRestorePurchases();
   const cancel = useCancelSubscription();
+  const { showToast } = useToast();
 
   const sub = subscription.data?.subscription;
   const storeProduct = productForPlan(offerings.data, plan);
@@ -119,8 +122,12 @@ export function SubscriptionPlansScreen() {
   const firstChargeDate = formatShortDate(trialEnd);
   const firstChargeLabel = `Paid plan after ${firstChargeDate}`;
   const hasPremiumAccess = sub?.entitlement === "premium";
-  const canStartTrial = !hasPremiumAccess && !sub?.trialUsed;
-  const canSubscribe = !hasPremiumAccess && Boolean(sub?.trialUsed);
+  // With billing live the store is authoritative on trial eligibility — it, not
+  // our `trialUsed` flag, decides whether the intro offer applies. A user who
+  // already consumed the offer is simply charged full price.
+  const trialAvailable = billingLive && storeProduct ? storeProduct.hasFreeTrial : !sub?.trialUsed;
+  const canStartTrial = !hasPremiumAccess && trialAvailable;
+  const canSubscribe = !hasPremiumAccess && !trialAvailable;
   const accessEndsAt = sub?.accessEndsAt ? formatLongDate(sub.accessEndsAt) : "";
 
   useEffect(() => {
@@ -142,10 +149,31 @@ export function SubscriptionPlansScreen() {
     const productId = storeProduct?.id;
     if (billingLive && !productId) return;
 
+    // A purchase that fails after the sheet opens (store outage, payment
+    // declined) must say so — silence here reads as "the button is broken".
+    // A dismissed sheet is not an error and resolves successfully.
+    const onError = () =>
+      showToast({
+        message: "That didn't go through. You have not been charged.",
+        variant: "error",
+      });
+
+    // A completed purchase must be confirmed in the app. The store's own sheet
+    // dismisses itself, and entitlement can take a moment to come back from the
+    // backend, so without this the screen looks unchanged and the user cannot
+    // tell whether they just paid.
+    const onSuccess = (result: { completed: boolean }) => {
+      if (!result.completed) return; // dismissed sheet — nothing to announce
+      showToast({
+        message: canStartTrial ? "Your premium preview has started." : "Premium unlocked.",
+        variant: "success",
+      });
+    };
+
     if (canStartTrial) {
-      startTrial.mutate({ plan, productId });
+      startTrial.mutate({ plan, productId }, { onError, onSuccess });
     } else if (canSubscribe) {
-      purchase.mutate({ plan, productId, isTrial: false });
+      purchase.mutate({ plan, productId, isTrial: false }, { onError, onSuccess });
     }
   };
 
@@ -238,7 +266,18 @@ export function SubscriptionPlansScreen() {
           accessibilityRole="button"
           className="min-h-[48px] items-center justify-center"
           disabled={restore.isPending}
-          onPress={() => restore.mutate()}
+          onPress={() =>
+            restore.mutate(undefined, {
+              onSuccess: (result) =>
+                showToast(
+                  result.entitlement === "premium"
+                    ? { message: "Premium restored.", variant: "success" }
+                    : { message: "No previous purchases found on this account.", variant: "error" }
+                ),
+              onError: () =>
+                showToast({ message: "We couldn't restore purchases.", variant: "error" }),
+            })
+          }
         >
           <Text color="primary" className="font-semibold">
             {restore.isPending ? "Restoring…" : "Restore purchases"}
@@ -263,22 +302,46 @@ export function SubscriptionPlansScreen() {
               ? `Preview access runs through ${formatLongDate(trialEnd)}.`
               : `Activate premium access with the ${plan} plan preview.`}
           </Text>
-          <Button
-            label={primaryLabel}
-            loading={startTrial.isPending || purchase.isPending || offerings.isLoading}
-            disabled={!canTransact}
-            onPress={primaryAction}
-          />
-          {billingLive && !storeProduct && !offerings.isLoading ? (
-            <Text color="error" className="text-center">
-              This plan is unavailable right now. Please try again shortly.
-            </Text>
+          {offerings.isLoading ? (
+            // Still fetching: neither a purchase button nor a failure message is
+            // honest yet.
+            <Button label="Loading plans…" disabled onPress={() => undefined} />
+          ) : canTransact ? (
+            <>
+              <Button
+                // Only a purchase in flight should spin. Tying this to the
+                // offerings query left the button spinning *and* disabled
+                // whenever the store was slow — a dead control, no explanation.
+                label={offerings.isLoading ? "Loading plans…" : primaryLabel}
+                loading={startTrial.isPending || purchase.isPending}
+                disabled={offerings.isLoading}
+                onPress={primaryAction}
+              />
+              <Text color="muted" className="text-center">
+                {canStartTrial
+                  ? "Cancel any time from Settings before the preview ends."
+                  : "You'll be charged through your app store account."}
+              </Text>
+            </>
           ) : (
-            <Text color="muted" className="text-center">
-              {canStartTrial
-                ? "Cancel any time from Settings before the preview ends."
-                : "You'll be charged through your app store account."}
-            </Text>
+            // No purchasable product: render the reason and a retry instead of a
+            // button that looks tappable but silently does nothing.
+            <View className="gap-sm">
+              <Text color="error" className="text-center">
+                We couldn&apos;t load plans from the App Store.
+              </Text>
+              {__DEV__ && offerings.error instanceof Error ? (
+                <Text variant="caption" color="muted" className="text-center">
+                  {offerings.error.message}
+                </Text>
+              ) : null}
+              <Button
+                label="Try again"
+                variant="secondary"
+                loading={offerings.isFetching}
+                onPress={() => void offerings.refetch()}
+              />
+            </View>
           )}
         </View>
       )}

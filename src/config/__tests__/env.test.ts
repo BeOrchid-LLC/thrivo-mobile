@@ -47,6 +47,19 @@ describe("env bootstrap validation", () => {
     }).toThrow(/EXPO_PUBLIC_REVENUECAT_IOS_KEY/);
   });
 
+  it("refuses to build for production with a RevenueCat Test Store key", () => {
+    // A test key simulates purchases and takes no money — shipping one would
+    // show real users a fake purchase modal.
+    (global as { __DEV__?: boolean }).__DEV__ = false;
+    process.env.EXPO_PUBLIC_SENTRY_DSN = "https://public@o0.ingest.sentry.io/1";
+    process.env.EXPO_PUBLIC_POSTHOG_KEY = "phc_test_key";
+    process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY = "test_abc123";
+
+    expect(() => {
+      jest.isolateModules(() => require("../env"));
+    }).toThrow(/Test Store key must never ship/);
+  });
+
   it('gates Apple auth off unless the flag is exactly "true"', () => {
     (global as { __DEV__?: boolean }).__DEV__ = true;
 

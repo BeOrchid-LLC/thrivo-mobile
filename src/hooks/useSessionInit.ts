@@ -94,8 +94,13 @@ export function useSessionInit(): void {
         bootLog("session restore finished: authenticated");
       } catch (error) {
         if (!active) return;
-        if (isApiError(error) && error.isAuthError) {
-          bootLog(`session restore finished: auth error (${error.status})`);
+        // 401 means the token is bad; 404 means the account no longer exists —
+        // the case after a deletion, where Clerk can still report a signed-in
+        // session for a moment while the backend row is already gone. Both are
+        // terminal: retrying can never succeed, so sign out cleanly instead of
+        // parking on the retryable "Could not restore your session" screen.
+        if (isApiError(error) && (error.isAuthError || error.code === "NOT_FOUND")) {
+          bootLog(`session restore finished: account gone (${error.status})`);
           authFailure.current = true;
           handleUnauthenticated();
           return;

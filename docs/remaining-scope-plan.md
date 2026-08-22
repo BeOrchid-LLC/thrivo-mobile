@@ -37,27 +37,42 @@ Also worth confirming early, though not called out in the PRD: whether
 
 ---
 
-## Step 1 — Account deletion
+## Step 1 — Account deletion — *complete in this repo*
 
-**Hard blocker for App Store approval.** No dependencies, so it can start
-immediately and in parallel with Step 2.
+**Hard blocker for App Store approval.** Built and covered by tests.
 
 - Settings flow, confirmation, re-authentication, full backend deletion
   (including the Clerk identity), and honest pending/error states.
 - **Accept:** a user deletes their account and all their data is gone; nothing
   orphaned.
 
-**Current state (verified):** no deletion surface exists anywhere in `src/` or
-`app/` — this is a from-scratch build. `src/features/settings/screens/SettingsScreen.tsx`
-is where the entry point belongs, alongside the existing Legal section.
+**Implemented:** Settings → Delete account entry, a review stage listing exactly
+what is lost, re-authentication, and the deletion itself. `DELETE /users/me`
+(already in `thrivo-contracts`, previously unwired) is the authoritative call;
+Clerk `user.delete()` runs as a backstop; then sign-out and a full device purge
+of preferences, the queued offline writes, and the dehydrated query cache. A
+backend failure aborts without touching Clerk or local state. Premium users are
+warned that deletion does not cancel billing — only the store can do that.
 
-**Notes:** re-authentication has to go through Clerk, and the backend deletion
-must remove the Clerk identity too, or the user can never sign up again with the
-same email. Coordinate the backend endpoint with Edward.
+Re-auth uses Clerk **session reverification**, not email-address verification;
+the latter fails with "already been verified" on an account whose email was
+verified at sign-up.
+
+**Left to confirm (not code):**
+
+- Does the backend's `DELETE /users/me` also remove the Clerk identity? The
+  client backstop covers it either way, so nothing is orphaned, but it should be
+  confirmed rather than assumed — Edward.
+- Can the same email sign up again afterwards? Depends on the backend not
+  soft-deleting behind a unique email constraint. One manual test settles it.
+- Sign-out does **not** clear `offlineBarcodeScans`. Deletion now does, but if
+  user A signs out and user B signs in on the same device, A's queued scans could
+  replay into B's log. Narrower, and the fix is debatable — clearing on sign-out
+  discards legitimate queued data for someone signing straight back in.
 
 ---
 
-## Step 2 — Payments (RevenueCat) — *mobile side implemented*
+## Step 2 — Payments (RevenueCat) — *mobile side complete*
 
 The largest item, and the one that unlocks the premium product. Apple and Google
 require in-app purchase for mobile subscriptions, so this is **app-store billing,
@@ -69,34 +84,113 @@ not Stripe**.
 - **Accept:** a test user can start a trial, be charged correctly, restore on a
   second device, and cancel in two taps.
 
-**Implemented in this repo:**
+**Implemented in this repo — nothing further is buildable here until §Blocked
+below is unblocked.**
 
-- `react-native-purchases@10.7.2` installed; `ios/` regenerated (native module,
-  so it needs a new dev-client build and cannot ship as an OTA update).
+*SDK and configuration*
+
+- `react-native-purchases@10.7.2` installed; `ios/` regenerated. Native module —
+  it needs a new dev-client build and **cannot ship as an OTA update**.
 - `src/lib/subscription.ts` — the previously stubbed `SubscriptionAdapter` is now
   a real RevenueCat implementation, with a no-op fallback when no key is present
   so development and Expo Go still boot.
 - `src/config/env.ts` — `EXPO_PUBLIC_REVENUECAT_IOS_KEY` /
   `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY`, required in production builds under the
-  same fail-fast policy as Sentry and PostHog.
-- Store identity tied to the Clerk user id on session restore
-  (`src/hooks/useSessionInit.ts`) and cleared on sign-out (`src/lib/bootstrap.ts`)
-  — this is what makes restore-on-a-second-device work.
-- `useOfferings` (live localised store prices), `useRestorePurchases`, and
-  purchase/trial hooks that charge through the store and then mirror the plan to
-  the backend.
-- Paywall shows real store prices, a Restore purchases action (App Store
-  requirement), and routes cancellation to the store's own settings.
+  same fail-fast policy as Sentry and PostHog. Only the running platform's key is
+  required.
 
-**Still required, outside this repo:**
+*Identity*
 
-| # | Item | Owner |
-| --- | --- | --- |
-| 2.1 | RevenueCat project + `premium` entitlement, `monthly`/`annual` packages in the current offering | product/infra |
-| 2.2 | Store products in App Store Connect and Play Console, with the card-required trial as an introductory offer | product |
-| 2.3 | **RevenueCat → backend webhook.** The app mirrors the plan opportunistically, but entitlement must be authoritative server-side; without this a determined user can hold premium the backend never granted | Edward |
-| 2.4 | Confirmation email on purchase (PRD requirement) | Edward |
-| 2.5 | Real pricing/trial values (item 0.1) fed into the store products | product |
+- Tied to the Clerk user id on session restore (`src/hooks/useSessionInit.ts`) and
+  cleared on sign-out (`src/lib/bootstrap.ts`). This is what makes
+  restore-on-a-second-device work and stops the next user on a shared device
+  inheriting premium.
+
+*Live entitlement sync*
+
+- `useBillingSync` subscribes to RevenueCat's customer-info listener, so
+  renewals, lapses, refunds, upgrades, Ask-to-Buy approvals, and purchases made
+  on another device reach the app immediately instead of at the next poll. It
+  triggers a server re-read rather than trusting the pushed value.
+
+*Purchase, trial, restore, cancel*
+
+- `useOfferings` — live, storefront-localised store prices. Packages that do not
+  map to `monthly`/`annual` are hidden, since a plan the backend cannot record
+  would strand the purchase.
+- Trial eligibility is read from the **store's** introductory offer, not our
+  `trialUsed` flag — the store is authoritative and a user who already consumed
+  the offer is simply charged full price.
+- `useRestorePurchases` plus a Restore action on the paywall (required by App
+  Store review), with explicit feedback for both "premium restored" and "nothing
+  found".
+- Purchase failures after the sheet opens surface a toast stating the user was
+  not charged; a dismissed sheet is treated as a non-event, not an error.
+- A completed purchase is confirmed with a toast; a dismissed sheet stays silent.
+- Cancellation routes to the store's own subscription settings.
+- The paywall has three honest states — loading, purchasable, and unavailable
+  (with the underlying reason in dev builds and a Try again action). It never
+  renders a disabled button that silently swallows taps.
+
+*Analytics* — `thrivo.paywall_viewed`, `thrivo.upgrade_prompt_shown` (from
+`PremiumGate`), `thrivo.trial_started`, `thrivo.subscription_started`, and
+`thrivo.subscription_cancelled` all emit.
+
+*Tests* — 34 covering the billing seam, the paywall, and live sync.
+
+**Bugs found and fixed while wiring this up** (all were silent failures):
+
+| Symptom | Cause |
+| --- | --- |
+| Paywall permanently empty | An empty product list from a keyless run was persisted to AsyncStorage and rehydrated as a legitimate "nothing for sale" |
+| Entitlement never unlocked after paying | `PREMIUM_ENTITLEMENT_ID` was `premium`; the dashboard identifier is `Thrivo Premium` |
+| Previous user's premium on a shared device | `configure()` was called per sign-in, but the SDK only configures once — switching users needs `logIn()` |
+| "No identity" after every Fast Refresh | Readiness was tracked in JS module state, which resets while the native SDK stays configured |
+| Purchase button inert | Rendered disabled-but-normal when no product resolved |
+| Completed purchase looked like nothing happened | No success confirmation |
+
+### Blocked — required to finish, none of it in this repo
+
+Ordered by what blocks what. Items 2.1–2.3 must land before the acceptance
+criterion can be tested at all.
+
+| # | Item | Owner | Blocks |
+| --- | --- | --- | --- |
+| ~~2.1~~ | ~~RevenueCat project~~ — ✅ **done.** Project `Thrivo`, entitlement `Thrivo Premium`, offering `default` with `$rc_monthly` / `$rc_annual`. iOS key in `.env`. | — | done |
+| 2.2 | **Store products.** ✅ iOS done — both App Store products exist, are attached to the offering's packages *and* to the entitlement, and StoreKit returns them. ⬜ Android not started (no Play products, no `goog_` key). | product | — |
+| 2.3 | **RevenueCat → backend webhook.** The app mirrors the plan opportunistically, but entitlement must be authoritative server-side. Without this, a determined user can hold premium the backend never granted, and cancellations/refunds/expiries never reach us. | Edward | acceptance |
+| 2.4 | Confirmation email on purchase (PRD requirement). Best driven off the same webhook. | Edward | acceptance |
+| 2.5 | Real pricing and trial length (item 0.1) fed into the store products. | product | 2.2 |
+| 2.6 | **Sandbox tester account** (App Store Connect → Users and Access → Sandbox), signed in on the device under Settings → Developer. Needs the Apple Developer membership active. This is the only thing standing between the current build and a real end-to-end purchase. Apple provides no shared test account — there is no equivalent of Stripe's `4242` card. | product | real purchase |
+
+### What I still need
+
+1. **A sandbox tester account** (2.6) — the last blocker on a real purchase.
+2. **A decision on the webhook** (2.3). Until it exists, entitlement is only as
+   reliable as the app's mirror call, and renewals, refunds, and expiries never
+   reach the backend at all.
+3. **Confirmation that $14.99 / $150 are the agreed prices** and that the trial
+   length in App Store Connect matches what was promised.
+4. **The Android key** (`goog_…`) plus Play products, when Android is in scope.
+
+Resolved since this plan was written: the SDK keys, the entitlement identifier
+(`Thrivo Premium`, not `premium`), and the package types (standard
+`$rc_monthly` / `$rc_annual`).
+
+### Acceptance status
+
+| PRD criterion | Status |
+| --- | --- |
+| Test user can start a trial | ✅ Verified end to end against the RevenueCat Test Store. Real Apple purchase needs a sandbox tester (2.6). |
+| Charged correctly | ⬜ Needs a sandbox tester (2.6); prices need confirming (2.5). |
+| Restore on a second device | ✅ Code complete and wired to the Clerk user id. Not yet exercised on two real devices. |
+| Cancel in two taps | ✅ Settings → Cancel → store subscription settings. |
+| Confirmation email | ⬜ Not started — 2.4, backend, driven off the webhook. |
+
+**Verified working on device (simulator, Test Store):** offerings load with live
+prices, the purchase sheet opens, a completed purchase confirms and mirrors to
+the backend, a dismissed sheet is a non-event, a failed purchase says the user
+was not charged, and restore reports both outcomes.
 
 **Design note:** the backend stays the source of truth for entitlement.
 `useEntitlement()` still reads `GET /subscriptions/me`, and no feature gates on a
@@ -165,15 +259,15 @@ release, and matches this app's "defer shared business rules to the server" stan
 
 ---
 
-## Step 6 — Analytics (PostHog)
+## Step 6 — Analytics (PostHog) — *complete in this repo*
 
 Placed after Steps 1–5 because several events can only fire once the flows they
 describe exist. The seam itself is already in place.
 
-**Current state (verified):** `src/lib/analytics.ts` is wired and initialised, but
-**`analytics.track()` has zero call sites** — no event has ever been emitted. So
-there is no historical data to migrate and the event names can still be set
-correctly at no cost.
+**Current state (verified):** all 11 events fire. The union is renamed to the
+agreed convention and every event has a call site, guarded by a test that walks
+the source and fails if any required event stops being emitted — both failure
+modes here are silent, so the check has to be mechanical.
 
 **The PRD resolves the two open questions in
 [naming-conventions-plan.md](naming-conventions-plan.md) §3** — it confirms the
@@ -182,18 +276,19 @@ correctly at no cost.
 
 Required events, all `thrivo.`-prefixed:
 
-| PRD event | Status in `AnalyticsEvent` union |
-| --- | --- |
-| `thrivo.signup` | exists as `signup` — needs prefix |
-| `thrivo.onboarding_completed` | **missing — add** |
-| `thrivo.food_logged` | exists as `food_logged` — needs prefix |
-| `thrivo.barcode_scanned` | **missing — add** |
-| `thrivo.paywall_viewed` | exists as `paywall_view` — rename + prefix |
-| `thrivo.upgrade_prompt_shown` | **missing — add** |
-| `thrivo.trial_started` | exists as `trial_start` — rename + prefix |
-| `thrivo.subscription_started` | exists as `subscription_start` — rename + prefix |
-| `thrivo.subscription_cancelled` | exists as `cancellation` — rename + prefix |
-| `thrivo.reminder_set` | **missing — add** |
+| PRD event | Emitting? | Where it belongs |
+| --- | --- | --- |
+| `thrivo.paywall_viewed` | ✅ | `SubscriptionPlansScreen` |
+| `thrivo.upgrade_prompt_shown` | ✅ | `PremiumGate` |
+| `thrivo.trial_started` | ✅ | `useStartTrial` |
+| `thrivo.subscription_started` | ✅ | `usePurchaseSubscription` |
+| `thrivo.subscription_cancelled` | ✅ | `useCancelSubscription` |
+| `thrivo.signup` | ✅ | `OtpVerifyScreen` — sign-up path only, after the Clerk session finalizes |
+| `thrivo.onboarding_completed` | ✅ | `useSaveOnboardingStep` — final step only |
+| `thrivo.food_logged` | ✅ | `offline-mutations` registration, so replayed offline writes count once |
+| `thrivo.barcode_scanned` | ✅ | `LogFoodScreen` — on decode, deduped by the existing scan guard |
+| `thrivo.reminder_set` | ✅ | `SettingsScreen` — a confirmed time, not a dismissed picker |
+| `thrivo.checkin_submitted` | ✅ | `useCreateCheckin` (not in the PRD list — kept; confirm) |
 
 - **Accept:** a test run produces correctly named events in the dashboard.
 

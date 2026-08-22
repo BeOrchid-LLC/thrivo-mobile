@@ -26,6 +26,7 @@ const mockCameraScan = jest.fn();
 const mockUseSettings = jest.fn();
 const mockIsNetworkReachable = jest.fn(async () => true);
 const mockQueueBarcodeScan = jest.fn();
+const mockTrack = jest.fn();
 
 jest.mock("expo-camera", () => {
   const { View } = jest.requireActual("react-native");
@@ -46,6 +47,7 @@ jest.mock("@react-native-community/datetimepicker", () => {
 });
 
 jest.mock("@/lib", () => ({
+  analytics: { track: (...args: unknown[]) => mockTrack(...args) },
   isNetworkReachable: () => mockIsNetworkReachable(),
   queueBarcodeScan: (scan: unknown) => mockQueueBarcodeScan(scan),
   readQueuedBarcodeScans: jest.fn(async () => []),

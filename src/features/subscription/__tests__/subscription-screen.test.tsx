@@ -9,6 +9,8 @@ const mockCancelMutate = jest.fn();
 const mockRestoreMutate = jest.fn();
 const mockUseOfferings = jest.fn();
 const mockBillingConfigured = jest.fn();
+const mockShowToast = jest.fn();
+const mockRefetch = jest.fn();
 
 jest.mock("expo-router", () => ({
   router: { back: jest.fn(), replace: jest.fn() },
@@ -17,12 +19,18 @@ jest.mock("expo-router", () => ({
 jest.mock("../index", () => ({
   useSubscription: () => mockUseSubscription(),
   useOfferings: () => mockUseOfferings(),
+  useOfferingsDiagnostics: jest.fn(),
   productForPlan: (products: { plan: string }[] | undefined, plan: string) =>
     products?.find((product) => product.plan === plan),
   useStartTrial: () => ({ mutate: mockStartTrialMutate, isPending: false }),
   usePurchaseSubscription: () => ({ mutate: mockPurchaseMutate, isPending: false }),
   useRestorePurchases: () => ({ mutate: mockRestoreMutate, isPending: false }),
   useCancelSubscription: () => ({ mutate: mockCancelMutate, isPending: false }),
+}));
+
+jest.mock("@/components", () => ({
+  ...jest.requireActual("@/components"),
+  useToast: () => ({ showToast: mockShowToast }),
 }));
 
 jest.mock("@/lib", () => ({
@@ -66,7 +74,10 @@ describe("SubscriptionPlansScreen", () => {
     ).toBeTruthy();
     fireEvent.press(screen.getByText("Start premium preview"));
 
-    expect(mockStartTrialMutate).toHaveBeenCalledWith({ plan: "monthly", productId: undefined });
+    expect(mockStartTrialMutate).toHaveBeenCalledWith(
+      { plan: "monthly", productId: undefined },
+      expect.objectContaining({ onError: expect.any(Function) })
+    );
   });
 
   it("shows activation copy for users who already used a trial", () => {
@@ -78,11 +89,10 @@ describe("SubscriptionPlansScreen", () => {
 
     fireEvent.press(screen.getByText("Activate monthly preview"));
 
-    expect(mockPurchaseMutate).toHaveBeenCalledWith({
-      plan: "monthly",
-      productId: undefined,
-      isTrial: false,
-    });
+    expect(mockPurchaseMutate).toHaveBeenCalledWith(
+      { plan: "monthly", productId: undefined, isTrial: false },
+      expect.objectContaining({ onError: expect.any(Function) })
+    );
   });
 
   it("cancels an active subscription and auto-closes success after 30 seconds", () => {
@@ -118,5 +128,140 @@ describe("SubscriptionPlansScreen", () => {
     });
 
     expect(router.replace).toHaveBeenCalledWith("/(app)/dashboard");
+  });
+
+  describe("with store billing live", () => {
+    beforeEach(() => {
+      mockBillingConfigured.mockReturnValue(true);
+      mockUseOfferings.mockReturnValue({
+        data: [{ id: "thrivo_monthly", plan: "monthly", priceLabel: "£12.99", hasFreeTrial: true }],
+        isLoading: false,
+      });
+    });
+
+    it("shows the live store price rather than the hardcoded fallback", () => {
+      const screen = render(<SubscriptionPlansScreen />);
+
+      expect(screen.getByText("£12.99")).toBeTruthy();
+      expect(screen.queryByText("Store billing not configured")).toBeNull();
+    });
+
+    it("blocks purchase when the store returned no product for the plan", () => {
+      mockUseOfferings.mockReturnValue({
+        data: [],
+        isLoading: false,
+        isFetching: false,
+        refetch: mockRefetch,
+      });
+      const screen = render(<SubscriptionPlansScreen />);
+
+      expect(screen.getByText("We couldn't load plans from the App Store.")).toBeTruthy();
+      expect(mockStartTrialMutate).not.toHaveBeenCalled();
+    });
+
+    it("offers a retry instead of a dead spinner when plans fail to load", () => {
+      mockUseOfferings.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        isFetching: false,
+        refetch: mockRefetch,
+      });
+      const screen = render(<SubscriptionPlansScreen />);
+
+      fireEvent.press(screen.getByText("Try again"));
+
+      expect(mockRefetch).toHaveBeenCalled();
+    });
+
+    it("names the loading state instead of spinning a blank button", () => {
+      mockUseOfferings.mockReturnValue({
+        data: undefined,
+        isLoading: true,
+        isFetching: true,
+        refetch: mockRefetch,
+      });
+      const screen = render(<SubscriptionPlansScreen />);
+
+      expect(screen.getByText("Loading plans…")).toBeTruthy();
+    });
+
+    it("confirms a successful restore", () => {
+      mockRestoreMutate.mockImplementation((_vars, options) =>
+        options?.onSuccess?.({ entitlement: "premium" })
+      );
+      const screen = render(<SubscriptionPlansScreen />);
+
+      fireEvent.press(screen.getByText("Restore purchases"));
+
+      expect(mockShowToast).toHaveBeenCalledWith(expect.objectContaining({ variant: "success" }));
+    });
+
+    it("says so when a restore finds nothing, instead of failing silently", () => {
+      mockRestoreMutate.mockImplementation((_vars, options) =>
+        options?.onSuccess?.({ entitlement: "free" })
+      );
+      const screen = render(<SubscriptionPlansScreen />);
+
+      fireEvent.press(screen.getByText("Restore purchases"));
+
+      expect(mockShowToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: "No previous purchases found on this account.",
+          variant: "error",
+        })
+      );
+    });
+
+    it("confirms the purchase, so a completed payment is never silent", () => {
+      mockStartTrialMutate.mockImplementation((_vars, options) =>
+        options?.onSuccess?.({ completed: true })
+      );
+      const screen = render(<SubscriptionPlansScreen />);
+
+      fireEvent.press(screen.getByText("Start premium preview"));
+
+      expect(mockShowToast).toHaveBeenCalledWith(expect.objectContaining({ variant: "success" }));
+    });
+
+    it("stays quiet when the user dismisses the store sheet", () => {
+      mockStartTrialMutate.mockImplementation((_vars, options) =>
+        options?.onSuccess?.({ completed: false })
+      );
+      const screen = render(<SubscriptionPlansScreen />);
+
+      fireEvent.press(screen.getByText("Start premium preview"));
+
+      expect(mockShowToast).not.toHaveBeenCalled();
+    });
+
+    it("tells the user they were not charged when a purchase fails", () => {
+      mockStartTrialMutate.mockImplementation((_vars, options) =>
+        options?.onError?.(new Error("x"))
+      );
+      const screen = render(<SubscriptionPlansScreen />);
+
+      fireEvent.press(screen.getByText("Start premium preview"));
+
+      expect(mockShowToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: "That didn't go through. You have not been charged.",
+          variant: "error",
+        })
+      );
+    });
+
+    it("offers to subscribe rather than trial when the store reports no intro offer", () => {
+      // The store decides eligibility, not our backend `trialUsed` flag.
+      mockUseOfferings.mockReturnValue({
+        data: [
+          { id: "thrivo_monthly", plan: "monthly", priceLabel: "£12.99", hasFreeTrial: false },
+        ],
+        isLoading: false,
+      });
+      const screen = render(<SubscriptionPlansScreen />);
+
+      expect(screen.queryByText("Start premium preview")).toBeNull();
+      expect(screen.getByText("Activate monthly preview")).toBeTruthy();
+    });
   });
 });

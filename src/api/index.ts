@@ -25,7 +25,7 @@ export {
   handleUnauthenticated,
 } from "./auth-token";
 export { queryKeys } from "./query-keys";
-export { queryClient, persistOptions } from "./query-client";
+export { queryClient, persistOptions, clearPersistedQueryCache } from "./query-client";
 export {
   invalidateFoodLogViews,
   invalidateWaterViews,
