@@ -14,11 +14,10 @@ jest.mock("@/api", () => ({
   queryClient: { setQueryData: (...args: unknown[]) => mockSetQueryData(...args) },
   queryKeys: { me: () => ["me"] },
   handleUnauthenticated: (...args: unknown[]) => mockHandleUnauthenticated(...args),
+  // Mirrors the real guard: any ApiError, not only auth errors. The hook now
+  // distinguishes 401 from 404, so conflating the two here would hide that.
   isApiError: (error: unknown) =>
-    typeof error === "object" &&
-    error !== null &&
-    "isAuthError" in error &&
-    (error as { isAuthError: boolean }).isAuthError,
+    typeof error === "object" && error !== null && ("code" in error || "isAuthError" in error),
 }));
 
 jest.mock("@/features/profile", () => ({
@@ -27,7 +26,11 @@ jest.mock("@/features/profile", () => ({
 
 jest.mock("@/lib", () => ({
   analytics: { identify: jest.fn(), reset: jest.fn() },
-  monitoring: { setUser: jest.fn() },
+  monitoring: { setUser: jest.fn(), captureException: jest.fn() },
+  subscription: {
+    configure: jest.fn(async () => undefined),
+    logOut: jest.fn(async () => undefined),
+  },
 }));
 
 jest.mock("@/stores", () => {
@@ -129,6 +132,21 @@ describe("useSessionInit", () => {
       expect(useSessionStore.getState().status).toBe("unauthenticated");
     });
     expect(mockHandleUnauthenticated).toHaveBeenCalled();
+  });
+
+  it("signs out instead of offering a retry when the account no longer exists", async () => {
+    // After deletion Clerk can still report a signed-in session while the
+    // backend row is gone. A 404 is terminal — "Try again" can never succeed.
+    mockUseAuth.mockReturnValue({ isLoaded: true, isSignedIn: true });
+    mockGetMe.mockRejectedValue({ isAuthError: false, code: "NOT_FOUND", status: 404 });
+
+    renderHook(() => useSessionInit());
+
+    await waitFor(() => {
+      expect(useSessionStore.getState().status).toBe("unauthenticated");
+    });
+    expect(mockHandleUnauthenticated).toHaveBeenCalled();
+    expect(useSessionStore.getState().status).not.toBe("restore_error");
   });
 
   it("moves to restore_error on a non-auth network failure", async () => {

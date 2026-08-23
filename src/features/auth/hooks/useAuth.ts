@@ -8,6 +8,9 @@ import { ApiError } from "@/api/errors";
 import { env } from "@/config/env";
 import { useBiometricUnlockActions, useSessionActions } from "@/stores";
 import { logAuthError } from "../auth-debug";
+import { analytics, clearUserScopedStorage, monitoring } from "@/lib";
+import { useFavoritesActions, useOnboardingDraftActions, usePreferencesActions } from "@/stores";
+import { clearPersistedQueryCache } from "@/api";
 
 // Required by @clerk/expo to properly close the auth session on Android (Apple
 // browser SSO below still relies on this).
@@ -123,6 +126,9 @@ export function useLogout() {
   const { clearSession } = useSessionActions();
   const { setBiometricUnlocked } = useBiometricUnlockActions();
   const queryClient = useQueryClient();
+  const { reset: resetFavorites } = useFavoritesActions();
+  const { reset: resetDraft } = useOnboardingDraftActions();
+  const { reset: resetPreferences } = usePreferencesActions();
 
   return useMutation({
     mutationFn: async () => {
@@ -132,6 +138,17 @@ export function useLogout() {
       clearSession();
       setBiometricUnlocked(false);
       queryClient.clear();
+      resetFavorites();
+      resetDraft();
+      resetPreferences();
+      analytics.reset();
+      monitoring.setUser(null);
+      void clearUserScopedStorage().catch((error: unknown) =>
+        monitoring.captureException(error, { seam: "logout-storage-purge" })
+      );
+      void clearPersistedQueryCache().catch((error: unknown) =>
+        monitoring.captureException(error, { seam: "logout-query-purge" })
+      );
     },
   });
 }

@@ -12,6 +12,7 @@ import {
   Ruler,
   ShieldCheck,
   Ticket,
+  Trash,
   X,
 } from "phosphor-react-native";
 import {
@@ -28,6 +29,7 @@ import {
 import { queryClient, queryKeys } from "@/api";
 import { LEGAL_LINKS } from "@/config/links";
 import { useLogout } from "@/features/auth/hooks/useAuth";
+import { analytics } from "@/lib";
 import { useMe } from "@/features/profile";
 import { useSubscription } from "@/features/subscription";
 import { authenticateBiometric, isBiometricAvailable } from "@/lib/biometric";
@@ -187,6 +189,8 @@ export function SettingsScreen() {
     const field = editingTime;
     setEditingTime(null); // Android dialog is one-shot; iOS spinner closes too.
     if (event.type !== "set" || !date || !field) return;
+    // Dismissing the picker is not a reminder change; only a confirmed time is.
+    analytics.track("thrivo.reminder_set", { reminder: field });
     updateSettings.mutate({ [field]: dateToTime(date) });
   };
 
@@ -524,6 +528,16 @@ export function SettingsScreen() {
           title="Cancellation policy"
           action={<CaretRight size={18} color={colors.gray[500]} />}
           onPress={() => Linking.openURL(LEGAL_LINKS.cancellation)}
+        />
+      </Section>
+
+      <Section title="Account">
+        <Row
+          icon={<Trash size={23} color={colors.error} />}
+          title="Delete account"
+          subtitle="Permanently remove your account and all of your data"
+          action={<CaretRight size={18} color={colors.gray[500]} />}
+          onPress={() => router.push("/(app)/settings/delete-account")}
         />
       </Section>
 

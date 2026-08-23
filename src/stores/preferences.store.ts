@@ -8,6 +8,7 @@ interface PreferencesState {
   actions: {
     setBiometricAuthEnabled: (enabled: boolean) => void;
     setHasHydrated: (hasHydrated: boolean) => void;
+    reset: () => void;
   };
 }
 
@@ -19,6 +20,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       actions: {
         setBiometricAuthEnabled: (biometricAuthEnabled) => set({ biometricAuthEnabled }),
         setHasHydrated: (hasHydrated) => set({ hasHydrated }),
+        reset: () => set({ biometricAuthEnabled: false }),
       },
     }),
     {

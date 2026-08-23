@@ -33,3 +33,12 @@ export {
   useFavoritesHydrated,
   useFavoritesActions,
 } from "./favorites.store";
+
+import { useFavoritesStore } from "./favorites.store";
+import { useOnboardingDraftStore } from "./onboarding-draft.store";
+import { usePreferencesStore } from "./preferences.store";
+export function resetUserStores(): void {
+  useFavoritesStore.getState().actions.reset();
+  useOnboardingDraftStore.getState().actions.reset();
+  usePreferencesStore.getState().actions.reset();
+}

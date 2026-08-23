@@ -36,14 +36,10 @@ export const subscriptionSchema = pkg.subscriptionStateSchema;
 export const subscriptionStatusSchema = pkg.publicSubscriptionStatusSchema;
 export const updateLogPayload = pkg.updateLogPayloadSchema;
 export const updateProfilePayload = pkg.updateProfilePayloadSchema;
-// Compatibility seam until the locally updated contracts package is published.
-// The backend returns/writes both fields for one release.
-export const updateUserSettingsPayload = pkg.updateUserSettingsPayloadSchema.extend({
-  weeklyReviewEmailEnabled: z.boolean().optional(),
-});
-export const userSettingsCompatSchema = pkg.userSettingsSchema.extend({
-  weeklyReviewEmailEnabled: z.boolean(),
-});
+// The published 0.23.0 package now includes the weekly-review compatibility
+// field and its cross-field validation, so no local schema extension is needed.
+export const updateUserSettingsPayload = pkg.updateUserSettingsPayloadSchema;
+export const userSettingsCompatSchema = pkg.userSettingsSchema;
 export const updateWaterPayload = pkg.updateWaterPayloadSchema;
 export const upsertFoodPayload = pkg.upsertFoodPayloadSchema;
 export const userSchema = pkg.userProfileSchema;
@@ -97,9 +93,13 @@ export const logMutationResponse = pkg.logMutationResponseSchema.shape.data.exte
   entry: foodLogEntryWithFavoriteSchema,
 });
 export const meResponse = pkg.getMeResponseSchema.shape.data;
+/** `DELETE /users/me` returns no payload — the account is gone. */
+export const deleteMeResponse = pkg.deleteMeResponseSchema;
 export const progressResponse = pkg.progressResponseSchema.shape.data;
 export const recentFoodsResponse = z.object({ items: z.array(foodLogEntryWithFavoriteSchema) });
-export const subscriptionResponse = pkg.subscriptionResponseSchema.shape.data;
+export const subscriptionResponse = pkg.subscriptionResponseSchema.shape.data.extend({
+  subscription: subscriptionSchema,
+});
 export const waterResponse = pkg.waterResponseSchema.shape.data;
 export const waterHistoryResponse = z.object({
   history: z.object({
@@ -139,7 +139,7 @@ export type ChartPoint = z.infer<typeof pkg.chartPointSchema>;
 export type Goal = z.infer<typeof pkg.goalSchema>;
 export type ProgressSummary = z.infer<typeof pkg.progressSummarySchema>;
 export type Sex = z.infer<typeof pkg.sexSchema>;
-export type Subscription = pkg.SubscriptionState;
+export type Subscription = z.infer<typeof subscriptionSchema>;
 export type SubscriptionStatus = pkg.PublicSubscriptionStatus;
 export type UpdateWaterPayload = z.infer<typeof pkg.updateWaterPayloadSchema>;
 export type User = pkg.UserProfile;
@@ -168,7 +168,7 @@ export type MeResponse = z.infer<typeof pkg.getMeResponseSchema.shape.data>;
 export type ProgressResponse = z.infer<typeof pkg.progressResponseSchema.shape.data>;
 export type RecentFoodsResponse = z.infer<typeof recentFoodsResponse>;
 // Shadow the package's envelope-typed `SubscriptionResponse` with the unwrapped shape.
-export type SubscriptionResponse = z.infer<typeof pkg.subscriptionResponseSchema.shape.data>;
+export type SubscriptionResponse = z.infer<typeof subscriptionResponse>;
 export type WaterResponse = z.infer<typeof pkg.waterResponseSchema.shape.data>;
 export type WaterHistoryResponse = z.infer<typeof waterHistoryResponse>;
 export type WeightContextResponse = z.infer<typeof pkg.weightContextResponseSchema.shape.data>;

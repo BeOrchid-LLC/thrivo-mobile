@@ -1,5 +1,6 @@
 import { useMutation, type QueryClient } from "@tanstack/react-query";
 import type { AddWeightPayload, LogEstimatePayload, LogFoodPayload, Water } from "@/contracts";
+import { analytics } from "@/lib/analytics";
 import { newIdempotencyKey } from "@/lib/idempotency";
 import { addWater, logEstimate, logFood } from "@/features/food-logging/api/food-logging.api";
 import { addWeight } from "@/features/progress/api/progress.api";
@@ -75,13 +76,21 @@ async function optimisticAddWater(qc: QueryClient, vars: AddWaterVars): Promise<
 export function registerOfflineMutations(qc: QueryClient): void {
   qc.setMutationDefaults(offlineMutationKeys.logFood, {
     mutationFn: (vars: LogFoodVars) => logFood(vars.payload, vars.idempotencyKey),
-    onSuccess: (_data, vars: LogFoodVars) => invalidateFoodLogViews(qc, vars.payload.day),
+    onSuccess: (_data, vars: LogFoodVars) => {
+      // Registered here rather than at the call sites so a write replayed after
+      // reconnect is counted exactly once, like any other log.
+      analytics.track("thrivo.food_logged", { source: "catalog" });
+      invalidateFoodLogViews(qc, vars.payload.day);
+    },
     retry: OFFLINE_RETRY,
   });
 
   qc.setMutationDefaults(offlineMutationKeys.logEstimate, {
     mutationFn: (vars: LogEstimateVars) => logEstimate(vars.payload, vars.idempotencyKey),
-    onSuccess: (_data, vars: LogEstimateVars) => invalidateFoodLogViews(qc, vars.payload.day),
+    onSuccess: (_data, vars: LogEstimateVars) => {
+      analytics.track("thrivo.food_logged", { source: "estimate" });
+      invalidateFoodLogViews(qc, vars.payload.day);
+    },
     retry: OFFLINE_RETRY,
   });
 

@@ -2,6 +2,7 @@ import { setTokenGetter, setUnauthenticatedHandler } from "@/api";
 import { useSessionStore } from "@/stores";
 import { analytics } from "./analytics";
 import { monitoring } from "./monitoring";
+import { subscription } from "./subscription";
 
 let wired = false;
 let clerkSignOutFn: (() => Promise<void>) | null = null;
@@ -25,6 +26,11 @@ export function wireApiSeams(): void {
     useSessionStore.getState().actions.clearSession();
     analytics.reset();
     monitoring.setUser(null);
+    // Drop the store identity too, or the next user on this device inherits the
+    // previous one's entitlement.
+    void subscription.logOut().catch((error: unknown) => {
+      monitoring.captureException(error, { seam: "billing-logout" });
+    });
   });
 }
 

@@ -34,10 +34,25 @@ export const queryClient = new QueryClient({
   },
 });
 
+/** AsyncStorage key holding the dehydrated query cache. */
+export const QUERY_CACHE_KEY = "thrivo-query-cache";
+
 const persister = createAsyncStoragePersister({
   storage: AsyncStorage,
-  key: "thrivo-query-cache",
+  key: QUERY_CACHE_KEY,
 });
+
+/**
+ * Removes the on-disk query cache.
+ *
+ * `queryClient.clear()` only empties memory; the dehydrated copy is written
+ * asynchronously and survives an app kill, so after an account deletion the
+ * previous user's dashboard can still be read off disk and rendered before the
+ * first refetch.
+ */
+export async function clearPersistedQueryCache(): Promise<void> {
+  await AsyncStorage.removeItem(QUERY_CACHE_KEY);
+}
 
 /**
  * Persistence options for `PersistQueryClientProvider` (wired in the root layout,
@@ -49,7 +64,16 @@ export const persistOptions: Omit<PersistQueryClientOptions, "queryClient"> = {
   maxAge: 24 * 60 * MINUTE,
   dehydrateOptions: {
     // Only persist successful queries.
-    shouldDehydrateQuery: (query) => query.state.status === "success",
+    shouldDehydrateQuery: (query) => {
+      if (query.state.status !== "success") return false;
+      // Never persist store offerings. They depend on which RevenueCat API key
+      // the build was configured with, and a list cached from a run without a
+      // key (or with a different one) rehydrates as a legitimate "no products
+      // for sale" and silently disables the paywall on every later launch.
+      const [scope, resource] = query.queryKey as [string?, string?];
+      if (scope === "subscription" && resource === "offerings") return false;
+      return true;
+    },
     // Persist queued (paused) offline writes so they survive an app kill and
     // replay on next launch once connectivity returns.
     shouldDehydrateMutation: (mutation) => mutation.state.isPaused,

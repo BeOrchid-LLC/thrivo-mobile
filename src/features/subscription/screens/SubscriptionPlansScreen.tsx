@@ -1,14 +1,18 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Modal, Pressable, View } from "react-native";
 import { router } from "expo-router";
 import { Check, SealCheck, X } from "phosphor-react-native";
-import { Button, PageHeader, Screen, Segmented, Text } from "@/components";
+import { Button, PageHeader, Screen, Segmented, Text, useToast } from "@/components";
 import type { SubscriptionPlan } from "@/contracts";
+import { analytics, isBillingConfigured } from "@/lib";
 import { colors } from "@/theme";
 import {
+  productForPlan,
   useCancelSubscription,
+  useOfferings,
+  useOfferingsDiagnostics,
   usePurchaseSubscription,
-  useStartTrial,
+  useRestorePurchases,
   useSubscription,
 } from "../index";
 
@@ -19,10 +23,6 @@ const FEATURES = [
   "Premium insights as they become available",
 ];
 
-function addDays(date: Date, days: number) {
-  return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
-}
-
 function formatLongDate(value: Date | string | null | undefined) {
   if (!value) return "";
   return new Intl.DateTimeFormat("en-US", {
@@ -32,20 +32,12 @@ function formatLongDate(value: Date | string | null | undefined) {
   }).format(new Date(value));
 }
 
-function formatShortDate(value: Date | string | null | undefined) {
-  if (!value) return "";
-  return new Intl.DateTimeFormat("en-US", {
-    day: "numeric",
-    month: "short",
-  }).format(new Date(value));
-}
-
-function planPrice(plan: SubscriptionPlan) {
-  return plan === "annual"
-    ? { price: "$150", period: "year", save: "Save $29", after: "$150/year" }
-    : { price: "$14.99", period: "month", save: "14-day premium preview", after: "$14.99/month" };
-}
-
+/**
+ * Fallback copy for when the store has not returned offerings (development
+ * without billing keys, or a transient failure). Live store prices always win —
+ * Apple and Google localise them per storefront, and a paywall that disagrees
+ * with the purchase sheet is a review rejection.
+ */
 function ModalShell({
   tone,
   title,
@@ -89,20 +81,31 @@ export function SubscriptionPlansScreen() {
   const [confirmCancelOpen, setConfirmCancelOpen] = useState(false);
   const [cancelledOpen, setCancelledOpen] = useState(false);
   const subscription = useSubscription();
-  const startTrial = useStartTrial();
+  const offerings = useOfferings();
+  useOfferingsDiagnostics(offerings);
   const purchase = usePurchaseSubscription();
+  const restore = useRestorePurchases();
   const cancel = useCancelSubscription();
+  const { showToast } = useToast();
 
   const sub = subscription.data?.subscription;
-  const selected = planPrice(plan);
-  const trialDays = sub?.trialDays ?? 14;
-  const trialEnd = useMemo(() => addDays(new Date(), trialDays), [trialDays]);
-  const firstChargeDate = formatShortDate(trialEnd);
-  const firstChargeLabel = `Paid plan after ${firstChargeDate}`;
+  const storeProduct = productForPlan(offerings.data, plan);
+  const selected = storeProduct;
+  const billingLive = isBillingConfigured();
+  // With billing live we can only sell what the store actually returned.
+  const canTransact = billingLive && Boolean(storeProduct);
   const hasPremiumAccess = sub?.entitlement === "premium";
-  const canStartTrial = !hasPremiumAccess && !sub?.trialUsed;
-  const canSubscribe = !hasPremiumAccess && Boolean(sub?.trialUsed);
+  // With billing live the store is authoritative on trial eligibility — it, not
+  // our `trialUsed` flag, decides whether the intro offer applies. A user who
+  // already consumed the offer is simply charged full price.
+  const trialAvailable = storeProduct?.hasFreeTrial === true;
+  const canStartTrial = !hasPremiumAccess && trialAvailable;
+  const canSubscribe = !hasPremiumAccess && !trialAvailable;
   const accessEndsAt = sub?.accessEndsAt ? formatLongDate(sub.accessEndsAt) : "";
+
+  useEffect(() => {
+    analytics.track("thrivo.paywall_viewed");
+  }, []);
 
   useEffect(() => {
     if (!cancelledOpen) return undefined;
@@ -114,18 +117,44 @@ export function SubscriptionPlansScreen() {
   }, [cancelledOpen]);
 
   const primaryAction = () => {
-    if (canStartTrial) {
-      startTrial.mutate({ plan });
-    } else if (canSubscribe) {
-      purchase.mutate({ plan });
+    // Without a store product there is nothing to charge against; the button is
+    // disabled in that state, so this is a guard rather than a branch users hit.
+    const packageId = storeProduct?.id;
+    if (!packageId) return;
+
+    // A purchase that fails after the sheet opens (store outage, payment
+    // declined) must say so — silence here reads as "the button is broken".
+    // A dismissed sheet is not an error and resolves successfully.
+    const onError = () =>
+      showToast({
+        message: "That didn't go through. You have not been charged.",
+        variant: "error",
+      });
+
+    // A completed purchase must be confirmed in the app. The store's own sheet
+    // dismisses itself, and entitlement can take a moment to come back from the
+    // backend, so without this the screen looks unchanged and the user cannot
+    // tell whether they just paid.
+    const onSuccess = (result: { completed: boolean; confirmed?: boolean }) => {
+      if (!result.completed) return; // dismissed sheet — nothing to announce
+      showToast({
+        message: result.confirmed
+          ? canStartTrial
+            ? "Your free offer is active."
+            : "Premium unlocked."
+          : "Purchase received. Activation is delayed; try again shortly.",
+        variant: "success",
+      });
+    };
+
+    if (canStartTrial || canSubscribe) {
+      purchase.mutate({ plan, packageId, isTrial: canStartTrial }, { onError, onSuccess });
     }
   };
 
   const primaryLabel = canStartTrial
-    ? "Start premium preview"
-    : plan === "annual"
-      ? "Activate annual preview"
-      : "Activate monthly preview";
+    ? `Free for ${selected?.trialLabel ?? "a limited time"}`
+    : `Subscribe ${selected?.priceLabel ?? ""}/${selected?.periodLabel ?? "period"}`;
 
   return (
     <Screen scroll backgroundColor={colors.light} style={{ gap: 18, paddingBottom: 120 }}>
@@ -152,14 +181,14 @@ export function SubscriptionPlansScreen() {
         <View className="flex-row items-start justify-between">
           <View>
             <Text variant="heading1" color={plan === "annual" ? "inverse" : "dark"}>
-              {selected.price}
+              {selected?.priceLabel ?? "—"}
               <Text variant="body-lg" color={plan === "annual" ? "inverse" : "gray500"}>
                 {" "}
-                / {selected.period}
+                / {selected?.periodLabel ?? "period"}
               </Text>
             </Text>
             <Text color={plan === "annual" ? "inverse" : "warning"} className="font-semibold">
-              {selected.save}
+              {selected?.hasFreeTrial ? selected.trialLabel : null}
             </Text>
           </View>
           {plan === "annual" ? (
@@ -171,28 +200,31 @@ export function SubscriptionPlansScreen() {
 
         <View className="mt-xl gap-md">
           <PriceRow
-            label="Preview ends"
-            value={formatShortDate(trialEnd)}
+            label="Store price"
+            value={selected?.priceLabel ?? "Unavailable"}
             inverted={plan === "annual"}
           />
-          <PriceRow label="Plan price" value={selected.after} inverted={plan === "annual"} />
-          <PriceRow
-            label={firstChargeLabel}
-            value="Pay nothing"
-            highlight
-            inverted={plan === "annual"}
-          />
+          {selected?.hasFreeTrial ? (
+            <PriceRow
+              label="Introductory offer"
+              value={selected.trialLabel ?? "Free"}
+              highlight
+              inverted={plan === "annual"}
+            />
+          ) : null}
         </View>
       </View>
 
-      <View className="rounded-lg border border-yellow-200 bg-yellow-50 px-lg py-md">
-        <Text color="warningText" className="font-semibold">
-          MVP preview
-        </Text>
-        <Text color="warningText" className="mt-xs">
-          No payment is collected in the app until store billing is enabled.
-        </Text>
-      </View>
+      {billingLive ? null : (
+        <View className="rounded-lg border border-yellow-200 bg-yellow-50 px-lg py-md">
+          <Text color="warningText" className="font-semibold">
+            Store billing not configured
+          </Text>
+          <Text color="warningText" className="mt-xs">
+            Store plans are unavailable. Try again when billing is configured.
+          </Text>
+        </View>
+      )}
 
       <View className="gap-lg">
         {FEATURES.map((feature) => (
@@ -202,6 +234,30 @@ export function SubscriptionPlansScreen() {
           </View>
         ))}
       </View>
+
+      {billingLive ? (
+        <Pressable
+          accessibilityRole="button"
+          className="min-h-[48px] items-center justify-center"
+          disabled={restore.isPending}
+          onPress={() =>
+            restore.mutate(undefined, {
+              onSuccess: (result) =>
+                showToast(
+                  result.entitlement === "premium"
+                    ? { message: "Premium restored.", variant: "success" }
+                    : { message: "No previous purchases found on this account.", variant: "error" }
+                ),
+              onError: () =>
+                showToast({ message: "We couldn't restore purchases.", variant: "error" }),
+            })
+          }
+        >
+          <Text color="primary" className="font-semibold">
+            {restore.isPending ? "Restoring…" : "Restore purchases"}
+          </Text>
+        </Pressable>
+      ) : null}
 
       {hasPremiumAccess ? (
         <Pressable
@@ -217,19 +273,50 @@ export function SubscriptionPlansScreen() {
         <View className="gap-md">
           <Text color="muted" className="text-center">
             {canStartTrial
-              ? `Preview access runs through ${formatLongDate(trialEnd)}.`
-              : `Activate premium access with the ${plan} plan preview.`}
+              ? `The store will show the free period before checkout.`
+              : `Subscribe through your app store account.`}
           </Text>
-          <Button
-            label={primaryLabel}
-            loading={startTrial.isPending || purchase.isPending}
-            onPress={primaryAction}
-          />
-          <Text color="muted" className="text-center">
-            {canStartTrial
-              ? "You can manage access in Settings."
-              : "No in-app payment will be collected in this MVP build."}
-          </Text>
+          {offerings.isLoading ? (
+            // Still fetching: neither a purchase button nor a failure message is
+            // honest yet.
+            <Button label="Loading plans…" disabled onPress={() => undefined} />
+          ) : canTransact ? (
+            <>
+              <Button
+                // Only a purchase in flight should spin. Tying this to the
+                // offerings query left the button spinning *and* disabled
+                // whenever the store was slow — a dead control, no explanation.
+                label={offerings.isLoading ? "Loading plans…" : primaryLabel}
+                loading={purchase.isPending}
+                disabled={offerings.isLoading}
+                onPress={primaryAction}
+              />
+              <Text color="muted" className="text-center">
+                {canStartTrial
+                  ? "The introductory offer is supplied by your app store."
+                  : "You'll be charged through your app store account."}
+              </Text>
+            </>
+          ) : (
+            // No purchasable product: render the reason and a retry instead of a
+            // button that looks tappable but silently does nothing.
+            <View className="gap-sm">
+              <Text color="error" className="text-center">
+                We couldn&apos;t load plans from the App Store.
+              </Text>
+              {__DEV__ && offerings.error instanceof Error ? (
+                <Text variant="caption" color="muted" className="text-center">
+                  {offerings.error.message}
+                </Text>
+              ) : null}
+              <Button
+                label="Try again"
+                variant="secondary"
+                loading={offerings.isFetching}
+                onPress={() => void offerings.refetch()}
+              />
+            </View>
+          )}
         </View>
       )}
 
@@ -237,11 +324,15 @@ export function SubscriptionPlansScreen() {
         <ModalShell
           tone="danger"
           title="Cancel your subscription?"
-          body={`You'll keep premium access until ${accessEndsAt || "the end of your billing period"}. No partial refunds.`}
+          body={
+            billingLive
+              ? `We'll take you to your app store subscription settings to cancel. You'll keep premium access until ${accessEndsAt || "the end of your billing period"}.`
+              : `You'll keep premium access until ${accessEndsAt || "the end of your billing period"}. No partial refunds.`
+          }
         >
           <Button label="Keep premium" onPress={() => setConfirmCancelOpen(false)} />
           <Button
-            label="Cancel my subscription"
+            label={billingLive ? "Manage in app store" : "Cancel my subscription"}
             variant="secondary"
             loading={cancel.isPending}
             className="bg-red-100"
@@ -249,9 +340,11 @@ export function SubscriptionPlansScreen() {
               cancel.mutate(
                 {},
                 {
-                  onSuccess: () => {
+                  onSuccess: (result) => {
                     setConfirmCancelOpen(false);
-                    setCancelledOpen(true);
+                    // Only claim it is cancelled when we actually recorded it.
+                    // Store cancellations complete outside the app.
+                    if (!result.openedStore) setCancelledOpen(true);
                   },
                 }
               )

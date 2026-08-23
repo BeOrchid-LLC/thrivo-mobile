@@ -23,6 +23,7 @@ jest.mock("@/hooks/useEntitlement", () => ({
 
 jest.mock("@/lib", () => ({
   isNetworkReachable: jest.fn(async () => true),
+  analytics: { track: jest.fn() },
 }));
 
 jest.mock("@react-native-community/datetimepicker", () => {

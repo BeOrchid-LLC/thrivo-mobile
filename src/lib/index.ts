@@ -1,5 +1,5 @@
 export { clerkTokenCache } from "./clerk-token-cache";
-export { getItem, setItem, removeItem, storageKeys } from "./storage";
+export { getItem, setItem, removeItem, storageKeys, clearUserScopedStorage } from "./storage";
 export {
   isNetworkReachable,
   queueBarcodeScan,
@@ -9,9 +9,11 @@ export {
 } from "./barcode-queue";
 export { registerForPushNotifications, addNotificationResponseListener } from "./notifications";
 export { monitoring, withMonitoring, type Monitoring } from "./monitoring";
-export { analytics, type Analytics, type AnalyticsEvent } from "./analytics";
+export { analytics, queueSignup, type Analytics, type AnalyticsEvent } from "./analytics";
 export {
   subscription,
+  isBillingConfigured,
+  PREMIUM_ENTITLEMENT_ID,
   type SubscriptionAdapter,
   type SubscriptionProduct,
   type PurchaseResult,

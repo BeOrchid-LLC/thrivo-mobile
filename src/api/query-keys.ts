@@ -52,5 +52,6 @@ export const queryKeys = {
 
   subscription: {
     me: () => ["subscription", "me"] as const,
+    offerings: () => ["subscription", "offerings"] as const,
   },
 } as const;

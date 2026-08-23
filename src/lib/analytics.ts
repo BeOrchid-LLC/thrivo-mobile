@@ -7,17 +7,25 @@ import { env } from "@/config/env";
  * `Analytics` interface is the seam feature code calls; the implementation is the
  * real PostHog client when `EXPO_PUBLIC_POSTHOG_KEY` is set, and a no-op (dev
  * console) otherwise. A production build without a key never reaches here — `env`
- * throws at bootstrap (fail fast). Event names stay constrained to the funnel the
- * architecture doc tracks (§11).
+ * throws at bootstrap (fail fast).
+ *
+ * Event names follow the platform-wide `thrivo.<object>_<action>` convention and
+ * are fixed by the Remaining Scope PRD — see docs/naming-conventions-plan.md.
+ * This union is the enforcement point: keep it closed so a new event cannot be
+ * introduced under a different format.
  */
 export type AnalyticsEvent =
-  | "signup"
-  | "paywall_view"
-  | "trial_start"
-  | "subscription_start"
-  | "cancellation"
-  | "food_logged"
-  | "checkin_submitted";
+  | "thrivo.signup"
+  | "thrivo.onboarding_completed"
+  | "thrivo.food_logged"
+  | "thrivo.barcode_scanned"
+  | "thrivo.paywall_viewed"
+  | "thrivo.upgrade_prompt_shown"
+  | "thrivo.trial_started"
+  | "thrivo.subscription_started"
+  | "thrivo.subscription_management_opened"
+  | "thrivo.reminder_set"
+  | "thrivo.checkin_submitted";
 
 export interface Analytics {
   init: () => void;
@@ -27,6 +35,7 @@ export interface Analytics {
 }
 
 let client: PostHog | null = null;
+let signupPending = false;
 
 function getClient(): PostHog | null {
   if (!env.posthogKey) return null;
@@ -47,9 +56,14 @@ const posthogAnalytics: Analytics = {
     const instance = getClient();
     if (instance) {
       instance.identify(userId);
+      if (signupPending) {
+        instance.capture("thrivo.signup", { method: "email_code" });
+        signupPending = false;
+      }
       return;
     }
     if (__DEV__) console.info("[analytics] identify", userId);
+    signupPending = false;
   },
   track: (event, properties) => {
     const instance = getClient();
@@ -62,6 +76,7 @@ const posthogAnalytics: Analytics = {
     if (__DEV__) console.info("[analytics] track", event, properties ?? {});
   },
   reset: () => {
+    signupPending = false;
     const instance = getClient();
     if (instance) {
       instance.reset();
@@ -70,5 +85,9 @@ const posthogAnalytics: Analytics = {
     if (__DEV__) console.info("[analytics] reset");
   },
 };
+
+export function queueSignup(): void {
+  signupPending = true;
+}
 
 export const analytics: Analytics = posthogAnalytics;

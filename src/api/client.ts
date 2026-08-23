@@ -61,7 +61,9 @@ export async function callApi<K extends EndpointKey>(
   endpoint: K,
   options: CallOptions<K> = {} as CallOptions<K>
 ): Promise<EndpointResponse<K>> {
-  const config = ENDPOINTS[endpoint];
+  const config = ENDPOINTS[endpoint] as (typeof ENDPOINTS)[EndpointKey] & {
+    freshAuth?: boolean;
+  };
   const path = buildPath(config.path, options.params, options.query);
   const url = `${env.apiUrl}${env.apiPrefix}${path}`;
 
@@ -77,7 +79,9 @@ export async function callApi<K extends EndpointKey>(
 
   let response: Response;
   try {
-    response = await send(config.auth ? await getAuthToken() : null);
+    response = await send(
+      config.auth ? (config.freshAuth ? await refreshAuthToken() : await getAuthToken()) : null
+    );
     // On a 401 for an authed call, rotate the refresh token once and retry —
     // so a routinely-expired 15-minute access token never logs the user out.
     if (response.status === 401 && config.auth) {

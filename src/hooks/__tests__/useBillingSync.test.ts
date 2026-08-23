@@ -1,0 +1,111 @@
+import { renderHook, waitFor } from "@testing-library/react-native";
+import { useBillingSync } from "../useBillingSync";
+
+/**
+ * Entitlement changes the app never initiated — renewals, lapses, refunds,
+ * purchases on another device — must reach the UI without waiting for a poll.
+ */
+
+const mockInvalidateQueries = jest.fn();
+const mockSetQueryData = jest.fn();
+const mockCallApi = jest.fn();
+const mockOnEntitlementChange = jest.fn();
+const mockIsBillingConfigured = jest.fn();
+const mockIsAuthenticated = jest.fn();
+const mockUnsubscribe = jest.fn();
+
+jest.mock("@/api", () => ({
+  callApi: (...args: unknown[]) => mockCallApi(...args),
+  queryClient: {
+    invalidateQueries: (...args: unknown[]) => mockInvalidateQueries(...args),
+    setQueryData: (...args: unknown[]) => mockSetQueryData(...args),
+  },
+  queryKeys: {
+    me: () => ["me"],
+    subscription: { me: () => ["subscription", "me"] },
+  },
+}));
+
+jest.mock("@/lib", () => ({
+  isBillingConfigured: () => mockIsBillingConfigured(),
+  monitoring: { captureException: jest.fn() },
+  subscription: { onEntitlementChange: (...args: unknown[]) => mockOnEntitlementChange(...args) },
+}));
+
+jest.mock("@/stores", () => ({
+  useIsAuthenticated: () => mockIsAuthenticated(),
+}));
+
+describe("useBillingSync", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockIsAuthenticated.mockReturnValue(true);
+    mockIsBillingConfigured.mockReturnValue(true);
+    mockOnEntitlementChange.mockReturnValue(mockUnsubscribe);
+    mockCallApi.mockResolvedValue({ subscription: { entitlement: "premium" } });
+  });
+
+  it("re-reads entitlement from the server when the store reports a change", async () => {
+    renderHook(() => useBillingSync());
+
+    expect(mockOnEntitlementChange).toHaveBeenCalledTimes(1);
+
+    // Simulate the store pushing a renewal / lapse / cross-device purchase.
+    mockOnEntitlementChange.mock.calls[0][0]("premium");
+
+    expect(mockCallApi).toHaveBeenCalledWith("SYNC_SUBSCRIPTION");
+    await waitFor(() =>
+      expect(mockSetQueryData).toHaveBeenCalledWith(["subscription", "me"], {
+        subscription: { entitlement: "premium" },
+      })
+    );
+    expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ["me"] });
+  });
+
+  it("does not trust the pushed value directly — the backend stays authoritative", async () => {
+    renderHook(() => useBillingSync());
+    mockCallApi.mockResolvedValueOnce({ subscription: { entitlement: "free" } });
+    mockOnEntitlementChange.mock.calls[0][0]("premium");
+
+    // The pushed value is only a trigger; the cached value comes from the backend.
+    expect(mockCallApi).toHaveBeenCalledWith("SYNC_SUBSCRIPTION");
+    await waitFor(() =>
+      expect(mockSetQueryData).toHaveBeenCalledWith(["subscription", "me"], {
+        subscription: { entitlement: "free" },
+      })
+    );
+    expect(mockInvalidateQueries).toHaveBeenCalled();
+  });
+
+  it("does not subscribe while signed out", () => {
+    mockIsAuthenticated.mockReturnValue(false);
+
+    renderHook(() => useBillingSync());
+
+    expect(mockOnEntitlementChange).not.toHaveBeenCalled();
+  });
+
+  it("does not subscribe when billing is not configured", () => {
+    mockIsBillingConfigured.mockReturnValue(false);
+
+    renderHook(() => useBillingSync());
+
+    expect(mockOnEntitlementChange).not.toHaveBeenCalled();
+  });
+
+  it("unsubscribes on unmount so a signed-out session keeps no listener", () => {
+    const { unmount } = renderHook(() => useBillingSync());
+
+    unmount();
+
+    expect(mockUnsubscribe).toHaveBeenCalledTimes(1);
+  });
+
+  it("stays up when the listener cannot be attached", () => {
+    mockOnEntitlementChange.mockImplementation(() => {
+      throw new Error("native module unavailable");
+    });
+
+    expect(() => renderHook(() => useBillingSync())).not.toThrow();
+  });
+});

@@ -21,6 +21,8 @@ export interface EndpointConfig {
   method: HttpMethod;
   /** Attach the `Authorization: Bearer` header. `false` = public route. */
   auth: boolean;
+  /** Force Clerk to mint a token carrying the latest reverification claim. */
+  freshAuth?: boolean;
   /** Schema for the request body. Omit for GET/DELETE without a body. */
   payload?: z.ZodTypeAny;
   /** Schema for the success `data` payload. */
@@ -50,6 +52,13 @@ export const ENDPOINTS = {
     auth: true,
     payload: c.updateProfilePayload,
     response: c.userSchema,
+  },
+  DELETE_ME: {
+    path: "/users/me",
+    method: "DELETE",
+    auth: true,
+    freshAuth: true,
+    response: c.deleteMeResponse,
   },
   GET_SETTINGS: {
     path: "/users/me/settings",
@@ -290,6 +299,12 @@ export const ENDPOINTS = {
   GET_SUBSCRIPTION: {
     path: "/subscriptions/me",
     method: "GET",
+    auth: true,
+    response: c.subscriptionResponse,
+  },
+  SYNC_SUBSCRIPTION: {
+    path: "/subscriptions/sync",
+    method: "POST",
     auth: true,
     response: c.subscriptionResponse,
   },
