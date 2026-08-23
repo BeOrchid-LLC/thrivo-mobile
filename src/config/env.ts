@@ -18,6 +18,7 @@ const DEFAULT_POSTHOG_HOST = "https://us.i.posthog.com";
 // Fall back to NODE_ENV for any non-RN evaluation context.
 const isProductionBuild =
   typeof __DEV__ !== "undefined" ? !__DEV__ : process.env.NODE_ENV === "production";
+const defaultRevenueCatEnvironment = isProductionBuild ? "production" : "test";
 
 const envSchema = z
   .object({
@@ -38,6 +39,11 @@ const envSchema = z
     EXPO_PUBLIC_SENTRY_DSN: z.string().url().optional(),
     EXPO_PUBLIC_POSTHOG_KEY: z.string().min(1).optional(),
     EXPO_PUBLIC_POSTHOG_HOST: z.string().url().default(DEFAULT_POSTHOG_HOST),
+    // Test Store is valid for development/preview builds only. Production must
+    // explicitly use App Store / Google Play credentials.
+    EXPO_PUBLIC_REVENUECAT_ENV: z
+      .enum(["test", "production"])
+      .default(defaultRevenueCatEnvironment),
     // In-app purchases (RevenueCat). Public SDK keys — one per store, safe to
     // ship in the bundle. Absent in development, where billing runs as a no-op.
     EXPO_PUBLIC_REVENUECAT_IOS_KEY: z.string().min(1).optional(),
@@ -73,7 +79,10 @@ const envSchema = z
         path: [billingKeyPath],
         message: "Required in production builds (in-app purchases).",
       });
-    } else if (parsed[billingKeyPath]?.startsWith("test_")) {
+    } else if (
+      parsed.EXPO_PUBLIC_REVENUECAT_ENV === "production" &&
+      parsed[billingKeyPath]?.startsWith("test_")
+    ) {
       // RevenueCat Test Store keys simulate purchases and take no money. Shipping
       // one would present a fake purchase modal to real users — fail the build
       // instead of discovering it in review.
@@ -97,6 +106,8 @@ const parsed = envSchema.safeParse({
   EXPO_PUBLIC_SENTRY_DSN: process.env.EXPO_PUBLIC_SENTRY_DSN?.trim() || undefined,
   EXPO_PUBLIC_POSTHOG_KEY: process.env.EXPO_PUBLIC_POSTHOG_KEY?.trim() || undefined,
   EXPO_PUBLIC_POSTHOG_HOST: process.env.EXPO_PUBLIC_POSTHOG_HOST?.trim() || DEFAULT_POSTHOG_HOST,
+  EXPO_PUBLIC_REVENUECAT_ENV:
+    process.env.EXPO_PUBLIC_REVENUECAT_ENV?.trim().toLowerCase() || undefined,
   EXPO_PUBLIC_REVENUECAT_IOS_KEY: process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY?.trim() || undefined,
   EXPO_PUBLIC_REVENUECAT_ANDROID_KEY:
     process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY?.trim() || undefined,
@@ -117,6 +128,7 @@ export const env = {
   sentryDsn: parsed.data.EXPO_PUBLIC_SENTRY_DSN,
   posthogKey: parsed.data.EXPO_PUBLIC_POSTHOG_KEY,
   posthogHost: parsed.data.EXPO_PUBLIC_POSTHOG_HOST,
+  revenueCatEnvironment: parsed.data.EXPO_PUBLIC_REVENUECAT_ENV,
   /** RevenueCat SDK key for the running platform — undefined disables billing. */
   revenueCatKey:
     Platform.OS === "android"
