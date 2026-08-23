@@ -31,7 +31,7 @@
     "checks": "npm run typecheck && npm run lint && npm run format:check && npm run check:no-raw-hex"
   },
   "dependencies": {
-    "@beorchid-llc/thrivo-contracts": "^0.21.1",
+    "@beorchid-llc/thrivo-contracts": "0.23.0",
     "@clerk/expo": "^4.0.1",
     "@clerk/expo-google-signin": "^1.0.2",
     "@expo-google-fonts/inter": "^0.4.2",

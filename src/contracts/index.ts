@@ -32,31 +32,20 @@ export const otpVerifyPayload = pkg.otpVerifyPayloadSchema;
 export const purchaseSubscriptionPayload = pkg.purchaseSubscriptionPayloadSchema;
 export const requestUploadPayload = pkg.requestUploadPayloadSchema;
 export const startTrialPayload = pkg.startTrialPayloadSchema;
-export const subscriptionSchema = pkg.subscriptionStateSchema.extend({
-  billingAvailable: z.boolean().default(false),
-  lastSyncedAt: z.string().nullable().default(null),
-});
+export const subscriptionSchema = pkg.subscriptionStateSchema;
 export const subscriptionStatusSchema = pkg.publicSubscriptionStatusSchema;
 export const updateLogPayload = pkg.updateLogPayloadSchema;
 export const updateProfilePayload = pkg.updateProfilePayloadSchema;
-// Compatibility seam until the locally updated contracts package is published.
-// The backend returns/writes both fields for one release.
-export const updateUserSettingsPayload = pkg.updateUserSettingsPayloadSchema.extend({
-  weeklyReviewEmailEnabled: z.boolean().optional(),
-});
-export const userSettingsCompatSchema = pkg.userSettingsSchema.extend({
-  weeklyReviewEmailEnabled: z.boolean(),
-});
+// The published 0.23.0 package now includes the weekly-review compatibility
+// field and its cross-field validation, so no local schema extension is needed.
+export const updateUserSettingsPayload = pkg.updateUserSettingsPayloadSchema;
+export const userSettingsCompatSchema = pkg.userSettingsSchema;
 export const updateWaterPayload = pkg.updateWaterPayloadSchema;
 export const upsertFoodPayload = pkg.upsertFoodPayloadSchema;
 export const userSchema = pkg.userProfileSchema;
 export type UpdateProfilePayload = z.infer<typeof updateProfilePayload>;
 export type UpdateUserSettingsPayload = z.infer<typeof updateUserSettingsPayload>;
-export const errorEnvelope = pkg.apiErrorSchema.extend({
-  error: pkg.apiErrorSchema.shape.error.extend({
-    code: z.union([pkg.errorCodeSchema, z.literal("APP_UPDATE_REQUIRED")]),
-  }),
-});
+export const errorEnvelope = pkg.apiErrorSchema;
 
 // `*ResultSchema` are already the inner data shape — alias directly.
 export const requestUploadResult = pkg.requestUploadResultSchema;
