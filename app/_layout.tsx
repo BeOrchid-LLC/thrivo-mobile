@@ -63,6 +63,7 @@ void SplashScreen.preventAutoHideAsync();
 const FONT_GATE_TIMEOUT_MS = 3000;
 const PREFERENCE_GATE_TIMEOUT_MS = 1000;
 const NATIVE_SPLASH_EXIT_SETTLE_MS = 250;
+const SPLASH_HANDOFF_TIMEOUT_MS = 2000;
 
 function bootLog(message: string): void {
   if (__DEV__) console.info(`[boot] ${message}`);
@@ -305,6 +306,24 @@ function RootLayout() {
         setNativeSplashReleased(true);
       });
   }, []);
+
+  // The handoff hangs on two things outside our control: `onLayout` firing at
+  // all, and `hideAsync()` settling. Neither is guaranteed on every device, and
+  // if either stalls, `nativeSplashReleased` stays false and RootNavigator is
+  // pinned on the blank neutral frame forever — a boot that never finishes, with
+  // no error to show for it. Same watchdog shape as the font/preference gates.
+  useEffect(() => {
+    if (nativeSplashReleased) return undefined;
+
+    const timeout = setTimeout(() => {
+      bootLog("splash handoff timed out; releasing without onLayout");
+      splashHandoffStarted.current = true;
+      void SplashScreen.hideAsync().catch(() => undefined);
+      setNativeSplashReleased(true);
+    }, SPLASH_HANDOFF_TIMEOUT_MS);
+
+    return () => clearTimeout(timeout);
+  }, [nativeSplashReleased]);
 
   // `app.json` sets userInterfaceStyle: "light", so iOS reports Light regardless
   // of the system setting and the dark branch this used to have was unreachable.
