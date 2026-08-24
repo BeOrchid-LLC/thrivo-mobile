@@ -16,6 +16,7 @@ const mockSignOut = jest.fn();
 const mockClearSession = jest.fn();
 const mockSetBiometricUnlocked = jest.fn();
 const mockCaptureException = jest.fn();
+const mockResetStores = jest.fn();
 const mockClearStorage = jest.fn();
 const mockClearQueryCache = jest.fn();
 
@@ -38,6 +39,7 @@ jest.mock("@/lib", () => ({
 }));
 
 jest.mock("@/stores", () => ({
+  resetUserScopedStores: (...a: unknown[]) => mockResetStores(...a),
   useSessionActions: () => ({ clearSession: mockClearSession }),
   useBiometricUnlockActions: () => ({ setBiometricUnlocked: mockSetBiometricUnlocked }),
 }));

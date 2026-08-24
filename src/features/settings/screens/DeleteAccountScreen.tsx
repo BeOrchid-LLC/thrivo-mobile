@@ -4,7 +4,7 @@ import { TextInput, View } from "react-native";
 import { Warning } from "phosphor-react-native";
 import { Button, FormError, PageHeader, Screen, Text } from "@/components";
 import { useEntitlement } from "@/hooks";
-import { colors } from "@/theme";
+import { colors, rhythm } from "@/theme";
 import { useDeleteAccount } from "../hooks/useDeleteAccount";
 import { useReauthentication } from "../hooks/useReauthentication";
 
@@ -63,16 +63,56 @@ export function DeleteAccountScreen() {
   };
 
   return (
-    <Screen scroll backgroundColor={colors.white} style={{ gap: 20, paddingBottom: 48 }}>
-      <PageHeader
-        title="Delete account"
-        subtitle={
-          stage === "review"
-            ? "This permanently removes your account and everything in it."
-            : `Enter the 6-digit code we sent to ${reauth.email ?? "your email"}.`
-        }
-      />
-
+    <Screen
+      scroll
+      edges={["top", "left", "right"]}
+      backgroundColor={colors.white}
+      header={
+        <PageHeader
+          title="Delete account"
+          subtitle={
+            stage === "review"
+              ? "This permanently removes your account and everything in it."
+              : `Enter the 6-digit code we sent to ${reauth.email ?? "your email"}.`
+          }
+        />
+      }
+      footer={
+        stage === "review" ? (
+          <View className="gap-md">
+            <Button
+              label="Continue"
+              variant="secondary"
+              loading={reauth.step === "sending"}
+              className="bg-red-100"
+              onPress={onStartVerification}
+            />
+            <Button label="Keep my account" onPress={() => router.back()} />
+          </View>
+        ) : (
+          <View className="gap-md">
+            <Button
+              label={isDeleting ? "Deleting your account…" : "Delete my account"}
+              variant="secondary"
+              className="bg-red-100"
+              disabled={code.length < 6}
+              loading={reauth.step === "verifying" || isDeleting}
+              onPress={onConfirmDelete}
+            />
+            <Button
+              label="Cancel"
+              disabled={isDeleting}
+              onPress={() => {
+                setCode("");
+                reauth.clearError();
+                setStage("review");
+              }}
+            />
+          </View>
+        )
+      }
+      style={{ gap: rhythm.pageGap, paddingTop: 0, paddingBottom: rhythm.pageBottom }}
+    >
       {stage === "review" ? (
         <>
           <View className="flex-row items-start gap-md rounded-lg border border-red-200 bg-red-50 px-lg py-md">
@@ -110,17 +150,6 @@ export function DeleteAccountScreen() {
           ) : null}
 
           <FormError message={reauth.error} />
-
-          <View className="gap-md">
-            <Button
-              label="Continue"
-              variant="secondary"
-              loading={reauth.step === "sending"}
-              className="bg-red-100"
-              onPress={onStartVerification}
-            />
-            <Button label="Keep my account" onPress={() => router.back()} />
-          </View>
         </>
       ) : (
         <>
@@ -148,26 +177,6 @@ export function DeleteAccountScreen() {
                 : null)
             }
           />
-
-          <View className="gap-md">
-            <Button
-              label={isDeleting ? "Deleting your account…" : "Delete my account"}
-              variant="secondary"
-              className="bg-red-100"
-              disabled={code.length < 6}
-              loading={reauth.step === "verifying" || isDeleting}
-              onPress={onConfirmDelete}
-            />
-            <Button
-              label="Cancel"
-              disabled={isDeleting}
-              onPress={() => {
-                setCode("");
-                reauth.clearError();
-                setStage("review");
-              }}
-            />
-          </View>
 
           {isDeleting ? (
             <Text color="muted" className="text-center">
