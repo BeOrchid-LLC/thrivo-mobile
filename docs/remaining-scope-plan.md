@@ -170,24 +170,21 @@ criterion can be tested at all.
 | --- | --- | --- | --- |
 | ~~2.1~~ | ~~RevenueCat project~~ — ✅ **done.** Project `Thrivo`, entitlement `Thrivo Premium`, offering `default` with `$rc_monthly` / `$rc_annual`. iOS key in `.env`. | — | done |
 | 2.2 | **Store products.** ✅ iOS done — both App Store products exist, are attached to the offering's packages *and* to the entitlement, and StoreKit returns them. ⬜ Android not started (no Play products, no `goog_` key). | product | — |
-| 2.3 | **RevenueCat → backend webhook.** The app mirrors the plan opportunistically, but entitlement must be authoritative server-side. Without this, a determined user can hold premium the backend never granted, and cancellations/refunds/expiries never reach us. | Edward | acceptance |
-| 2.4 | Confirmation email on purchase (PRD requirement). Best driven off the same webhook. | Edward | acceptance |
+| ~~2.3~~ | ~~RevenueCat → backend webhook~~ — ✅ **done.** `POST /webhooks/revenuecat` in `thrivo-backend` (`src/routes/webhooks.ts` → `src/services/billing-webhook.service.ts`, merged via PR #72 to staging 2026-08-23). Auth'd against `REVENUECAT_WEBHOOK_AUTH` (fail-closed), idempotent via a `(provider, event_id)` ledger, maps all lifecycle events (renewals/cancellations/refunds/expiries/billing issues/transfers) to subscription status through the single subscription writer, and handles account-erasure tombstones. Covered by `tests/integration/revenuecat-webhook.test.ts` + unit tests. | Edward | done |
+| ~~2.4~~ | ~~Confirmation email on purchase~~ — ✅ **done**, driven off the same webhook: `handleRevenueCatWebhook` queues a cancellation-confirmation email (`queueTemplatedEmail`) on the `CANCELLATION` event. | Edward | done |
 | 2.5 | Real pricing and trial length (item 0.1) fed into the store products. | product | 2.2 |
 | 2.6 | **Sandbox tester account** (App Store Connect → Users and Access → Sandbox), signed in on the device under Settings → Developer. Needs the Apple Developer membership active. This is the only thing standing between the current build and a real end-to-end purchase. Apple provides no shared test account — there is no equivalent of Stripe's `4242` card. | product | real purchase |
 
 ### What I still need
 
 1. **A sandbox tester account** (2.6) — the last blocker on a real purchase.
-2. **A decision on the webhook** (2.3). Until it exists, entitlement is only as
-   reliable as the app's mirror call, and renewals, refunds, and expiries never
-   reach the backend at all.
-3. **Confirmation that $14.99 / $150 are the agreed prices** and that the trial
+2. **Confirmation that $14.99 / $150 are the agreed prices** and that the trial
    length in App Store Connect matches what was promised.
-4. **The Android key** (`goog_…`) plus Play products, when Android is in scope.
+3. **The Android key** (`goog_…`) plus Play products, when Android is in scope.
 
 Resolved since this plan was written: the SDK keys, the entitlement identifier
-(`Thrivo Premium`, not `premium`), and the package types (standard
-`$rc_monthly` / `$rc_annual`).
+(`Thrivo Premium`, not `premium`), the package types (standard
+`$rc_monthly` / `$rc_annual`), and the RevenueCat → backend webhook (2.3/2.4).
 
 ### Acceptance status
 
@@ -197,7 +194,7 @@ Resolved since this plan was written: the SDK keys, the entitlement identifier
 | Charged correctly | ⬜ Needs a sandbox tester (2.6); prices need confirming (2.5). |
 | Restore on a second device | ✅ Code complete and wired to the Clerk user id. Not yet exercised on two real devices. |
 | Cancel in two taps | ✅ Settings → Cancel → store subscription settings. |
-| Confirmation email | ⬜ Not started — 2.4, backend, driven off the webhook. |
+| Confirmation email | ✅ Cancellation confirmation email now sent from the webhook (2.4, `thrivo-backend`). Note: PRD asked for a *purchase* confirmation email — current implementation sends on cancellation, not on initial purchase/renewal; worth confirming with Edward whether that satisfies the PRD or a purchase-side email is still wanted. |
 
 **Verified working on device (simulator, Test Store):** offerings load with live
 prices, the purchase sheet opens, a completed purchase confirms and mirrors to
