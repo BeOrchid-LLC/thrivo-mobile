@@ -106,7 +106,7 @@ export default function BodyStep({
     const fields = buildFields();
     setFields(fields);
     setIsOnboardingSkipped(true);
-    router.replace("/(app)/dashboard");
+    router.replace("/(app)/(tabs)/dashboard");
     void submit("skip", { silent: true, onboardingStep: 4, fields });
   };
 
@@ -136,7 +136,7 @@ export default function BodyStep({
     >
       <View className="gap-sm">
         <View className="flex-row items-center justify-between">
-          <Text variant="caption" color="muted" className="uppercase tracking-[0.78px]">
+          <Text variant="caption" color="muted" className="uppercase tracking-label">
             Height
           </Text>
           <View className="w-[132px]">
@@ -193,7 +193,7 @@ export default function BodyStep({
       />
 
       <View className="gap-sm">
-        <Text variant="caption" color="muted" className="uppercase tracking-[0.78px]">
+        <Text variant="caption" color="muted" className="uppercase tracking-label">
           Sex
         </Text>
         <RadioGroup<Sex>

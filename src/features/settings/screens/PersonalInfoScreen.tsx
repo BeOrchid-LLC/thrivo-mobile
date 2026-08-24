@@ -12,7 +12,7 @@ import {
   useMe,
   useUpdateProfile,
 } from "@/features/profile";
-import { colors } from "@/theme";
+import { colors, rhythm } from "@/theme";
 import {
   heightToCm,
   heightUnitFor,
@@ -145,9 +145,19 @@ export function PersonalInfoScreen() {
   };
 
   return (
-    <Screen scroll backgroundColor={colors.white} style={{ gap: 20, paddingBottom: 120 }}>
-      <PageHeader title="Personal information" subtitle="Edit your details and save changes" />
-
+    <Screen
+      scroll
+      // Inside the tab navigator, which already clears the home indicator.
+      // Including the bottom edge here would stack that inset on top of the
+      // footer's 16 and push the primary button ~50px off the tab bar.
+      edges={["top", "left", "right"]}
+      backgroundColor={colors.white}
+      header={
+        <PageHeader title="Personal information" subtitle="Edit your details and save changes" />
+      }
+      footer={<Button label="Save changes" loading={updateProfile.isPending} onPress={save} />}
+      style={{ gap: rhythm.pageGap, paddingTop: 0, paddingBottom: rhythm.pageBottom }}
+    >
       <View className="items-center gap-xs">
         <Pressable
           accessibilityRole="button"
@@ -233,9 +243,6 @@ export function PersonalInfoScreen() {
         label="Sex"
         value={SEX_LABELS[sex]}
       />
-
-      <View className="flex-1" />
-      <Button label="Save changes" loading={updateProfile.isPending} onPress={save} />
 
       <SelectSheet
         title="Goal"

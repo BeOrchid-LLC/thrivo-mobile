@@ -3,13 +3,21 @@ import { colors } from "@/theme";
 import type { Typography } from "@/theme/typography";
 
 type Variant = keyof Typography;
+/**
+ * Semantic text colours.
+ *
+ * `muted` (gray 600) and `subtle` (the lighter neutral) are deliberately
+ * different. `subtle` used to be called `mutedText`, which read as a synonym for
+ * `muted` while resolving to a different colour — and a third name, `gray600`,
+ * was an exact duplicate of `muted` (both gray 600). Any of the three was a coin
+ * flip at the call site; two of them are now gone.
+ */
 export type TextColor =
   | "primary"
   | "dark"
   | "muted"
-  | "mutedText"
+  | "subtle"
   | "gray500"
-  | "gray600"
   | "inverse"
   | "light"
   | "light70"
@@ -42,9 +50,8 @@ const colorValue: Record<TextColor, string> = {
   primary: colors.primary,
   dark: colors.dark,
   muted: colors.gray[600],
-  mutedText: colors.muted,
+  subtle: colors.muted,
   gray500: colors.gray[500],
-  gray600: colors.gray[600],
   inverse: colors.white,
   light: colors.light,
   light70: "rgba(244, 246, 249, 0.7)",

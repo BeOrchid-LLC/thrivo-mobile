@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import { StyleSheet, View } from "react-native";
 import { ForkKnife } from "phosphor-react-native";
 import {
+  AnimatedNumber,
   Button,
   Card,
   CalorieRing,
@@ -33,7 +34,7 @@ const GLASS_ML = 250;
 const DEFAULT_TARGET_CALORIES = 1800;
 const ZERO_MACROS = { proteinG: 0, carbsG: 0, fatG: 0 };
 
-const goToLog = () => router.push("/(app)/log");
+const goToLog = () => router.push("/(app)/(tabs)/log");
 const goToHistory = () => router.push("/(app)/history");
 
 const styles = StyleSheet.create({
@@ -87,19 +88,23 @@ export function CaloriesSummarySection() {
       />
       <View className="flex-1 gap-xs">
         <View className="flex-row items-baseline gap-xs">
-          <Text variant="heading1" color="dark">
-            {consumedCalories.toLocaleString()}
-          </Text>
-          <Text variant="body-lg" color="mutedText" className="mb-2 font-normal">
+          <AnimatedNumber variant="heading1" color="dark" value={consumedCalories} />
+          <Text variant="body-lg" color="subtle" className="mb-2 font-normal">
             kcal
           </Text>
         </View>
-        <Text variant="body" color="muted">
-          of {targetCalories.toLocaleString()} daily target
-        </Text>
-        <Text variant="body" color="primary">
-          {remainingCalories.toLocaleString()} remaining
-        </Text>
+        <AnimatedNumber
+          variant="body"
+          color="muted"
+          value={targetCalories}
+          format={(n) => `of ${n.toLocaleString()} daily target`}
+        />
+        <AnimatedNumber
+          variant="body"
+          color="primary"
+          value={remainingCalories}
+          format={(n) => `${n.toLocaleString()} remaining`}
+        />
       </View>
     </Card>
   );
@@ -135,7 +140,7 @@ export function MacrosSection() {
       <PremiumGate
         title="Subscribe to see your macros"
         subtitle="Unlock your full nutrition progress."
-        onViewPlans={() => router.push("/(app)/settings/subscription")}
+        onViewPlans={() => router.push("/settings/subscription")}
       >
         <MacroCard consumed={ZERO_MACROS} target={deriveMacroTargets(DEFAULT_TARGET_CALORIES)} />
       </PremiumGate>
@@ -163,7 +168,7 @@ function MacroCard({
   target: { proteinG: number; carbsG: number; fatG: number };
 }) {
   return (
-    <Card className="border-2 border-gray-2" style={styles.macroCardShadow}>
+    <Card className="border-2 border-light" style={styles.macroCardShadow}>
       <MacroBars consumed={consumed} target={target} />
     </Card>
   );
@@ -209,12 +214,12 @@ export function WaterSection() {
       <View
         accessibilityRole="progressbar"
         accessibilityLabel="Loading water tracker"
-        className="gap-sm rounded-[16px] bg-gray-2 px-lg py-md"
+        className="gap-sm rounded-lg bg-light px-lg py-md"
       >
         <View className="flex-row items-center">
-          <SkeletonBlock className="h-[22px] w-[22px] rounded-pill" />
+          <SkeletonBlock className="h-iconSm w-iconSm rounded-pill" />
           <SkeletonText className="ml-sm flex-1" />
-          <SkeletonBlock className="h-[24px] w-[24px] rounded-pill" />
+          <SkeletonBlock className="h-icon w-icon rounded-pill" />
         </View>
         <View className="flex-row items-center">
           <SkeletonText className="flex-1" />
@@ -262,7 +267,7 @@ export function TodayMealLogSection() {
         <View className="gap-md">
           {["Breakfast", "Lunch"].map((meal) => (
             <View key={meal} className="gap-sm">
-              <View className="flex-row justify-between border-b border-gray-200 pb-sm">
+              <View className="border-light00 flex-row justify-between border-b pb-sm">
                 <SkeletonText className="w-1/3" />
                 <SkeletonText size="caption" className="w-1/5" />
               </View>
@@ -304,14 +309,14 @@ export function TodayMealLogSection() {
       />
     </>
   ) : (
-    <View className="items-center gap-md rounded-[16px] bg-primaryBright/10 px-8 py-6">
-      <View className="h-[52px] w-[52px] items-center justify-center rounded-pill bg-primarySoft">
+    <View className="items-center gap-md rounded-lg bg-primaryBright/10 px-8 py-6">
+      <View className="h-badgeLg w-badgeLg items-center justify-center rounded-pill bg-primarySoft">
         <ForkKnife size={28} color={colors.primary} weight="regular" />
       </View>
       <Text variant="heading3" color="dark" className="text-center">
         Nothing logged yet
       </Text>
-      <Text variant="body" color="mutedText" className="text-center">
+      <Text variant="body" color="subtle" className="text-center">
         Scan a barcode, search the database or describe what you ate to get started.
       </Text>
       <Button label="Log first meal" onPress={() => goToLog()} />

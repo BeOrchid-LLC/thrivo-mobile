@@ -72,7 +72,7 @@ export default function GoalStep({
     }
     if (goal) setFields({ goal, onboardingStep: 2 });
     setIsOnboardingSkipped(true);
-    router.replace("/(app)/dashboard");
+    router.replace("/(app)/(tabs)/dashboard");
     void submit("skip", {
       silent: true,
       onboardingStep: 2,

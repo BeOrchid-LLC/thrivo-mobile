@@ -215,7 +215,9 @@ describe("EditFoodLogSheet", () => {
 
     expect(screen.getByText("120 kcal")).toBeTruthy();
     expect(screen.getByText("Subscribe to see macros")).toBeTruthy();
-    expect(screen.getByText("View plans")).toBeTruthy();
+    // The gate is a single frosted bar — the whole bar is the control, so there
+    // is no separate "View plans" button to find.
+    expect(screen.getByLabelText("Subscribe to see macros. View plans")).toBeTruthy();
   });
 
   it("shows ungated macro cards for premium users", () => {

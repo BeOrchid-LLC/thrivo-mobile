@@ -56,7 +56,7 @@ export function SelectSheet<T extends string | number>({
           onPress={onClose}
         />
         <View
-          className="gap-md rounded-t-[24px] bg-white px-lg pt-md"
+          className="gap-md rounded-t-xl bg-white px-lg pt-md"
           style={{ paddingBottom: Math.max(insets.bottom + 24, 40) }}
         >
           <View className="h-[4px] w-[44px] self-center rounded-pill bg-gray-300" />
@@ -69,12 +69,12 @@ export function SelectSheet<T extends string | number>({
               accessibilityLabel={`Cancel ${title}`}
               hitSlop={10}
               onPress={onClose}
-              className="h-[36px] w-[36px] items-center justify-center rounded-full bg-light"
+              className="h-iconMd w-iconMd items-center justify-center rounded-full bg-light"
             >
               <X size={18} color={colors.gray[500]} />
             </Pressable>
           </View>
-          <View className="overflow-hidden rounded-[14px] border border-gray-200">
+          <View className="overflow-hidden rounded-group border border-gray-200">
             {options.map((option, index) => {
               const selected = option.value === value;
               const divider = index < options.length - 1 ? "border-b border-gray-100" : "";
@@ -95,7 +95,7 @@ export function SelectSheet<T extends string | number>({
                 >
                   <Text
                     variant="body"
-                    color={option.locked ? "gray600" : "dark"}
+                    color={option.locked ? "muted" : "dark"}
                     className={selected ? "font-semibold" : "font-regular"}
                   >
                     {option.label}

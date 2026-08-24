@@ -32,13 +32,13 @@ export function SelectCard({
       accessibilityRole="button"
       accessibilityState={{ selected }}
       onPress={onPress}
-      className={`min-h-[84px] flex-row items-center gap-lg rounded-[16px] border-2 px-[22px] py-[18px] ${
+      className={`min-h-[84px] flex-row items-center gap-lg rounded-lg border-2 px-[22px] py-[18px] ${
         selected ? "border-primaryBright bg-primaryBright/[0.08]" : "border-gray-300 bg-white"
       }`}
     >
       {Icon ? (
         <View
-          className={`h-[44px] w-[44px] items-center justify-center rounded-[12px] ${
+          className={`h-tile w-tile items-center justify-center rounded-tile ${
             selected ? "bg-primaryBright/[0.12]" : "bg-light"
           }`}
         >
@@ -66,7 +66,7 @@ export function SelectCard({
           </Text>
         </View>
       ) : selected ? (
-        <View className="h-[22px] w-[22px] items-center justify-center rounded-pill bg-primaryBright">
+        <View className="h-iconSm w-iconSm items-center justify-center rounded-pill bg-primaryBright">
           <CheckIcon size={13} />
         </View>
       ) : null}

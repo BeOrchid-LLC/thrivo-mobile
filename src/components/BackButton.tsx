@@ -33,7 +33,7 @@ export function BackButton({ onPress }: BackButtonProps) {
       // 24px box keeps the chevron aligned inline with headings; hitSlop lifts the
       // touch target to ≥44pt (WCAG 2.2 AA).
       hitSlop={12}
-      className="h-[24px] w-[24px] items-center justify-center"
+      className="h-icon w-icon items-center justify-center"
     >
       <ChevronLeftIcon />
     </Pressable>

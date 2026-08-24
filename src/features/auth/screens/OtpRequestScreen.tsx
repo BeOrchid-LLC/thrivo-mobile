@@ -87,13 +87,17 @@ export function OtpRequestScreen() {
   });
 
   return (
-    <Screen scroll backgroundColor={colors.white}>
-      <View className="gap-lg">
+    <Screen
+      scroll
+      backgroundColor={colors.white}
+      header={
         <PageHeader
           title="Sign up for Thrivo"
           subtitle="Create your account. We'll email a secure code to confirm it's you."
         />
-
+      }
+    >
+      <View className="gap-lg">
         <View className="mt-md gap-md">
           <Controller
             control={control}

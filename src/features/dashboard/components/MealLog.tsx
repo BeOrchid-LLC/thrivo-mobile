@@ -35,7 +35,7 @@ export function MealLog({ entries, onLogFood, onViewAll, onEntryPress }: MealLog
           accessibilityRole="button"
           accessibilityLabel="Log food"
           onPress={onLogFood}
-          className="flex-row items-center gap-xs"
+          className="min-h-touchTarget flex-row items-center gap-xs"
         >
           <PlusCircle size={18} color={colors.primary} weight="regular" />
           <Text variant="caption" color="primary" className="font-semibold">

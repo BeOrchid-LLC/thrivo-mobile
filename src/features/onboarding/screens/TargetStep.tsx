@@ -153,7 +153,7 @@ export default function TargetStep({
     const fields = buildFields();
     setFields(fields);
     setIsOnboardingSkipped(true);
-    router.replace("/(app)/dashboard");
+    router.replace("/(app)/(tabs)/dashboard");
     void submit("skip", { silent: true, onboardingStep: 5, fields });
   };
 
@@ -180,7 +180,7 @@ export default function TargetStep({
         </>
       }
     >
-      <View className="overflow-hidden rounded-[16px] bg-primarySoft p-lg">
+      <View className="overflow-hidden rounded-lg bg-primarySoft p-lg">
         <Text variant="heading1" color="primary" className="font-bold">
           {displayedTarget !== undefined ? displayedTarget.toLocaleString() : "—"}
         </Text>
@@ -208,7 +208,7 @@ export default function TargetStep({
         <Pressable
           onPress={() => setShowManual((value) => !value)}
           accessibilityRole="button"
-          className="mt-md flex-row items-center justify-center gap-xs"
+          className="mt-md min-h-touchTarget flex-row items-center justify-center gap-xs"
         >
           <PencilIcon size={16} />
           <Text variant="caption" color="primary" className="font-semibold">

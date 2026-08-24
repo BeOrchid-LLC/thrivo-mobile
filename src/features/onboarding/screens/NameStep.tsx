@@ -46,7 +46,7 @@ export default function NameStep({
     }
     if (trimmed) setFields({ firstName: trimmed, onboardingStep: 1 });
     setIsOnboardingSkipped(true);
-    router.replace("/(app)/dashboard");
+    router.replace("/(app)/(tabs)/dashboard");
     void submit("skip", {
       silent: true,
       onboardingStep: 1,

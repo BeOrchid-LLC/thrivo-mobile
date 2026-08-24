@@ -13,7 +13,7 @@ interface NoteBoxProps {
  */
 export function NoteBox({ title, children }: NoteBoxProps) {
   return (
-    <View className="rounded-[10px] border-[0.667px] border-accent/[0.18] bg-accent/[0.07] px-lg py-md">
+    <View className="rounded-md border-[0.667px] border-accent/[0.18] bg-accent/[0.07] px-lg py-md">
       {title ? (
         <Text variant="caption" color="accentText">
           {title}

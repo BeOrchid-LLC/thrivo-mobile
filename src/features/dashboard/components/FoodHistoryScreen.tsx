@@ -1,5 +1,5 @@
 import { memo, useCallback, useMemo, useRef, useState } from "react";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { Heart } from "phosphor-react-native";
 import { ActivityIndicator, Pressable, View } from "react-native";
 import { FlashList, type FlashListRef, type ListRenderItem } from "@shopify/flash-list";
@@ -125,6 +125,7 @@ function getItemType(item: HistoryListItem): string {
 }
 
 export function FoodHistoryScreen({ refreshing, onRefresh }: FoodHistoryScreenProps) {
+  const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
   useFavorites();
   const [period, setPeriod] = useState<ChartPeriod>("1m");
   const [periodSheetOpen, setPeriodSheetOpen] = useState(false);
@@ -258,7 +259,20 @@ export function FoodHistoryScreen({ refreshing, onRefresh }: FoodHistoryScreenPr
 
   return (
     <View className="flex-1 gap-lg">
-      <PageHeader title="Food history" showBack={false} />
+      <PageHeader
+        title="Food history"
+        onBack={() => {
+          if (returnTo === "log") {
+            router.replace("/(app)/(tabs)/log");
+            return;
+          }
+          if (router.canGoBack()) {
+            router.back();
+            return;
+          }
+          router.replace("/(app)/(tabs)/log");
+        }}
+      />
 
       <SearchBar
         value={searchText}
@@ -286,33 +300,28 @@ export function FoodHistoryScreen({ refreshing, onRefresh }: FoodHistoryScreenPr
         </View>
       </View>
 
-      <View className="flex-row gap-sm">
-        <SelectInput
-          label="Meal time"
-          value={selectedMealTimeLabel ?? "Any time"}
-          onPress={() => setMealTimeSheetOpen(true)}
-        />
+      <View className="flex-row items-end gap-sm">
+        <View className="flex-1">
+          <SelectInput
+            label="Meal time"
+            value={selectedMealTimeLabel ?? "Any time"}
+            onPress={() => setMealTimeSheetOpen(true)}
+          />
+        </View>
         <Pressable
           accessibilityRole="checkbox"
           accessibilityLabel="Favorites only"
           accessibilityState={{ checked: favoritesOnly }}
           onPress={() => handleFilterChange({ favoritesOnly: !favoritesOnly })}
-          className={`min-h-[48px] flex-1 flex-row items-center justify-center rounded-md border px-md ${
+          className={`h-control w-control items-center justify-center rounded-md border ${
             favoritesOnly ? "border-primary bg-primarySoft" : "border-gray-300 bg-white"
           }`}
         >
           <Heart
-            size={16}
+            size={22}
             color={favoritesOnly ? colors.primary : colors.gray[500]}
             weight={favoritesOnly ? "fill" : "regular"}
           />
-          <Text
-            variant="caption"
-            color={favoritesOnly ? "primary" : "muted"}
-            className="ml-xs font-medium"
-          >
-            Favorites
-          </Text>
         </Pressable>
       </View>
 
@@ -452,7 +461,7 @@ function LockedEarlierHistory({ historyLimitDays }: { historyLimitDays: number }
       <PremiumGate
         title="Subscribe to see your full history"
         subtitle={`Free history includes the most recent ${historyLimitDays} days.`}
-        onViewPlans={() => router.push("/(app)/settings/subscription")}
+        onViewPlans={() => router.push("/settings/subscription")}
       >
         <Card className="min-h-[190px] gap-md bg-gray-100">
           {Array.from({ length: 3 }).map((_, index) => (
