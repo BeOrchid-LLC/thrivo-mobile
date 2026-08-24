@@ -39,11 +39,24 @@ export const storageKeys = {
  * `deviceHasOpened` is deliberately excluded — it records that *this handset* has
  * run the app before, which stays true no matter who is signed in.
  */
+/**
+ * Zustand stores that persist themselves to AsyncStorage under their own keys.
+ * They hold data belonging to the signed-in person — favourited foods, their
+ * first name and goal from the onboarding draft, their biometric preference —
+ * so they have to be purged with everything else. Nothing else in the app
+ * touched them, which is exactly why they were missed.
+ */
+const PERSISTED_STORE_KEYS: string[] = [
+  "thrivo.favorites",
+  "thrivo.onboarding-draft",
+  "thrivo.preferences",
+];
+
 const USER_SCOPED_KEYS: string[] = [
   storageKeys.notifyAt,
   storageKeys.unitSystem,
   storageKeys.biometricAuthEnabled,
-  storageKeys.offlineBarcodeScans,
+  ...PERSISTED_STORE_KEYS,
 ];
 
 /**
@@ -55,5 +68,9 @@ const USER_SCOPED_KEYS: string[] = [
  * in next, writing one person's food into another person's log.
  */
 export async function clearUserScopedStorage(): Promise<void> {
-  await AsyncStorage.multiRemove(USER_SCOPED_KEYS);
+  // The offline barcode queue is namespaced per user, so match on the prefix
+  // rather than a fixed key — otherwise the deleted account's queue survives.
+  const all = await AsyncStorage.getAllKeys();
+  const queues = all.filter((key) => key.startsWith(storageKeys.offlineBarcodeScans));
+  await AsyncStorage.multiRemove([...USER_SCOPED_KEYS, ...queues]);
 }

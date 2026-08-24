@@ -77,6 +77,7 @@ export const useSessionStore = create<SessionState>((set) => ({
 // Selector hooks — components subscribe to the narrowest slice they need.
 export const useAuthStatus = () => useSessionStore((s) => s.status);
 export const useIsAuthenticated = () => useSessionStore((s) => s.status === "authenticated");
+export const useUserId = () => useSessionStore((s) => s.userId);
 export const useAccountStatus = () => useSessionStore((s) => s.accountStatus);
 export const useIsOnboarded = () => useSessionStore((s) => s.isOnboarded);
 export const useIsOnboardingSkipped = () => useSessionStore((s) => s.isOnboardingSkipped);

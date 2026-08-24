@@ -4,9 +4,11 @@ import * as AuthSession from "expo-auth-session";
 import { useSSO, useClerk } from "@clerk/expo";
 import { useSignInWithGoogle } from "@clerk/expo/google";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { clearPersistedQueryCache } from "@/api";
 import { ApiError } from "@/api/errors";
 import { env } from "@/config/env";
-import { useBiometricUnlockActions, useSessionActions } from "@/stores";
+import { monitoring, subscription } from "@/lib";
+import { resetUserScopedStores, useBiometricUnlockActions, useSessionActions } from "@/stores";
 import { logAuthError } from "../auth-debug";
 
 // Required by @clerk/expo to properly close the auth session on Android (Apple
@@ -117,7 +119,16 @@ export function useAppleSignIn() {
   return { ...mutation, isConfigured };
 }
 
-/** Sign out: clear the Clerk session and reset local state. */
+/**
+ * Sign out: clear the Clerk session and every local trace of the user.
+ *
+ * `queryClient.clear()` only empties memory. The dehydrated copy is written
+ * asynchronously, and it carries **paused offline mutations** — queued food,
+ * water and weight writes. Kill the app right after signing out and those
+ * rehydrate for whoever signs in next, replaying one person's food into another
+ * person's diary. The store identity has to go for the same reason: otherwise a
+ * restore-purchases before the next sign-in acts on the previous user.
+ */
 export function useLogout() {
   const { signOut } = useClerk();
   const { clearSession } = useSessionActions();
@@ -128,10 +139,19 @@ export function useLogout() {
     mutationFn: async () => {
       await signOut();
     },
-    onSettled: () => {
+    onSettled: async () => {
       clearSession();
       setBiometricUnlocked(false);
+      resetUserScopedStores();
       queryClient.clear();
+      await Promise.all([
+        clearPersistedQueryCache().catch((error: unknown) => {
+          monitoring.captureException(error, { seam: "clear-query-cache-on-logout" });
+        }),
+        subscription.logOut().catch((error: unknown) => {
+          monitoring.captureException(error, { seam: "billing-logout" });
+        }),
+      ]);
     },
   });
 }

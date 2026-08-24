@@ -39,7 +39,8 @@ import {
   readQueuedBarcodeScans,
   removeQueuedBarcodeScan,
 } from "@/lib";
-import { colors } from "@/theme";
+import { useUserId } from "@/stores";
+import { colors, rhythm } from "@/theme";
 import { useSettings } from "@/features/settings";
 import { subscribeTabRootReset } from "@/navigation/tab-root-reset";
 import { formatWater, isToday, roundTo, waterFromMl, waterUnitFor } from "@/utils";
@@ -142,15 +143,17 @@ export function LogFoodScreen() {
     <Screen
       scroll
       edges={["top", "left", "right"]}
-      style={{ gap: 24, paddingTop: 32, paddingBottom: 16 }}
+      rhythm="default"
+      header={
+        <PageHeader
+          title={segment === "food" ? "Log Food" : "Log Water"}
+          subtitle="What are you logging today?"
+          showBack={false}
+        />
+      }
       refreshing={refreshing}
       onRefresh={refresh}
     >
-      <PageHeader
-        title={segment === "food" ? "Log Food" : "Log Water"}
-        subtitle="What are you logging today?"
-        showBack={false}
-      />
       <Segmented
         value={segment}
         onChange={setSegment}
@@ -424,7 +427,7 @@ function WaterHome({ day }: { day: string }) {
                 accessibilityLabel={`Add ${formatWater(amountMl, unitSystem)} water`}
                 disabled={addWater.isPending}
                 onPress={() => addWaterAmount(amountMl)}
-                className={`h-[52px] flex-1 items-center justify-center rounded-md ${
+                className={`h-controlLg flex-1 items-center justify-center rounded-md ${
                   isDefault ? "bg-primarySoft" : "bg-gray-100"
                 }`}
               >
@@ -446,7 +449,7 @@ function WaterHome({ day }: { day: string }) {
           accessibilityRole="button"
           accessibilityLabel="Add water manually"
           onPress={() => setManualOpen(true)}
-          className="self-end py-xs"
+          className="min-h-touchTarget justify-center self-end py-xs"
         >
           <Text variant="body" color="primary" className="font-semibold">
             Add water manually
@@ -461,8 +464,10 @@ function WaterHome({ day }: { day: string }) {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="View all water logs"
-            onPress={() => router.push("/(app)/water-history")}
-            className="flex-row items-center gap-xs py-xs"
+            onPress={() =>
+              router.push({ pathname: "/(app)/water-history", params: { returnTo: "log" } })
+            }
+            className="min-h-touchTarget flex-row items-center gap-xs py-xs"
           >
             <Text variant="body" color="primary" className="font-semibold">
               View all logs
@@ -477,7 +482,7 @@ function WaterHome({ day }: { day: string }) {
             accessibilityLabel="Edit water entry"
             disabled={!canEditEntries}
             onPress={() => setEditingEntry(entry)}
-            className="flex-row items-center justify-between border-b border-gray-200 py-sm"
+            className="min-h-touchTarget flex-row items-center justify-between border-b border-gray-200 py-sm"
           >
             <View>
               <Text variant="body" color="dark">
@@ -502,6 +507,7 @@ function WaterHome({ day }: { day: string }) {
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Delete water entry"
+                hitSlop={12}
                 disabled={deleteWater.isPending}
                 onPress={(event) => {
                   event?.stopPropagation?.();
@@ -567,6 +573,9 @@ function ScanBarcodeScreen({ day, onBack }: { day: string; onBack: () => void })
   const [barcode, setBarcode] = useState("");
   const [format, setFormat] = useState<string | null>(null);
   const [scanned, setScanned] = useState(false);
+  // The offline queue is per user, so scans can never replay into another
+  // account on a shared device.
+  const ownerId = useUserId();
   const [message, setMessage] = useState<string | null>(null);
   const [permission, requestPermission] = useCameraPermissions();
   const [loggingItem, setLoggingItem] = useState<FoodItem | null>(null);
@@ -580,7 +589,7 @@ function ScanBarcodeScreen({ day, onBack }: { day: string; onBack: () => void })
     void (async () => {
       const online = await isNetworkReachable();
       if (!active || !online || barcode) return;
-      const [queued] = await readQueuedBarcodeScans();
+      const [queued] = ownerId ? await readQueuedBarcodeScans(ownerId) : [];
       if (!active || !queued) return;
       const normalized = normalizeBarcode(queued.barcode);
       if (!normalized) return;
@@ -591,13 +600,20 @@ function ScanBarcodeScreen({ day, onBack }: { day: string; onBack: () => void })
     return () => {
       active = false;
     };
-  }, [barcode]);
+    // `ownerId` is part of the dependency list on purpose: it arrives from the
+    // session store only after Clerk restores and GET /users/me resolves, so on
+    // a cold start into this screen the first run sees `null` and finds nothing
+    // to replay. Without re-running when it lands, a scan queued offline would
+    // sit in storage forever with no visible failure.
+  }, [barcode, ownerId]);
 
   useEffect(() => {
     if (food && lookupBarcode) {
-      void removeQueuedBarcodeScan(lookupBarcode);
+      if (ownerId) void removeQueuedBarcodeScan(ownerId, lookupBarcode);
     }
-  }, [food, lookupBarcode]);
+    // Same reason as above — a lookup that resolves before the session id does
+    // would leave the scan queued and replay it again on the next visit.
+  }, [food, lookupBarcode, ownerId]);
 
   const handleScan = (result: BarcodeScanningResult) => {
     const value = result.raw ?? result.data;
@@ -619,23 +635,30 @@ function ScanBarcodeScreen({ day, onBack }: { day: string; onBack: () => void })
     void (async () => {
       const online = await isNetworkReachable();
       if (!online) {
-        await queueBarcodeScan({
-          barcode: normalized,
-          format: result.type,
-          scannedAt: new Date().toISOString(),
-        });
+        if (ownerId) {
+          await queueBarcodeScan(ownerId, {
+            barcode: normalized,
+            format: result.type,
+            scannedAt: new Date().toISOString(),
+          });
+        }
         setMessage("You are offline. The decoded barcode was saved for lookup later.");
       }
     })();
   };
 
   return (
-    <Screen scroll style={{ gap: 24 }}>
-      <PageHeader
-        title="Scan Barcode"
-        subtitle="Packaged foods - instant nutrition look up."
-        onBack={onBack}
-      />
+    <Screen
+      scroll
+      style={{ gap: rhythm.pageGap }}
+      header={
+        <PageHeader
+          title="Scan Barcode"
+          subtitle="Packaged foods - instant nutrition look up."
+          onBack={onBack}
+        />
+      }
+    >
       <View className="h-[220px] overflow-hidden rounded-lg bg-dark">
         {permission?.granted ? (
           <CameraView
@@ -798,12 +821,17 @@ function DescribeMealScreen({ day, onBack }: { day: string; onBack: () => void }
   };
 
   return (
-    <Screen scroll style={{ gap: 20 }}>
-      <PageHeader
-        title="Describe a meal"
-        subtitle="We'll help you estimate the calories."
-        onBack={onBack}
-      />
+    <Screen
+      scroll
+      style={{ gap: rhythm.pageGap }}
+      header={
+        <PageHeader
+          title="Describe a meal"
+          subtitle="We'll help you estimate the calories."
+          onBack={onBack}
+        />
+      }
+    >
       <Input
         label="Name of food"
         value={name}
@@ -834,7 +862,7 @@ function DescribeMealScreen({ day, onBack }: { day: string; onBack: () => void }
           value={quantity}
           onChangeText={setQuantity}
           keyboardType="decimal-pad"
-          className="h-[48px] flex-1 rounded-md border border-gray-300 bg-white text-center text-body-lg"
+          className="h-control flex-1 rounded-md border border-gray-300 bg-white text-center text-body-lg"
           style={{ color: colors.dark }}
         />
         <Text variant="body" color="primary">
@@ -888,8 +916,8 @@ function RecentFoodsHeader() {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="View food history"
-        onPress={() => router.push("/(app)/history")}
-        className="flex-row items-center gap-xs py-xs"
+        onPress={() => router.push({ pathname: "/(app)/history", params: { returnTo: "log" } })}
+        className="min-h-touchTarget flex-row items-center gap-xs py-xs"
       >
         <Text variant="body" color="primary" className="font-semibold">
           View history
@@ -927,7 +955,7 @@ function RecentFoodRow({ entry, onPress }: { entry: FoodLogEntry; onPress: () =>
       accessibilityRole="button"
       accessibilityLabel={`View ${entry.name}`}
       onPress={onPress}
-      className="flex-row items-center justify-between border-b border-gray-200 py-sm"
+      className="min-h-touchTarget flex-row items-center justify-between border-b border-gray-200 py-sm"
     >
       <View className="flex-1">
         <Text variant="body" color="dark">
