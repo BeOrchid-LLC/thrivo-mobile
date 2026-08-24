@@ -38,6 +38,12 @@ const styles = StyleSheet.create({
  * — which is what keeps it compact without dropping the hit area below the 48pt
  * floor that a small inline button would have.
  */
+// expo-blur defaults `experimentalBlurMethod` to "none" on Android, which
+// renders as a flat semi-transparent tint instead of a blur — iOS always gets
+// a real blur via UIVisualEffectView, so this was invisible until someone
+// actually ran the app on Android. "dimezisBlurView" is a no-op on iOS/web.
+const ANDROID_BLUR_METHOD = "dimezisBlurView" as const;
+
 export function PremiumGate({ children, title, subtitle, onViewPlans }: PremiumGateProps) {
   // Every in-context upgrade prompt is a funnel impression — this is the
   // `upgrade_prompt_shown` step the PRD tracks, distinct from a paywall view.
@@ -66,6 +72,7 @@ export function PremiumGate({ children, title, subtitle, onViewPlans }: PremiumG
           pointerEvents="none"
           tint="light"
           intensity={30}
+          experimentalBlurMethod={ANDROID_BLUR_METHOD}
           style={StyleSheet.absoluteFillObject}
         />
 
@@ -78,7 +85,12 @@ export function PremiumGate({ children, title, subtitle, onViewPlans }: PremiumG
             className="w-full overflow-hidden rounded-panel border border-white/[0.35]"
             style={styles.raised}
           >
-            <BlurView tint="dark" intensity={40} style={StyleSheet.absoluteFillObject} />
+            <BlurView
+              tint="dark"
+              intensity={40}
+              experimentalBlurMethod={ANDROID_BLUR_METHOD}
+              style={StyleSheet.absoluteFillObject}
+            />
             {/* Scrim: the blur alone takes on whatever sits behind it, so light
                 text would fail contrast over a pale macro card. */}
             <View className="flex-row items-center gap-sm bg-dark/[0.42] px-md py-sm">

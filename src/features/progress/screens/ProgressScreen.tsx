@@ -708,7 +708,7 @@ function CalendarDayCell({
     : day.logged
       ? "border-loggedGreenBorder bg-loggedGreen"
       : "border-gray-200 bg-white";
-  const textColor = day.today ? "inverse" : day.logged ? "primary" : "muted";
+  const textColor = day.today || day.logged ? "inverse" : "muted";
   // Nothing was logged on this day, so the sheet would open empty — keep the
   // cell inert instead of showing a dead-end bottom sheet.
   const disabled = !day.logged;
