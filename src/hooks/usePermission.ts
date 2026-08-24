@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useCameraPermissions } from "expo-camera";
-import {
-  getNotificationPermission,
-  requestNotificationPermission,
-} from "@/lib/notifications";
+import { getNotificationPermission, requestNotificationPermission } from "@/lib/notifications";
 
 /**
  * Uniform permission shape so screens can request a capability at point-of-use

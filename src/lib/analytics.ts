@@ -23,7 +23,7 @@ export type AnalyticsEvent =
   | "thrivo.upgrade_prompt_shown"
   | "thrivo.trial_started"
   | "thrivo.subscription_started"
-  | "thrivo.subscription_cancelled"
+  | "thrivo.subscription_management_opened"
   | "thrivo.reminder_set"
   | "thrivo.checkin_submitted";
 
@@ -35,6 +35,7 @@ export interface Analytics {
 }
 
 let client: PostHog | null = null;
+let signupPending = false;
 
 function getClient(): PostHog | null {
   if (!env.posthogKey) return null;
@@ -55,9 +56,14 @@ const posthogAnalytics: Analytics = {
     const instance = getClient();
     if (instance) {
       instance.identify(userId);
+      if (signupPending) {
+        instance.capture("thrivo.signup", { method: "email_code" });
+        signupPending = false;
+      }
       return;
     }
     if (__DEV__) console.info("[analytics] identify", userId);
+    signupPending = false;
   },
   track: (event, properties) => {
     const instance = getClient();
@@ -70,6 +76,7 @@ const posthogAnalytics: Analytics = {
     if (__DEV__) console.info("[analytics] track", event, properties ?? {});
   },
   reset: () => {
+    signupPending = false;
     const instance = getClient();
     if (instance) {
       instance.reset();
@@ -78,5 +85,9 @@ const posthogAnalytics: Analytics = {
     if (__DEV__) console.info("[analytics] reset");
   },
 };
+
+export function queueSignup(): void {
+  signupPending = true;
+}
 
 export const analytics: Analytics = posthogAnalytics;

@@ -36,6 +36,10 @@ jest.mock("@/hooks", () => ({
   useEntitlement: () => ({ isPremium: mockIsPremium(), isLoading: false }),
 }));
 
+jest.mock("@/lib", () => ({
+  subscription: { getManagementUrl: jest.fn().mockResolvedValue(null) },
+}));
+
 async function advanceToCodeEntry(screen: ReturnType<typeof render>) {
   fireEvent.press(screen.getByText("Continue"));
   await waitFor(() => expect(screen.getByLabelText("Verification code")).toBeTruthy());
@@ -64,13 +68,14 @@ describe("DeleteAccountScreen", () => {
     mockIsPremium.mockReturnValue(true);
     const screen = render(<DeleteAccountScreen />);
 
-    expect(screen.getByText("Cancel your subscription first")).toBeTruthy();
+    expect(screen.getByText("Active store subscription")).toBeTruthy();
+    expect(screen.getByText(/does not cancel Apple or Google billing/)).toBeTruthy();
   });
 
   it("omits the billing warning for free users", () => {
     const screen = render(<DeleteAccountScreen />);
 
-    expect(screen.queryByText("Cancel your subscription first")).toBeNull();
+    expect(screen.queryByText("Active store subscription")).toBeNull();
   });
 
   it("leaves without deleting when the user keeps their account", () => {

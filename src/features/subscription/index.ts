@@ -1,6 +1,7 @@
 export {
   cancelSubscription,
   getSubscription,
+  syncSubscription,
   purchaseSubscription,
   startTrial,
 } from "./api/subscription.api";

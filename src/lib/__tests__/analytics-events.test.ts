@@ -32,7 +32,7 @@ const REQUIRED_EVENTS = [
   "thrivo.upgrade_prompt_shown",
   "thrivo.trial_started",
   "thrivo.subscription_started",
-  "thrivo.subscription_cancelled",
+  "thrivo.subscription_management_opened",
   "thrivo.reminder_set",
   "thrivo.checkin_submitted",
 ];
@@ -61,10 +61,33 @@ function unionEvents(): string[] {
   return [...source.slice(start, end).matchAll(/"(thrivo\.[a-z_]+)"/g)].map((match) => match[1]);
 }
 
+/**
+ * Events whose `capture` call legitimately lives inside `lib/analytics.ts`, keyed
+ * by the trigger that must exist outside it.
+ *
+ * `thrivo.signup` is emitted from `identify()` rather than at the call site, so
+ * that PostHog has resolved the user before the event lands and it attaches to
+ * the right person instead of the anonymous pre-auth id. The screen therefore
+ * calls `queueSignup()` and the emit happens later — which means the corpus
+ * check has to follow the trigger, not the literal, or it reports a working
+ * funnel step as missing.
+ */
+const DEFERRED_EMITTERS: Record<string, string> = {
+  "thrivo.signup": "queueSignup()",
+};
+
 describe("analytics funnel", () => {
   const source = sourceText();
 
   it.each(REQUIRED_EVENTS)("emits %s somewhere in the app", (event) => {
+    const trigger = DEFERRED_EMITTERS[event];
+    if (trigger) {
+      // The emit is in the union file; assert both halves so an orphaned
+      // trigger or an unreachable capture still fails.
+      expect(readFileSync(UNION_FILE, "utf8")).toContain(`"${event}"`);
+      expect(source).toContain(trigger);
+      return;
+    }
     expect(source).toContain(`"${event}"`);
   });
 

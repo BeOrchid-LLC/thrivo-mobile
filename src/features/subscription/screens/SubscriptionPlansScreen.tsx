@@ -192,16 +192,24 @@ export function SubscriptionPlansScreen() {
         message: "That didn't go through. You have not been charged.",
         variant: "error",
       });
-    const onSuccess = (result: { completed: boolean }) => {
-      if (!result.completed) return;
+    // `confirmed` is the backend's answer, not the store's. The store can accept
+    // payment while `/subscriptions/sync` is still catching up, and telling
+    // someone premium is active before the backend agrees means the very next
+    // screen they open is still locked. Say what actually happened instead.
+    const onSuccess = (result: { completed: boolean; confirmed?: boolean }) => {
+      if (!result.completed) return; // dismissed sheet — nothing to announce
       showToast({
-        message: asTrial ? "Your free trial has started." : "Premium is active.",
-        variant: "success",
+        message: result.confirmed
+          ? asTrial
+            ? "Your free trial has started."
+            : "Premium is active."
+          : "Purchase received. Activation is delayed; try again shortly.",
+        variant: result.confirmed ? "success" : "error",
       });
     };
 
     if (asTrial) startTrial.mutate({ plan, productId }, { onError, onSuccess });
-    else purchase.mutate({ plan, productId, isTrial: false }, { onError, onSuccess });
+    else purchase.mutate({ plan, packageId: productId, isTrial: false }, { onError, onSuccess });
   };
 
   const isWorking = startTrial.isPending || purchase.isPending;
@@ -379,6 +387,7 @@ export function SubscriptionPlansScreen() {
                     : `Subscribe ${PLAN_LABEL[selectedPlan].toLowerCase()}`
                 }
                 loading={isWorking}
+                disabled={offerings.isLoading || !canTransact}
                 onPress={() => buy(selectedPlan, { asTrial: trialAvailable })}
               />
               <Text color="muted" className="text-center">

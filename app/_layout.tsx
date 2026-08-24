@@ -17,7 +17,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { ClerkProvider, useAuth, useClerk } from "@clerk/expo";
 import { queryClient, persistOptions, registerOfflineMutations } from "@/api";
-import { setTokenGetter } from "@/api/auth-token";
+import { setTokenGetter, setTokenRefresher } from "@/api/auth-token";
 import { BrandSplash, ErrorState, Screen, ToastProvider } from "@/components";
 import {
   wireApiSeams,
@@ -79,7 +79,9 @@ function ClerkTokenBridge() {
 
   useEffect(() => {
     setTokenGetter(() => getToken());
+    setTokenRefresher(() => getToken({ skipCache: true }));
     wireClerkSignOut(() => signOut());
+    return () => setTokenRefresher(null);
   }, [getToken, signOut]);
 
   return null;

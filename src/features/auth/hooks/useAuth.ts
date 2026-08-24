@@ -7,7 +7,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { clearPersistedQueryCache } from "@/api";
 import { ApiError } from "@/api/errors";
 import { env } from "@/config/env";
-import { monitoring, subscription } from "@/lib";
+import { analytics, clearUserScopedStorage, monitoring, subscription } from "@/lib";
 import { resetUserScopedStores, useBiometricUnlockActions, useSessionActions } from "@/stores";
 import { logAuthError } from "../auth-debug";
 
@@ -144,9 +144,17 @@ export function useLogout() {
       setBiometricUnlocked(false);
       resetUserScopedStores();
       queryClient.clear();
+      analytics.reset();
+      monitoring.setUser(null);
+      // Awaited, not fire-and-forget: the dehydrated cache is written
+      // asynchronously, so a sign-out that returns before these settle can be
+      // beaten by the very write it is trying to erase.
       await Promise.all([
         clearPersistedQueryCache().catch((error: unknown) => {
-          monitoring.captureException(error, { seam: "clear-query-cache-on-logout" });
+          monitoring.captureException(error, { seam: "logout-query-purge" });
+        }),
+        clearUserScopedStorage().catch((error: unknown) => {
+          monitoring.captureException(error, { seam: "logout-storage-purge" });
         }),
         subscription.logOut().catch((error: unknown) => {
           monitoring.captureException(error, { seam: "billing-logout" });

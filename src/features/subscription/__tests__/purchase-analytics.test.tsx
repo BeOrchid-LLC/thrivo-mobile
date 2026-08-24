@@ -24,10 +24,13 @@ jest.mock("@/lib", () => ({
   },
 }));
 
+const mockSyncSubscription = jest.fn();
+
 jest.mock("../api/subscription.api", () => ({
   purchaseSubscription: jest.fn(async () => ({ subscription: {} })),
   startTrial: jest.fn(async () => ({ subscription: {} })),
   cancelSubscription: jest.fn(async () => ({ subscription: {} })),
+  syncSubscription: (...a: unknown[]) => mockSyncSubscription(...a),
 }));
 
 function wrapper({ children }: { children: ReactNode }) {
@@ -40,6 +43,8 @@ describe("purchase funnel analytics", () => {
     jest.clearAllMocks();
     mockPurchase.mockResolvedValue({ entitlement: "premium", completed: true });
     mockGetManagementUrl.mockResolvedValue(null);
+    // Confirm on the first attempt, so the retry backoff never runs.
+    mockSyncSubscription.mockResolvedValue({ subscription: { entitlement: "premium" } });
     // Cancellation hands off to the store; keep it from leaving the test.
     jest.spyOn(Linking, "openURL").mockResolvedValue(true);
   });
@@ -53,7 +58,7 @@ describe("purchase funnel analytics", () => {
     await waitFor(() =>
       expect(mockTrack).toHaveBeenCalledWith("thrivo.trial_started", {
         plan: "monthly",
-        productId: "p1",
+        packageId: "p1",
       })
     );
   });
@@ -62,12 +67,12 @@ describe("purchase funnel analytics", () => {
     const { usePurchaseSubscription } = require("../hooks/usePurchaseSubscription");
     const { result } = renderHook(() => usePurchaseSubscription(), { wrapper });
 
-    result.current.mutate({ plan: "annual", productId: "p2", isTrial: false });
+    result.current.mutate({ plan: "annual", packageId: "p2", isTrial: false });
 
     await waitFor(() =>
       expect(mockTrack).toHaveBeenCalledWith("thrivo.subscription_started", {
         plan: "annual",
-        productId: "p2",
+        packageId: "p2",
       })
     );
   });
@@ -77,20 +82,28 @@ describe("purchase funnel analytics", () => {
     const { usePurchaseSubscription } = require("../hooks/usePurchaseSubscription");
     const { result } = renderHook(() => usePurchaseSubscription(), { wrapper });
 
-    result.current.mutate({ plan: "monthly", productId: "p1", isTrial: false });
+    result.current.mutate({ plan: "monthly", packageId: "p1", isTrial: false });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(mockTrack).not.toHaveBeenCalled();
   });
 
-  it("emits thrivo.subscription_cancelled on cancellation", async () => {
+  /**
+   * The app cannot know the user went through with it — neither store lets us
+   * cancel on their behalf, so all we observe is that we handed them off. The
+   * webhook reports the actual outcome.
+   */
+  it("emits thrivo.subscription_management_opened when handing off to the store", async () => {
     const { useCancelSubscription } = require("../hooks/useCancelSubscription");
     const { result } = renderHook(() => useCancelSubscription(), { wrapper });
 
     result.current.mutate({});
 
     await waitFor(() =>
-      expect(mockTrack).toHaveBeenCalledWith("thrivo.subscription_cancelled", undefined)
+      expect(mockTrack).toHaveBeenCalledWith(
+        "thrivo.subscription_management_opened",
+        expect.objectContaining({ platform: expect.any(String) })
+      )
     );
   });
 });

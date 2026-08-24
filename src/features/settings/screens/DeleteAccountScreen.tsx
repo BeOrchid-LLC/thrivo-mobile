@@ -1,12 +1,13 @@
 import { useRef, useState } from "react";
 import { router } from "expo-router";
-import { TextInput, View } from "react-native";
+import { Linking, TextInput, View, Platform } from "react-native";
 import { Warning } from "phosphor-react-native";
 import { Button, FormError, PageHeader, Screen, Text } from "@/components";
 import { useEntitlement } from "@/hooks";
 import { colors, rhythm } from "@/theme";
 import { useDeleteAccount } from "../hooks/useDeleteAccount";
 import { useReauthentication } from "../hooks/useReauthentication";
+import { subscription } from "@/lib";
 
 const DELETED_ITEMS = [
   "Your profile, goals, and personal details",
@@ -30,6 +31,7 @@ function digitsOnly(value: string): string {
 export function DeleteAccountScreen() {
   const [stage, setStage] = useState<"review" | "verify">("review");
   const [code, setCode] = useState("");
+  const [billingWarningAcknowledged, setBillingWarningAcknowledged] = useState(false);
   const codeInput = useRef<TextInput>(null);
   const reauth = useReauthentication();
   const deleteAccount = useDeleteAccount();
@@ -84,6 +86,7 @@ export function DeleteAccountScreen() {
               label="Continue"
               variant="secondary"
               loading={reauth.step === "sending"}
+              disabled={isPremium && !billingWarningAcknowledged}
               className="bg-red-100"
               onPress={onStartVerification}
             />
@@ -140,12 +143,35 @@ export function DeleteAccountScreen() {
             // store can. Saying so here prevents a "you kept charging me" report.
             <View className="rounded-lg border border-yellow-200 bg-yellow-50 px-lg py-md">
               <Text color="warningText" className="font-semibold">
-                Cancel your subscription first
+                Active store subscription
               </Text>
               <Text color="warningText" className="mt-xs">
-                Deleting your account does not cancel billing. Cancel in your app store subscription
-                settings, or you may continue to be charged.
+                Deleting your Thrivo account does not cancel Apple or Google billing. You may manage
+                it now, or acknowledge this warning and continue with deletion.
               </Text>
+              <View className="mt-md gap-sm">
+                <Button
+                  label="Manage store subscription"
+                  variant="secondary"
+                  onPress={async () => {
+                    const fallback = Platform.select({
+                      ios: "https://apps.apple.com/account/subscriptions",
+                      android: "https://play.google.com/store/account/subscriptions",
+                      default: "https://apps.apple.com/account/subscriptions",
+                    });
+                    await Linking.openURL((await subscription.getManagementUrl()) ?? fallback!);
+                  }}
+                />
+                <Button
+                  label={
+                    billingWarningAcknowledged
+                      ? "Billing warning acknowledged"
+                      : "I understand billing may continue"
+                  }
+                  variant="ghost"
+                  onPress={() => setBillingWarningAcknowledged(true)}
+                />
+              </View>
             </View>
           ) : null}
 

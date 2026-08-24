@@ -31,6 +31,9 @@ export const storageKeys = {
   biometricAuthEnabled: "thrivo.pref.biometricAuthEnabled",
   deviceHasOpened: "thrivo.device.hasOpened",
   offlineBarcodeScans: "thrivo.food.offlineBarcodeScans",
+  favorites: "thrivo.favorites",
+  onboardingDraft: "thrivo.onboarding-draft",
+  preferences: "thrivo.preferences",
 } as const;
 
 /**
@@ -38,25 +41,20 @@ export const storageKeys = {
  *
  * `deviceHasOpened` is deliberately excluded — it records that *this handset* has
  * run the app before, which stays true no matter who is signed in.
+ *
+ * The last three are Zustand stores that persist themselves under their own
+ * keys — favourited foods, the first name and goal in the onboarding draft, the
+ * biometric preference. Nothing else in the app touches them, which is exactly
+ * why they were missed until now.
  */
-/**
- * Zustand stores that persist themselves to AsyncStorage under their own keys.
- * They hold data belonging to the signed-in person — favourited foods, their
- * first name and goal from the onboarding draft, their biometric preference —
- * so they have to be purged with everything else. Nothing else in the app
- * touched them, which is exactly why they were missed.
- */
-const PERSISTED_STORE_KEYS: string[] = [
-  "thrivo.favorites",
-  "thrivo.onboarding-draft",
-  "thrivo.preferences",
-];
-
 const USER_SCOPED_KEYS: string[] = [
   storageKeys.notifyAt,
   storageKeys.unitSystem,
   storageKeys.biometricAuthEnabled,
-  ...PERSISTED_STORE_KEYS,
+  storageKeys.offlineBarcodeScans,
+  storageKeys.favorites,
+  storageKeys.onboardingDraft,
+  storageKeys.preferences,
 ];
 
 /**

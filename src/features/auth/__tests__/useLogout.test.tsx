@@ -18,6 +18,9 @@ const mockClearPersistedCache = jest.fn();
 const mockBillingLogOut = jest.fn();
 const mockCaptureException = jest.fn();
 const mockResetStores = jest.fn();
+const mockAnalyticsReset = jest.fn();
+const mockSetUser = jest.fn();
+const mockClearUserScopedStorage = jest.fn();
 
 jest.mock("@clerk/expo", () => ({
   useClerk: () => ({ signOut: mockSignOut }),
@@ -31,7 +34,12 @@ jest.mock("@/api", () => ({
   clearPersistedQueryCache: (...a: unknown[]) => mockClearPersistedCache(...a),
 }));
 jest.mock("@/lib", () => ({
-  monitoring: { captureException: (...a: unknown[]) => mockCaptureException(...a) },
+  analytics: { reset: (...a: unknown[]) => mockAnalyticsReset(...a) },
+  clearUserScopedStorage: (...a: unknown[]) => mockClearUserScopedStorage(...a),
+  monitoring: {
+    captureException: (...a: unknown[]) => mockCaptureException(...a),
+    setUser: (...a: unknown[]) => mockSetUser(...a),
+  },
   subscription: { logOut: (...a: unknown[]) => mockBillingLogOut(...a) },
 }));
 jest.mock("@/stores", () => ({
@@ -51,6 +59,7 @@ describe("useLogout", () => {
     mockSignOut.mockResolvedValue(undefined);
     mockClearPersistedCache.mockResolvedValue(undefined);
     mockBillingLogOut.mockResolvedValue(undefined);
+    mockClearUserScopedStorage.mockResolvedValue(undefined);
   });
 
   it("wipes the on-disk cache, so paused offline writes cannot replay for the next user", async () => {

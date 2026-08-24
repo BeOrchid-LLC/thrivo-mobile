@@ -17,7 +17,7 @@ export {
   type NotificationPermission,
 } from "./notifications";
 export { monitoring, withMonitoring, type Monitoring } from "./monitoring";
-export { analytics, type Analytics, type AnalyticsEvent } from "./analytics";
+export { analytics, queueSignup, type Analytics, type AnalyticsEvent } from "./analytics";
 export {
   subscription,
   isBillingConfigured,

@@ -13,6 +13,7 @@ interface FavoritesState {
     addFavoriteId: (id: string) => void;
     removeFavoriteId: (id: string) => void;
     setHasHydrated: (hasHydrated: boolean) => void;
+    reset: () => void;
   };
 }
 
@@ -51,6 +52,7 @@ export const useFavoritesStore = create<FavoritesState>()(
             favoriteIds: state.favoriteIds.filter((existing) => existing !== id),
           })),
         setHasHydrated: (hasHydrated) => set({ hasHydrated }),
+        reset: () => set({ favoriteIds: [] }),
       },
     }),
     {

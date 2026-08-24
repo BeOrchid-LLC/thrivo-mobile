@@ -114,7 +114,7 @@ describe("SubscriptionPlansScreen", () => {
       fireEvent.press(screen.getByText("Subscribe monthly"));
 
       expect(mockPurchaseMutate).toHaveBeenCalledWith(
-        { plan: "monthly", productId: "monthly", isTrial: false },
+        { plan: "monthly", packageId: "monthly", isTrial: false },
         expect.anything()
       );
     });
@@ -192,7 +192,7 @@ describe("SubscriptionPlansScreen", () => {
       fireEvent.press(screen.getByText("Switch to annual"));
 
       expect(mockPurchaseMutate).toHaveBeenCalledWith(
-        { plan: "annual", productId: "annual", isTrial: false },
+        { plan: "annual", packageId: "annual", isTrial: false },
         expect.anything()
       );
     });
@@ -237,22 +237,40 @@ describe("SubscriptionPlansScreen", () => {
       fireEvent.press(screen.getByText("Resubscribe annual"));
 
       expect(mockPurchaseMutate).toHaveBeenCalledWith(
-        { plan: "annual", productId: "annual", isTrial: false },
+        { plan: "annual", packageId: "annual", isTrial: false },
         expect.anything()
       );
     });
   });
 
   describe("feedback", () => {
-    it("confirms a completed purchase", () => {
+    it("confirms a purchase the backend has activated", () => {
       mockStartTrialMutate.mockImplementation((_v, options) =>
-        options?.onSuccess?.({ completed: true })
+        options?.onSuccess?.({ completed: true, confirmed: true })
       );
       const screen = render(<SubscriptionPlansScreen />);
 
       fireEvent.press(screen.getByText("Start free trial"));
 
       expect(mockShowToast).toHaveBeenCalledWith(expect.objectContaining({ variant: "success" }));
+    });
+
+    // The store can take payment while /subscriptions/sync is still catching up.
+    // Announcing premium then leaves the next screen locked with no explanation.
+    it("does not claim premium is active when activation is still pending", () => {
+      mockStartTrialMutate.mockImplementation((_v, options) =>
+        options?.onSuccess?.({ completed: true, confirmed: false })
+      );
+      const screen = render(<SubscriptionPlansScreen />);
+
+      fireEvent.press(screen.getByText("Start free trial"));
+
+      expect(mockShowToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          variant: "error",
+          message: expect.stringContaining("Activation is delayed"),
+        })
+      );
     });
 
     it("stays quiet when the store sheet is dismissed", () => {

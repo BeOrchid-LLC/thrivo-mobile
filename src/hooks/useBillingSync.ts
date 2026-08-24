@@ -1,7 +1,9 @@
 import { useEffect } from "react";
+import { AppState } from "react-native";
 import { queryClient, queryKeys } from "@/api";
 import { isBillingConfigured, monitoring, subscription } from "@/lib";
 import { useIsAuthenticated } from "@/stores";
+import { syncSubscription } from "@/features/subscription/api/subscription.api";
 
 /**
  * Keeps entitlement in step with the store in real time.
@@ -27,10 +29,20 @@ export function useBillingSync(): void {
     if (!isAuthenticated || !isBillingConfigured()) return;
 
     try {
-      return subscription.onEntitlementChange(() => {
-        void queryClient.invalidateQueries({ queryKey: ["subscription"] });
+      const sync = () => {
+        void syncSubscription()
+          .then((response) => queryClient.setQueryData(queryKeys.subscription.me(), response))
+          .catch((error) => monitoring.captureException(error, { seam: "billing-sync" }));
         void queryClient.invalidateQueries({ queryKey: queryKeys.me() });
+      };
+      const unsubscribe = subscription.onEntitlementChange(sync);
+      const appState = AppState.addEventListener("change", (state) => {
+        if (state === "active") sync();
       });
+      return () => {
+        unsubscribe();
+        appState.remove();
+      };
     } catch (error) {
       // A missing listener must not take the app down — entitlement still
       // refreshes on the normal query cadence, just not instantly.
