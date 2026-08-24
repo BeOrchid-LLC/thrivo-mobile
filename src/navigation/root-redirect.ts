@@ -1,7 +1,10 @@
 import type { AuthStatus } from "@/stores/session.store";
 
 export type RootGroup = string | undefined;
-export type RootRedirectTarget = "/(auth)/welcome" | "/(onboarding)/name" | "/(app)/dashboard";
+export type RootRedirectTarget =
+  | "/(auth)/welcome"
+  | "/(onboarding)/name"
+  | "/(app)/(tabs)/dashboard";
 
 interface RootRedirectInput {
   group: RootGroup;
@@ -41,7 +44,7 @@ export function resolveRootRedirect({
   }
 
   if (status === "authenticated" && (isOnboarded || isOnboardingSkipped)) {
-    return atRoot || inAuth || inOnboarding ? "/(app)/dashboard" : null;
+    return atRoot || inAuth || inOnboarding ? "/(app)/(tabs)/dashboard" : null;
   }
 
   if (status === "authenticated" && inApp) {

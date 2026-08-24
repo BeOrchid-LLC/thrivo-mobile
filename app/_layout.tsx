@@ -1,6 +1,6 @@
 import "../global.css";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Platform, useColorScheme, View } from "react-native";
+import { Platform, View } from "react-native";
 import * as Linking from "expo-linking";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Stack, useRouter, useSegments } from "expo-router";
@@ -30,7 +30,14 @@ import {
   clerkTokenCache,
 } from "@/lib";
 import { env } from "@/config/env";
-import { useBillingSync, useSessionInit, useSessionRefresh } from "@/hooks";
+import {
+  useBillingSync,
+  usePushRegistration,
+  useSessionInit,
+  useSessionRefresh,
+  useTimezoneSync,
+} from "@/hooks";
+import { popOnlyScreenListeners, popOnlyScreenOptions } from "@/navigation/pop-animation";
 import { resolveRootRedirect } from "@/navigation/root-redirect";
 import {
   consumePendingDeepLink,
@@ -103,6 +110,8 @@ function RootNavigator({
   useSessionInit();
   useSessionRefresh();
   useBillingSync();
+  useTimezoneSync();
+  usePushRegistration();
 
   useEffect(() => {
     const capture = async (url: string | null) => {
@@ -132,12 +141,12 @@ function RootNavigator({
   useEffect(() => {
     const screenRoutes: Record<string, string> = {
       checkin: "/(app)/checkin",
-      dashboard: "/(app)/dashboard",
-      log: "/(app)/log",
+      dashboard: "/(app)/(tabs)/dashboard",
+      log: "/(app)/(tabs)/log",
     };
     return addNotificationResponseListener((data) => {
       const key = typeof data.screen === "string" ? data.screen : "";
-      const target = screenRoutes[key] ?? "/(app)/dashboard";
+      const target = screenRoutes[key] ?? "/(app)/(tabs)/dashboard";
       router.push(target as Parameters<typeof router.push>[0]);
     });
   }, [router]);
@@ -236,11 +245,10 @@ function RootNavigator({
     );
   }
 
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return <Stack screenOptions={popOnlyScreenOptions} screenListeners={popOnlyScreenListeners} />;
 }
 
 function RootLayout() {
-  const colorScheme = useColorScheme();
   const [fontsLoaded, fontError] = useFonts({
     Inter_400Regular,
     Inter_500Medium,
@@ -298,7 +306,11 @@ function RootLayout() {
       });
   }, []);
 
-  const neutralBackground = colorScheme === "dark" ? colors.primarySoft : colors.light;
+  // `app.json` sets userInterfaceStyle: "light", so iOS reports Light regardless
+  // of the system setting and the dark branch this used to have was unreachable.
+  // Reintroduce a scheme check only alongside a real dark palette — `src/theme`
+  // has one palette today and Tailwind has no darkMode configured.
+  const neutralBackground = colors.light;
 
   return (
     <ClerkProvider publishableKey={env.clerkPublishableKey} tokenCache={clerkTokenCache}>
