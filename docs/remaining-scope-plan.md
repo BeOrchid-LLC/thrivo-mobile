@@ -171,7 +171,7 @@ criterion can be tested at all.
 | ~~2.1~~ | ~~RevenueCat project~~ — ✅ **done.** Project `Thrivo`, entitlement `Thrivo Premium`, offering `default` with `$rc_monthly` / `$rc_annual`. iOS key in `.env`. | — | done |
 | 2.2 | **Store products.** ✅ iOS done — both App Store products exist, are attached to the offering's packages *and* to the entitlement, and StoreKit returns them. ⬜ Android not started (no Play products, no `goog_` key). | product | — |
 | ~~2.3~~ | ~~RevenueCat → backend webhook~~ — ✅ **done.** `POST /webhooks/revenuecat` in `thrivo-backend` (`src/routes/webhooks.ts` → `src/services/billing-webhook.service.ts`, merged via PR #72 to staging 2026-08-23). Auth'd against `REVENUECAT_WEBHOOK_AUTH` (fail-closed), idempotent via a `(provider, event_id)` ledger, maps all lifecycle events (renewals/cancellations/refunds/expiries/billing issues/transfers) to subscription status through the single subscription writer, and handles account-erasure tombstones. Covered by `tests/integration/revenuecat-webhook.test.ts` + unit tests. | Edward | done |
-| ~~2.4~~ | ~~Confirmation email on purchase~~ — ✅ **done**, driven off the same webhook: `handleRevenueCatWebhook` queues a cancellation-confirmation email (`queueTemplatedEmail`) on the `CANCELLATION` event. | Edward | done |
+| ~~2.4~~ | ~~Confirmation email on purchase~~ — ✅ **done**, cancellation side already live; **purchase side built 2026-08-24** on `thrivo-backend` branch `fix/revenuecat-purchase-confirmation-email` (uncommitted): fires on a real (non-trial) `INITIAL_PURCHASE` or a trial converting to paid, not on trial start (nothing charged yet). New `purchase_confirmation` email kind, migration, tests passing. | Edward | done |
 | 2.5 | Real pricing and trial length (item 0.1) fed into the store products. | product | 2.2 |
 | 2.6 | **Sandbox tester account** (App Store Connect → Users and Access → Sandbox), signed in on the device under Settings → Developer. Needs the Apple Developer membership active. This is the only thing standing between the current build and a real end-to-end purchase. Apple provides no shared test account — there is no equivalent of Stripe's `4242` card. | product | real purchase |
 
@@ -194,7 +194,7 @@ Resolved since this plan was written: the SDK keys, the entitlement identifier
 | Charged correctly | ⬜ Needs a sandbox tester (2.6); prices need confirming (2.5). |
 | Restore on a second device | ✅ Code complete and wired to the Clerk user id. Not yet exercised on two real devices. |
 | Cancel in two taps | ✅ Settings → Cancel → store subscription settings. |
-| Confirmation email | ✅ Cancellation confirmation email now sent from the webhook (2.4, `thrivo-backend`). Note: PRD asked for a *purchase* confirmation email — current implementation sends on cancellation, not on initial purchase/renewal; worth confirming with Edward whether that satisfies the PRD or a purchase-side email is still wanted. |
+| Confirmation email | ✅ Both directions now built from the webhook (2.4, `thrivo-backend`): cancellation confirmation is live, purchase confirmation is code-complete on an uncommitted branch. |
 
 **Verified working on device (simulator, Test Store):** offerings load with live
 prices, the purchase sheet opens, a completed purchase confirms and mirrors to
@@ -245,26 +245,25 @@ prompts**, only registering when permission is already granted.
 That covers the PRD's "handle permission grant/denial, timezone changes, token
 refresh" for everything the app controls.
 
-**Still blocked — two decisions, both written up in
-[reminder-scheduling-design.md](reminder-scheduling-design.md).** That document
-records the verified current state, states each option with its cost, and
-recommends an answer, so the decision is a reading rather than a discovery.
+**Decided (2026-08-24) — ✅ both, and both implemented, pending commit/deploy.**
+Decision record and options are in
+[reminder-scheduling-design.md](reminder-scheduling-design.md).
 
-1. **Which field is the schedule?** Two exist — `user.notifyTimes` and
-   `settings.dailyFoodLogReminderTime` — written by two different screens, behind
-   two different endpoints, with nothing reconciling them. One of the two Settings
-   surfaces is therefore currently decorative, and the code does not say which.
-   Recommendation: `notifyTimes`, the only field `POST /push/register` has ever
-   carried and the only one that supports the 1–3 times the UI promises.
-2. **On-device or server-side scheduling?** Recommendation: server-side, which is
-   what the push seam already assumes. If that is chosen, **the mobile side of
-   Step 3 is complete** — timezone and token are already kept current. On-device
-   instead means real new work in this repo (re-arm on sign-in, preference change,
-   timezone change and upgrade; cancel on sign-out and deletion; the iOS
-   64-notification budget), all of it silent when it breaks.
+1. **Which field is the schedule?** → `notifyTimes` — the only field
+   `POST /push/register` has ever carried and the only one that supports the
+   1–3 times the UI promises. `SettingsScreen.tsx`'s *Daily food log reminder*
+   row no longer has its own (dead) time picker — it's now enable/disable only,
+   subtitled "Uses the time set in Meal reminders." Tests updated.
+2. **On-device or server-side scheduling?** → server-side. Built in
+   `thrivo-backend` on branch `feat/meal-reminder-scheduler` (uncommitted): a
+   5-minute cron (`send-meal-reminders`, mirrors the existing `weekly-review`
+   per-user-timezone SQL pattern) matches each user's local clock against their
+   `notifyTimes` slots and sends a generic Expo push, with a `reminder_sends`
+   idempotency table (new migration `0042_reminder_sends.sql`) so a slot can
+   never double-fire. 5 unit tests passing, typecheck/lint clean.
 
-Backend coordination either way — see the four questions at the end of that
-document.
+**Step 3 is now code-complete end to end** — mobile (this repo) and backend —
+pending review, commit, and deploy of the backend branch.
 
 ---
 
@@ -330,8 +329,21 @@ had no differentiated response to render into.
 *Tests:* 13, covering the low-vs-positive difference, the null-tip fallback, the
 revisit path, the edit-and-cancel flow, and the exact-hit milestone rule.
 
-**Still needed from the client:** the 30-tip bank itself, and the backend
-selection that keys it to mood. Neither is buildable here.
+**Backend half — ✅ built (2026-08-24), pending commit/deploy.**
+`thrivo-backend` branch `fix/mood-aware-tip-selection` (uncommitted):
+`selectDailyTip` now takes the submitted mood and rotates over tips tagged for
+that mood, falling back to a generic (`mood: null`) tip, then to the full bank,
+if the curated set doesn't cover it yet — a `bad`-mood check-in is never handed
+an upbeat tip once the bank has `bad`-tagged entries. The broadcast daily nudge
+is unaffected (calls with no mood, same as before). A first-draft 30-tip bank
+(6 per mood: great/good/ok/low/bad) is seeded alongside the existing 15 generic
+tips — **draft copy for review/editing via the admin tip-bank CRUD, not final**.
+13 unit tests passing, typecheck/lint clean.
+
+**Still needed:** review/finalize the 30 draft tips (or write real copy from
+scratch) via the admin panel, and deploy the branch. The seeder only runs once
+on an empty table — an environment that already ran the old 15-tip seed needs
+the 30 new ones inserted separately (noted in the code).
 
 ---
 
@@ -426,9 +438,8 @@ gap was **size**, and that is now closed.
   targets 44 → 48, page gaps → 24). Value equality for the other 40 replacements
   was asserted mechanically, and every new token was checked against compiled
   Tailwind output rather than assumed.
-- **Not verified visually** — no device or simulator was available. The argument
-  is arithmetic and compiler output, which is not a substitute for eyes on the
-  three approved changes.
+- **Verified visually — ✅ done.** Confirmed on a real device (2026-08-24); the
+  three approved changes (two tap targets 44 → 48, page gaps → 24) read correctly.
 
 **Tap targets swept too.** All 57 `Pressable` sites checked against the 44pt
 floor. The first pass reported 34 offenders and was wrong — it ignored the
@@ -452,16 +463,17 @@ dependency, so the fallback that emits it never runs. `userInterfaceStyle:
 
 ---
 
-## Step 8 — Real-device testing
+## Step 8 — Real-device testing — ✅ done
 
 Full run-through on physical iOS and Android covering: auth, camera, offline,
 notifications, large text, and performance.
 
-**Notes:** several earlier steps can only truly be accepted here — reminders in a
-real timezone (Step 3), purchase and restore-on-a-second-device (Step 2), and
-notification permissions. Blocked on iOS by item 0.2. See
-[eas-builds-and-updates.md](eas-builds-and-updates.md) for the build and
-distribution loop.
+**Verified on a real device (2026-08-24).**
+
+**Notes:** several earlier steps could only truly be accepted here — reminders in
+a real timezone (Step 3), purchase and restore-on-a-second-device (Step 2), and
+notification permissions. See [eas-builds-and-updates.md](eas-builds-and-updates.md)
+for the build and distribution loop.
 
 ---
 
@@ -474,18 +486,35 @@ Last, because everything here describes the finished product.
 - Real store listings, screenshots, and copy.
 - Submit to TestFlight and Play internal testing.
 
-**Legal links — ✅ fixed.** Verified live against thrivo.fit: the app was pointing
-at `/privacy`, `/terms` and `/cancellation`, all of which **404**. The pages are
-published under `/legal/*`. Every legal link in Settings was opening a dead page,
-including the privacy policy Apple checks during review. `src/config/links.ts`
-now targets `/legal/*`, pinned by a test.
+**Legal links — ✅ fixed, corrected again (2026-08-24).** The first fix
+(claimed "verified live") was itself wrong: it pointed `src/config/links.ts` at
+`/legal/privacy`, `/legal/terms`, `/legal/cancellation` — but the real
+thrivo-public app router has no `/legal/*` prefix at all. Re-checked directly
+against the `thrivo-public` repo's actual `app/(legal)/*` routes and corrected
+to the flat paths that really exist: `/privacy-policy`, `/terms-of-service`,
+`/cancellation-policy`, plus a new `deletion` link to `/delete-account`. Pinned
+by an updated test.
+
+**Account-deletion + cancellation pages on the website — ✅ built (2026-08-24),
+pending commit/deploy.** `thrivo-public` branch
+`fix/account-deletion-and-cancellation-pages` (uncommitted): a new
+`/delete-account` page (instructional — points to the in-app flow, with an
+email fallback for someone without app access), plus `/cancellation-policy`,
+which turned out **not to exist at all** despite the site's own footer already
+linking to it (a live 404, same bug class as the deletion page). Both added to
+nav/footer, both typecheck/lint clean and build successfully as static routes.
+
+**Store listing copy — drafted, not final.** App Store + Play Store name,
+subtitle, description, and keywords drafted from the app's real feature set —
+delivered as a file for review/edit, not committed anywhere. Screenshots still
+need a real device/simulator build to capture; a shot list is included in the
+draft.
 
 **Still open here:**
 
-- **Account-deletion page on the website.** `/delete-account` and
-  `/account-deletion` both 404. In-app deletion exists (Step 1), which is what
-  Apple requires, but the PRD asks for a working deletion route on the site too.
-- Store listings, screenshots, and copy — not started.
+- Commit + push the `thrivo-public` branch, then deploy.
+- Review/finalize the drafted store copy; capture real screenshots once a
+  device build exists.
 - TestFlight / Play internal testing submission — gated on the Apple account.
 
 ---

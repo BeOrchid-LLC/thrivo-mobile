@@ -154,9 +154,7 @@ export function SettingsScreen() {
   const [biometricBusy, setBiometricBusy] = useState(false);
 
   // Which reminder-time field the native time picker is currently editing.
-  const [editingTime, setEditingTime] = useState<
-    "dailyFoodLogReminderTime" | "weightCheckReminderTime" | null
-  >(null);
+  const [editingTime, setEditingTime] = useState<"weightCheckReminderTime" | null>(null);
   const [editingSelect, setEditingSelect] = useState<"units" | "hydration" | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -332,6 +330,7 @@ export function SettingsScreen() {
         <Row
           icon={<Clock size={24} color={colors.dark} />}
           title="Daily food log reminder"
+          subtitle="Uses the time set in Meal reminders"
           action={
             <Switch
               value={Boolean(userSettings?.dailyFoodLogReminderEnabled)}
@@ -342,24 +341,6 @@ export function SettingsScreen() {
               trackColor={{ true: colors.primaryBright, false: colors.gray[300] }}
             />
           }
-        />
-        <Row
-          icon={<Bell size={22} color={colors.dark} />}
-          title="Reminder time"
-          subtitle={
-            settingsLoading ? (
-              <SkeletonText size="caption" className="mt-xxs w-1/3" />
-            ) : (
-              formatTime(userSettings.dailyFoodLogReminderTime)
-            )
-          }
-          action={
-            <View className="flex-row items-center gap-xs">
-              <Text color="muted">Change</Text>
-              <CaretRight size={18} color={colors.gray[500]} />
-            </View>
-          }
-          onPress={settingsLoading ? undefined : () => setEditingTime("dailyFoodLogReminderTime")}
         />
         <Row
           icon={<Bell size={22} color={colors.dark} />}

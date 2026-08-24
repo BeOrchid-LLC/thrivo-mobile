@@ -217,12 +217,15 @@ describe("settings screens", () => {
   it("reports a reminder change only when a time is confirmed", async () => {
     const screen = render(<SettingsScreen />);
 
-    // Open the picker from the daily food-log reminder row.
+    // Open the picker from the weekly weigh-in reminder row (index 0) — the
+    // other "Reminder time" row is hydration's interval picker, a different
+    // control. The daily food-log reminder no longer has its own time picker;
+    // it defers to Meal reminders (notifyTimes is authoritative).
     fireEvent.press(screen.getAllByText("Reminder time")[0]);
     fireEvent.press(await screen.findByText("confirm-time"));
 
     expect(mockTrack).toHaveBeenCalledWith("thrivo.reminder_set", {
-      reminder: "dailyFoodLogReminderTime",
+      reminder: "weightCheckReminderTime",
     });
   });
 });
