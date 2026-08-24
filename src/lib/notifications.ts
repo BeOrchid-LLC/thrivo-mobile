@@ -7,7 +7,8 @@ import { callApi } from "@/api";
  * Push notifications adapter (Expo Notifications — MOBILE_ARCHITECTURE §8).
  * Permission is requested after login; denial degrades gracefully (in-app
  * reminder only). The Expo token is registered with the backend so it can send
- * the daily nudge; tapping a nudge routes to the check-in screen.
+ * scheduled food-log reminders and psychology tips. Food-log taps route to
+ * logging; psychology-tip taps route to check-in.
  */
 
 Notifications.setNotificationHandler({

@@ -90,6 +90,7 @@ const settings = {
   unitSystem: "metric",
   pushNotificationsEnabled: true,
   dailyFoodLogReminderEnabled: true,
+  psychologyTipPushEnabled: true,
   dailyFoodLogReminderTime: "08:00",
   weightCheckReminderEnabled: true,
   weightCheckReminderDay: "friday",
@@ -161,6 +162,14 @@ describe("settings screens", () => {
     expect(mockUpdateSettingsMutate).toHaveBeenCalledWith({
       hydrationReminderIntervalMinutes: 60,
     });
+  });
+
+  it("toggles psychology-tip push delivery separately", () => {
+    const screen = render(<SettingsScreen />);
+
+    fireEvent(screen.getByLabelText("Psychology tips"), "valueChange", false);
+
+    expect(mockUpdateSettingsMutate).toHaveBeenCalledWith({ psychologyTipPushEnabled: false });
   });
 
   it("signs out through the auth hook", () => {

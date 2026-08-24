@@ -36,10 +36,15 @@ export const subscriptionSchema = pkg.subscriptionStateSchema;
 export const subscriptionStatusSchema = pkg.publicSubscriptionStatusSchema;
 export const updateLogPayload = pkg.updateLogPayloadSchema;
 export const updateProfilePayload = pkg.updateProfilePayloadSchema;
-// The published 0.23.0 package now includes the weekly-review compatibility
-// field and its cross-field validation, so no local schema extension is needed.
-export const updateUserSettingsPayload = pkg.updateUserSettingsPayloadSchema;
-export const userSettingsCompatSchema = pkg.userSettingsSchema;
+// The backend contract source is updated in lockstep. Extend the currently
+// installed package during the release handoff so the mobile app can consume
+// psychologyTipPushEnabled before the next contracts package is published.
+export const updateUserSettingsPayload = pkg.updateUserSettingsPayloadSchema.and(
+  z.object({ psychologyTipPushEnabled: z.boolean().optional() })
+);
+export const userSettingsCompatSchema = pkg.userSettingsSchema.extend({
+  psychologyTipPushEnabled: z.boolean().default(true),
+});
 export const updateWaterPayload = pkg.updateWaterPayloadSchema;
 export const upsertFoodPayload = pkg.upsertFoodPayloadSchema;
 export const userSchema = pkg.userProfileSchema;

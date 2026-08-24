@@ -203,22 +203,20 @@ nothing.
 
 ## Step 3 — Timezone-aware reminders
 
-- Deliver at each user's chosen local times; today reminders fire globally at a
-  single UTC time.
+- Deliver food-log reminders at each user's chosen local times; the existing
+  psychology-tip push remains a separate once-daily flow.
 - Handle permission grant/denial, timezone changes, and token refresh.
 - **Accept:** a reminder set for 8am arrives at 8am in the user's timezone, on a
   real device.
 
 **Current state:** notification preferences already exist in onboarding
-(`src/features/onboarding/screens/NotificationsStep.tsx`) and settings;
-`expo-notifications` and `expo-localization` are both installed, so the device
-side is in place. The scheduling logic is what changes.
+(`src/features/onboarding/screens/NotificationsStep.tsx`) and settings; the
+backend now owns `/push/register`, stores `notifyTimes` plus the IANA timezone,
+and dispatches food-log reminders from a minute-based worker.
 
-**Notes:** decide explicitly whether scheduling is local (on-device, via
-`expo-notifications`) or server-side (push at the right UTC instant per user).
-Server-side needs the user's IANA timezone stored and refreshed when it changes;
-local scheduling survives no-network but needs re-arming on timezone change and
-on app upgrade. This is a backend-coordination item either way.
+**Notes:** scheduling is server-side. Invalid timezones are skipped, daylight
+saving gaps are not synthesized, fall-back repeats are deduplicated by the
+delivery ledger, and permission denial falls back to in-app reminders.
 
 ---
 
@@ -252,6 +250,10 @@ core loop is not at risk either way.
 **Current state:** `src/features/checkin/` exists with a screen, API, and
 `useCheckin` hook, so the submission path is built. The tip-selection logic is the
 gap, and the 30-tip bank needs to be sourced.
+
+**Push relationship:** `psychologyTipPushEnabled` is a separate Settings-only
+preference for push delivery. Disabling it does not remove the tip from an
+in-app check-in response.
 
 **Notes:** confirm whether tip selection is server-side (backend owns the bank) or
 client-side. Server-side is preferable — it lets the bank be edited without an app

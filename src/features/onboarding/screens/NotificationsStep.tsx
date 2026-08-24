@@ -96,20 +96,27 @@ export default function NotificationsStep({
     const next = fieldsToSave();
     setFields(next);
     try {
-      try {
-        await registerForPushNotifications(next.notifyTimes);
-      } catch {
-        // Permission denial should not block saving reminder preferences.
-      }
       if (mode === "revisit") {
         await onNext?.(next);
-        return;
+      } else {
+        await submit("complete", { onboardingStep: 8, fields: next });
       }
-      await submit("complete", { onboardingStep: 8, fields: next });
-      router.replace("/(app)/dashboard");
     } catch {
       setError("We couldn't save your reminder preferences. Please try again.");
+      return;
     }
+    try {
+      // Persist the local schedule before associating the device token with it.
+      // Permission denial is a supported offline/in-app fallback; registration
+      // failures surface so the user can retry the backend operation.
+      await registerForPushNotifications(next.notifyTimes);
+    } catch {
+      setError(
+        "Your reminder times were saved, but push notifications couldn't be enabled. Please try again."
+      );
+      return;
+    }
+    router.replace("/(app)/dashboard");
   };
 
   const skip = () => {
@@ -129,8 +136,8 @@ export default function NotificationsStep({
   return (
     <OnboardingStep
       step={7}
-      title="Your daily nudges"
-      subtitle="Pick 1–3 reminder times a day. We'll check in — not spam you."
+      title="Food log reminders"
+      subtitle="Pick 1–3 local times a day to remember your food log."
       onBack={mode === "revisit" ? onBack : undefined}
       variant={variant}
       footer={
