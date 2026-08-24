@@ -65,10 +65,22 @@ verified at sign-up.
   confirmed rather than assumed — Edward.
 - Can the same email sign up again afterwards? Depends on the backend not
   soft-deleting behind a unique email constraint. One manual test settles it.
-- Sign-out does **not** clear `offlineBarcodeScans`. Deletion now does, but if
-  user A signs out and user B signs in on the same device, A's queued scans could
-  replay into B's log. Narrower, and the fix is debatable — clearing on sign-out
-  discards legitimate queued data for someone signing straight back in.
+
+**Cross-account barcode queue — ✅ fixed.** `offlineBarcodeScans` lived under one
+device-wide key, so a scan queued by user A replayed into user B's log after a
+sign-out/sign-in on the same handset. The queue is now namespaced per user, which
+beats clearing it on sign-out: someone who signs back in keeps their own pending
+scans and never sees anyone else's. Account deletion wipes every namespace by
+prefix, and anything left under the legacy shared key is dropped on read — it has
+no recoverable owner, so it cannot be safely attributed to whoever is signed in
+now.
+
+A second, quieter failure came out of the same pass: the replay ran only when the
+barcode changed, but the owner id arrives from the session store *after* Clerk
+restores and `GET /users/me` resolves. A cold start into Log Food therefore saw
+`null`, found nothing to replay, and never looked again — the queued scan sat in
+storage forever with nothing surfacing it. Both effects now re-run when the id
+lands, covered by tests that fail without the fix.
 
 ---
 
@@ -209,16 +221,53 @@ nothing.
 - **Accept:** a reminder set for 8am arrives at 8am in the user's timezone, on a
   real device.
 
-**Current state:** notification preferences already exist in onboarding
-(`src/features/onboarding/screens/NotificationsStep.tsx`) and settings;
-`expo-notifications` and `expo-localization` are both installed, so the device
-side is in place. The scheduling logic is what changes.
+**Current state:** notification preferences exist in onboarding and settings, and
+`expo-notifications` / `expo-localization` are installed.
 
-**Notes:** decide explicitly whether scheduling is local (on-device, via
-`expo-notifications`) or server-side (push at the right UTC instant per user).
-Server-side needs the user's IANA timezone stored and refreshed when it changes;
-local scheduling survives no-network but needs re-arming on timezone change and
-on app upgrade. This is a backend-coordination item either way.
+**Timezone reporting — ✅ fixed (the app's half).** The timezone was only ever set
+**once**, during onboarding. Anyone who travelled, moved, or changed their device
+setting kept that original value forever — an 8am reminder arriving at 8am in a
+city they had left — and anyone who skipped onboarding never sent one at all,
+leaving the backend to fall back to a single global UTC time. `useTimezoneSync`
+now corrects it on sign-in and on every foreground (a timezone changes while the
+app is backgrounded, and there is no event for it), sending only when the value
+actually differs.
+
+This is a prerequisite for whichever scheduling design is chosen — the backend
+cannot deliver in local time without an accurate timezone either way.
+
+**Push token and permission — ✅ fixed (the app's half).** The token was fetched
+and registered exactly once, inside the onboarding notifications step, which left
+three silent ways for reminders to stop: the token rotates (reinstall, restore
+from backup, OS change) and the backend keeps pushing to a dead address; the user
+skipped onboarding and never registered at all; or they granted permission later
+in iOS Settings rather than in the app. `usePushRegistration` now re-registers on
+sign-in, on every foreground, and on rotation — and deliberately **never
+prompts**, only registering when permission is already granted.
+
+That covers the PRD's "handle permission grant/denial, timezone changes, token
+refresh" for everything the app controls.
+
+**Still blocked — two decisions, both written up in
+[reminder-scheduling-design.md](reminder-scheduling-design.md).** That document
+records the verified current state, states each option with its cost, and
+recommends an answer, so the decision is a reading rather than a discovery.
+
+1. **Which field is the schedule?** Two exist — `user.notifyTimes` and
+   `settings.dailyFoodLogReminderTime` — written by two different screens, behind
+   two different endpoints, with nothing reconciling them. One of the two Settings
+   surfaces is therefore currently decorative, and the code does not say which.
+   Recommendation: `notifyTimes`, the only field `POST /push/register` has ever
+   carried and the only one that supports the 1–3 times the UI promises.
+2. **On-device or server-side scheduling?** Recommendation: server-side, which is
+   what the push seam already assumes. If that is chosen, **the mobile side of
+   Step 3 is complete** — timezone and token are already kept current. On-device
+   instead means real new work in this repo (re-arm on sign-in, preference change,
+   timezone change and upgrade; cancel on sign-out and deletion; the iOS
+   64-notification budget), all of it silent when it breaks.
+
+Backend coordination either way — see the four questions at the end of that
+document.
 
 ---
 
@@ -249,13 +298,43 @@ core loop is not at risk either way.
 - **Accept:** selecting a low vs. positive mood returns appropriately different
   responses.
 
-**Current state:** `src/features/checkin/` exists with a screen, API, and
-`useCheckin` hook, so the submission path is built. The tip-selection logic is the
-gap, and the 30-tip bank needs to be sourced.
+**Tip selection is settled, and it is the backend's.** The contract says so
+outright — `checkin.tip` is documented as the *"server-selected psychology tip
+returned for the chosen mood / day"*. That is the right split (the bank can be
+edited without an app release, per this app's defer-to-the-server stance), so the
+open question in the earlier draft of this plan is closed: there is nothing to
+decide, only a bank to source.
 
-**Notes:** confirm whether tip selection is server-side (backend owns the bank) or
-client-side. Server-side is preferable — it lets the bank be edited without an app
-release, and matches this app's "defer shared business rules to the server" stance.
+**The app's half — ✅ done.** What the split left behind was a screen that
+responded identically to every mood: one flat line, *"Thanks for checking in —
+feeling bad."*, whether the user had their best day of the month or their worst.
+The acceptance criterion could not be met by the backend alone, because the app
+had no differentiated response to render into.
+
+- `moodResponse` (`src/features/checkin/utils/mood-response.ts`) maps each mood
+  to its own heading and body across three tones — positive / steady / low. This
+  is presentation, not a shared business rule, so it lives in the app. **A low and
+  a positive mood now read differently before the bank exists**, which is the PRD
+  criterion.
+- `milestoneFor` (`src/features/checkin/utils/milestones.ts`) celebrates streak
+  milestones at 3, 7, 14, 30, 60, 100 and 365 days, derived from the
+  `currentStreakDays` the dashboard already reads — the app counts nothing of its
+  own, so there is nothing to drift. Only an **exact** hit celebrates; a `>=`
+  comparison would re-congratulate the same streak every day afterwards.
+- **Bug fixed: the tip did not survive leaving the screen.** The response
+  rendered only from `create.data`, so it lasted exactly as long as the mutation
+  result. Check in, go to the dashboard, come back — and you were shown the empty
+  form again, with the tip the backend had already selected gone for good.
+  Today's check-in now comes from history as well, so it is the same view either
+  way, with an explicit path back into the form to update it.
+- **`tip: null` is handled honestly.** The contract allows it and the card used
+  to just render a gap; the mood response now stands on its own.
+
+*Tests:* 13, covering the low-vs-positive difference, the null-tip fallback, the
+revisit path, the edit-and-cancel flow, and the exact-hit milestone rule.
+
+**Still needed from the client:** the 30-tip bank itself, and the backend
+selection that keys it to mood. Neither is buildable here.
 
 ---
 
@@ -264,10 +343,10 @@ release, and matches this app's "defer shared business rules to the server" stan
 Placed after Steps 1–5 because several events can only fire once the flows they
 describe exist. The seam itself is already in place.
 
-**Current state (verified):** all 11 events fire. The union is renamed to the
-agreed convention and every event has a call site, guarded by a test that walks
-the source and fails if any required event stops being emitted — both failure
-modes here are silent, so the check has to be mechanical.
+**Current state (verified):** all 11 events fire from 12 call sites. The union is
+renamed to the agreed convention and every event has a real call site, guarded by
+a test that walks the source and fails if any required event stops being emitted —
+both failure modes here are silent, so the check has to be mechanical.
 
 **The PRD resolves the two open questions in
 [naming-conventions-plan.md](naming-conventions-plan.md) §3** — it confirms the
@@ -287,14 +366,34 @@ Required events, all `thrivo.`-prefixed:
 | `thrivo.onboarding_completed` | ✅ | `useSaveOnboardingStep` — final step only |
 | `thrivo.food_logged` | ✅ | `offline-mutations` registration, so replayed offline writes count once |
 | `thrivo.barcode_scanned` | ✅ | `LogFoodScreen` — on decode, deduped by the existing scan guard |
-| `thrivo.reminder_set` | ✅ | `SettingsScreen` — a confirmed time, not a dismissed picker |
-| `thrivo.checkin_submitted` | ✅ | `useCreateCheckin` (not in the PRD list — kept; confirm) |
+| `thrivo.reminder_set` | ✅ | `SettingsScreen` **and** `NotificationsStep` — a saved schedule, not a dismissed picker or a failed save |
+| `thrivo.checkin_submitted` | ✅ | `useCreateCheckin` (not in the PRD list — **kept**, see below) |
 
 - **Accept:** a test run produces correctly named events in the dashboard.
 
-**Open question:** the existing union also has `checkin_submitted`, which the PRD
-list does not mention. Recommend keeping it as `thrivo.checkin_submitted` — Step 5
-makes check-ins a real feature — but this should be confirmed rather than assumed.
+**`thrivo.checkin_submitted` — decided: kept.** It is not in the PRD's list, but
+Step 5 turns check-ins into a real feature with a mood-aware response, so a
+submission is a funnel step worth counting, and the event already had a call
+site. Dropping it would lose data for no gain. The rationale now lives beside the
+required-events list in `src/lib/__tests__/analytics-events.test.ts` rather than
+as an open question here.
+
+**Funnel hole found and closed.** `thrivo.reminder_set` fired only from the
+Settings pickers. The **Meal reminders** screen — onboarding step 7, and the same
+screen deep-linked from Settings, which is where most users first set their
+reminder times — emitted nothing at all. Both surfaces now emit, carrying a
+`reminder` property that distinguishes them (`notifyTimes` vs. the settings
+field). That is also the cheapest way to answer decision 3.1 in
+[reminder-scheduling-design.md](reminder-scheduling-design.md) empirically:
+whichever screen users actually reach for will show up in the data.
+
+**The guard was weaker than it read.** `analytics-events.test.ts` walked the
+source for each required event — but the corpus included `lib/analytics.ts`
+itself, so an event that was *declared and never emitted* still matched, and the
+check quietly proved nothing. The union file is now excluded, so a call site has
+to exist somewhere real. The union and the required list are also compared in
+both directions, which catches an event added to the union without being agreed —
+exactly the drift a closed union exists to prevent.
 
 **Notes:** keep `AnalyticsEvent` a closed union; it is the enforcement point for
 the naming convention.
@@ -306,15 +405,53 @@ the naming convention.
 Deliberately placed after the feature work, so cleanup happens once against the
 final set of screens rather than twice.
 
-The PRD leaves this open-ended, so it needs a concrete list before it can be
-estimated or accepted. Suggest walking the app and agreeing the specific screens
-in writing.
+**Done — [ui-cleanup-plan.md](ui-cleanup-plan.md) has the full record.** The app
+was walked rather than guessed at: 155 arbitrary-value classes across 37 files,
+now **92**. The repo already enforced colour (`check:no-raw-hex`); the unguarded
+gap was **size**, and that is now closed.
 
-**Notes:** the repo already enforces design consistency — `src/theme` is the only
-styling source and `npm run check:no-raw-hex` fails the build on raw `#hex`
-outside it. Cleanup should resolve into tokens rather than one-off values. One
-known item: `expo prebuild` currently warns that `userInterfaceStyle` in
-`app.json` prevents the dark-mode splash from working correctly.
+| | Before | After |
+| --- | --- | --- |
+| Arbitrary radii | 9 | **0** |
+| Page gaps in use | 4 (18/20/24/26) | **1** |
+| Unnamed tab-bar clearance | 3 | **0** |
+| Duplicate colour tokens | 4 | **2** (both intentional aliases) |
+
+- **New token scales:** `sizing` (control/badge/avatar/icon dimensions — the
+  44-vs-48 touch-target ambiguity is settled at **48**, which clears both stores'
+  minimums) and `rhythm` (one page gap; tab-bar clearance is now a named concern,
+  not a mystery `120`). Four role-named radii — `chip`/`tile`/`group`/`panel` —
+  fill the steps the Figma screens use that the ramp was missing.
+- **Token hygiene:** two duplicate colour tokens merged, one dead token deleted,
+  and the `Text` colour API de-trapped — `color="muted"` was *not* `colors.muted`,
+  and `gray600` was a second name for the same value.
+- **Everything is pixel-preserving except three approved changes** (two tap
+  targets 44 → 48, page gaps → 24). Value equality for the other 40 replacements
+  was asserted mechanically, and every new token was checked against compiled
+  Tailwind output rather than assumed.
+- **Not verified visually** — no device or simulator was available. The argument
+  is arithmetic and compiler output, which is not a substitute for eyes on the
+  three approved changes.
+
+**Tap targets swept too.** All 57 `Pressable` sites checked against the 44pt
+floor. The first pass reported 34 offenders and was wrong — it ignored the
+`hitSlop` the codebase already uses deliberately; **17 were genuine**, and two of
+those were introduced earlier in this same session. Fixed with `min-h-touchTarget`
+where growth is correct and `hitSlop` where layout must not move (a calendar cell
+would reflow its grid).
+
+What is left in Step 7 needs a design call or a device, not mechanical work:
+large-text behaviour at accessibility sizes, three one-off letter-spacing values,
+the density-converted hairline borders, and ~92 genuine one-off layout dimensions
+that tokenising would only obscure.
+
+**One known item resolved, not deferred.** The plan recorded that `expo prebuild`
+warns `userInterfaceStyle` breaks the dark-mode splash. Checked against the
+plugin source: that warning fires **only when a dark splash is configured**, and
+the `splash.dark` blocks have since been removed from `app.json`. The Android
+warning from the same family does not apply either — `expo-system-ui` is a direct
+dependency, so the fallback that emits it never runs. `userInterfaceStyle:
+"light"` is correct and deliberate: one palette, no `darkMode` in Tailwind.
 
 ---
 
@@ -340,9 +477,19 @@ Last, because everything here describes the finished product.
 - Real store listings, screenshots, and copy.
 - Submit to TestFlight and Play internal testing.
 
-**Current state:** `src/config/links.ts` already points at `/privacy`, `/terms`,
-and `/cancellation` on the site — these need verifying against what the website
-actually serves, and a deletion route needs adding to match Step 1.
+**Legal links — ✅ fixed.** Verified live against thrivo.fit: the app was pointing
+at `/privacy`, `/terms` and `/cancellation`, all of which **404**. The pages are
+published under `/legal/*`. Every legal link in Settings was opening a dead page,
+including the privacy policy Apple checks during review. `src/config/links.ts`
+now targets `/legal/*`, pinned by a test.
+
+**Still open here:**
+
+- **Account-deletion page on the website.** `/delete-account` and
+  `/account-deletion` both 404. In-app deletion exists (Step 1), which is what
+  Apple requires, but the PRD asks for a working deletion route on the site too.
+- Store listings, screenshots, and copy — not started.
+- TestFlight / Play internal testing submission — gated on the Apple account.
 
 ---
 
