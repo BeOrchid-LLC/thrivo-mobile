@@ -31,6 +31,11 @@ export const otpRequestPayload = pkg.otpRequestPayloadSchema;
 export const otpVerifyPayload = pkg.otpVerifyPayloadSchema;
 export const purchaseSubscriptionPayload = pkg.purchaseSubscriptionPayloadSchema;
 export const requestUploadPayload = pkg.requestUploadPayloadSchema;
+// The installed contracts package predates device-aware push registration;
+// extend it locally until the next shared contracts package is published.
+export const registerPushPayloadCompat = pkg.registerPushPayload.extend({
+  deviceId: z.string().trim().min(1).max(255).optional(),
+});
 export const startTrialPayload = pkg.startTrialPayloadSchema;
 export const subscriptionSchema = pkg.subscriptionStateSchema;
 export const subscriptionStatusSchema = pkg.publicSubscriptionStatusSchema;

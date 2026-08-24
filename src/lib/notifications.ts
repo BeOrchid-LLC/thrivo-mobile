@@ -1,7 +1,29 @@
 import { Platform } from "react-native";
 import Constants from "expo-constants";
+import * as Application from "expo-application";
+import * as Crypto from "expo-crypto";
 import * as Notifications from "expo-notifications";
+import * as SecureStore from "expo-secure-store";
 import { callApi } from "@/api";
+
+const PUSH_DEVICE_ID_KEY = "thrivo.push.device-id";
+
+async function resolvePushDeviceId(): Promise<string> {
+  const platformId =
+    Platform.OS === "android"
+      ? Application.getAndroidId()
+      : Platform.OS === "ios"
+        ? await Application.getIosIdForVendorAsync()
+        : null;
+  if (platformId) return `${Platform.OS}:${platformId}`;
+
+  const stored = await SecureStore.getItemAsync(PUSH_DEVICE_ID_KEY);
+  if (stored) return stored;
+
+  const generated = `${Platform.OS}:${Crypto.randomUUID()}`;
+  await SecureStore.setItemAsync(PUSH_DEVICE_ID_KEY, generated);
+  return generated;
+}
 
 /**
  * Push notifications adapter (Expo Notifications — MOBILE_ARCHITECTURE §8).
@@ -45,11 +67,13 @@ export async function registerForPushNotifications(notifyTimes?: string[]): Prom
   const { data: expoPushToken } = await Notifications.getExpoPushTokenAsync(
     projectId ? { projectId } : undefined
   );
+  const deviceId = await resolvePushDeviceId();
 
   await callApi("PUSH_REGISTER", {
     payload: {
       expoPushToken,
       platform: Platform.OS === "ios" ? "ios" : "android",
+      deviceId,
       notifyTimes,
     },
   });

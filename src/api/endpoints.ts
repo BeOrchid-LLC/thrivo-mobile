@@ -35,7 +35,7 @@ export const ENDPOINTS = {
     path: "/push/register",
     method: "POST",
     auth: true,
-    payload: c.registerPushPayload,
+    payload: c.registerPushPayloadCompat,
     response: c.ackSchema,
   },
 
