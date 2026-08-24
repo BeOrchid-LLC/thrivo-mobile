@@ -14,7 +14,15 @@ import { join } from "node:path";
 
 const SRC = join(__dirname, "..", "..");
 
-/** Events the Remaining Scope PRD requires, plus the check-in we kept. */
+/**
+ * Events the Remaining Scope PRD requires, plus `thrivo.checkin_submitted`.
+ *
+ * The check-in event is not in the PRD's list. It is kept deliberately: Step 5
+ * makes check-ins a real feature with a mood-aware response, so submissions are
+ * a funnel step worth counting, and the event already had a call site. Dropping
+ * it would lose data for no gain. Recorded here rather than left as an open
+ * question — see docs/remaining-scope-plan.md §Step 6.
+ */
 const REQUIRED_EVENTS = [
   "thrivo.signup",
   "thrivo.onboarding_completed",
@@ -29,11 +37,28 @@ const REQUIRED_EVENTS = [
   "thrivo.checkin_submitted",
 ];
 
+const UNION_FILE = join(SRC, "lib", "analytics.ts");
+
+/**
+ * Every source file *except* the union declaration itself.
+ *
+ * Excluding it is the whole point: with `lib/analytics.ts` in the corpus, an
+ * event that is declared but never emitted still matched, so the check quietly
+ * proved nothing. A call site now has to exist somewhere else.
+ */
 function sourceText(): string {
   const files = globSync("**/*.{ts,tsx}", { cwd: SRC })
-    .filter((f) => !f.includes("__tests__"))
+    .filter((f) => !f.includes("__tests__") && join(SRC, f) !== UNION_FILE)
     .map((f) => readFileSync(join(SRC, f), "utf8"));
   return files.join("\n");
+}
+
+/** The event names actually declared in the closed union. */
+function unionEvents(): string[] {
+  const source = readFileSync(UNION_FILE, "utf8");
+  const start = source.indexOf("export type AnalyticsEvent");
+  const end = source.indexOf("export interface Analytics");
+  return [...source.slice(start, end).matchAll(/"(thrivo\.[a-z_]+)"/g)].map((match) => match[1]);
 }
 
 describe("analytics funnel", () => {
@@ -43,11 +68,12 @@ describe("analytics funnel", () => {
     expect(source).toContain(`"${event}"`);
   });
 
-  it("declares every emitted event in the closed union", () => {
-    const union = readFileSync(join(SRC, "lib", "analytics.ts"), "utf8");
-    for (const event of REQUIRED_EVENTS) {
-      expect(union).toContain(`"${event}"`);
-    }
+  it("keeps the closed union and the required list identical", () => {
+    // Both directions. The forward check catches a required event dropped from
+    // the union; the reverse catches an event added to the union without being
+    // agreed here — which is how a name slips in that the dashboard never
+    // expects, the exact drift the union is supposed to prevent.
+    expect([...unionEvents()].sort()).toEqual([...REQUIRED_EVENTS].sort());
   });
 
   it("uses the agreed lowercase thrivo.* naming convention", () => {

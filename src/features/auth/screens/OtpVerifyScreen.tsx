@@ -200,14 +200,19 @@ export function OtpVerifyScreen() {
   };
 
   return (
-    <Screen scroll backgroundColor={colors.white} style={{ flexGrow: 1 }}>
-      <View className="gap-xl pt-xl">
+    <Screen
+      scroll
+      backgroundColor={colors.white}
+      style={{ flexGrow: 1 }}
+      header={
         <PageHeader
           title="Enter your code"
           subtitle={`We sent a 6-digit code to ${normalizedEmail}.`}
           onBack={() => router.replace(differentEmailTarget)}
         />
-
+      }
+    >
+      <View className="gap-xl">
         <View className="gap-md">
           <View className="flex-row justify-center gap-sm">
             {boxes.map((digit, index) => (

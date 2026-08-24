@@ -4,6 +4,7 @@ import { OtpVerifyScreen } from "../screens/OtpVerifyScreen";
 
 const mockVerifyEmailCode = jest.fn();
 const mockVerifyCode = jest.fn();
+const mockTrack = jest.fn();
 const mockSignUpFinalize = jest.fn();
 const mockSignInFinalize = jest.fn();
 const mockSendEmailCode = jest.fn();
@@ -43,6 +44,8 @@ jest.mock("@clerk/expo", () => ({
   }),
 }));
 
+jest.mock("@/lib", () => ({ analytics: { track: (...a: unknown[]) => mockTrack(...a) } }));
+
 jest.mock("@/stores", () => ({
   useAuthStatus: () => "unauthenticated",
   useSessionActions: () => ({ setStatus: mockSetStatus }),
@@ -73,6 +76,26 @@ describe("OtpVerifyScreen (sign-up flow)", () => {
       expect(mockSetStatus).toHaveBeenCalledWith("loading");
       expect(mockSetBiometricUnlocked).toHaveBeenCalledWith(true);
     });
+  });
+
+  it("reports the signup only once the Clerk session is finalized", async () => {
+    const screen = render(<OtpVerifyScreen />);
+
+    fireEvent.changeText(screen.getByLabelText("Digit 1"), "123456");
+
+    await waitFor(() =>
+      expect(mockTrack).toHaveBeenCalledWith("thrivo.signup", { method: "email_code" })
+    );
+  });
+
+  it("does not report a signup when Clerk rejects the code", async () => {
+    mockVerifyEmailCode.mockResolvedValueOnce({ error: { message: "Invalid code." } });
+    const screen = render(<OtpVerifyScreen />);
+
+    fireEvent.changeText(screen.getByLabelText("Digit 1"), "123456");
+
+    await waitFor(() => expect(screen.getByText("Invalid code.")).toBeTruthy());
+    expect(mockTrack).not.toHaveBeenCalled();
   });
 
   it("marks the first OTP input for initial focus", () => {
