@@ -121,6 +121,34 @@ export async function syncPushRegistration(notifyTimes?: string[]): Promise<stri
   return registerToken(Notifications, notifyTimes);
 }
 
+/** Permission snapshot, in the shape screens need. */
+export interface NotificationPermission {
+  granted: boolean;
+  canAskAgain: boolean;
+}
+
+/**
+ * Read the notification permission without prompting. In Expo Go it reports
+ * `canAskAgain: false` — there is nothing to grant, so UI should offer the
+ * fallback rather than a button that cannot work.
+ */
+export async function getNotificationPermission(): Promise<NotificationPermission> {
+  const Notifications = getNotifications();
+  if (!Notifications) return { granted: false, canAskAgain: false };
+
+  const { granted, canAskAgain } = await Notifications.getPermissionsAsync();
+  return { granted, canAskAgain };
+}
+
+/** Prompt for the notification permission. No-ops (denied) where push is unavailable. */
+export async function requestNotificationPermission(): Promise<NotificationPermission> {
+  const Notifications = getNotifications();
+  if (!Notifications) return { granted: false, canAskAgain: false };
+
+  const { granted, canAskAgain } = await Notifications.requestPermissionsAsync();
+  return { granted, canAskAgain };
+}
+
 const noop = () => {};
 
 /**
