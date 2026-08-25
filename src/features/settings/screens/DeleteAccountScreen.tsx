@@ -185,7 +185,7 @@ export function DeleteAccountScreen() {
             ref={codeInput}
             accessibilityLabel="Verification code"
             className="min-h-[56px] rounded-md border border-gray-300 px-lg text-center tracking-[8px]"
-            style={inputFont("metric")}
+            style={[inputFont("metric"), { color: colors.dark }]}
             keyboardType="number-pad"
             textContentType="oneTimeCode"
             maxLength={6}

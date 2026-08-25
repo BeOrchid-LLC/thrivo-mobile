@@ -114,11 +114,17 @@ export type Typography = typeof typography;
  * font size (every one of them) pushes the glyphs down and leaves the field
  * looking bottom-heavy: more space above the text than below it. Text renders
  * fine with the leading, which is why `Text` keeps using the classes.
+ *
+ * The two Android-only properties are the same fix on that platform: the font's
+ * own padding is the leading equivalent there, and a field that centres its
+ * content needs to be told to centre the text too.
  */
 export function inputFont(variant: keyof Typography): {
   fontFamily: string;
   fontSize: number;
+  includeFontPadding: false;
+  textAlignVertical: "center";
 } {
   const { fontFamily, fontSize } = typography[variant];
-  return { fontFamily, fontSize };
+  return { fontFamily, fontSize, includeFontPadding: false, textAlignVertical: "center" };
 }
