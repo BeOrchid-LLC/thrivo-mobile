@@ -41,7 +41,7 @@ describe("OtpRequestScreen", () => {
 
     fireEvent.changeText(screen.getByLabelText("Name"), "Ada Lovelace");
     fireEvent.changeText(screen.getByLabelText("Email"), "ada@example.com");
-    fireEvent.press(screen.getByText("Send code"));
+    fireEvent.press(screen.getByText("Request Magic Link"));
 
     await waitFor(() => {
       expect(mockSignUpCreate).toHaveBeenCalledWith(
@@ -62,7 +62,7 @@ describe("OtpRequestScreen", () => {
 
     fireEvent.changeText(screen.getByLabelText("Name"), "Ada Lovelace");
     fireEvent.changeText(screen.getByLabelText("Email"), "ada@example.com");
-    fireEvent.press(screen.getByText("Send code"));
+    fireEvent.press(screen.getByText("Request Magic Link"));
 
     await waitFor(() => {
       expect(mockSetFields).toHaveBeenCalledWith(
@@ -74,7 +74,7 @@ describe("OtpRequestScreen", () => {
   it("routes the sign-in link to the email sign-in screen", () => {
     const screen = render(<OtpRequestScreen />);
 
-    fireEvent.press(screen.getByText("Sign in"));
+    fireEvent.press(screen.getByText("Sign In"));
 
     expect(router.replace).toHaveBeenCalledWith("/(auth)/sign-in");
   });
@@ -88,7 +88,7 @@ describe("OtpRequestScreen", () => {
 
     fireEvent.changeText(screen.getByLabelText("Name"), "Ada");
     fireEvent.changeText(screen.getByLabelText("Email"), "ada@example.com");
-    fireEvent.press(screen.getByText("Send code"));
+    fireEvent.press(screen.getByText("Request Magic Link"));
 
     await waitFor(() => {
       expect(screen.getByText("Email address is already taken.")).toBeTruthy();

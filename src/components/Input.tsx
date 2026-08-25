@@ -10,6 +10,10 @@ export interface InputProps extends TextInputProps {
   leadingIcon?: ReactNode;
   /** Optional trailing text inside the field (e.g. a unit suffix like "lbs"). */
   trailingText?: string;
+  /** Supporting copy under the field. Hidden while an `error` is showing. */
+  hint?: string;
+  /** Field fill. `transparent` lets a page gradient through — the auth screens. */
+  fill?: "white" | "transparent";
   /** Render the label in the V2 onboarding style: uppercase + wide tracking. */
   uppercaseLabel?: boolean;
 }
@@ -30,6 +34,8 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
     error,
     leadingIcon,
     trailingText,
+    hint,
+    fill = "white",
     uppercaseLabel,
     className,
     style,
@@ -65,7 +71,9 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
         </Text>
       ) : null}
       <View
-        className={`min-h-control flex-row items-center gap-sm rounded-md border bg-white px-lg ${borderClass}`}
+        className={`min-h-control flex-row items-center gap-sm rounded-md border px-lg ${
+          fill === "transparent" ? "bg-transparent" : "bg-white"
+        } ${borderClass}`}
       >
         {leadingIcon}
         <TextInput
@@ -87,6 +95,10 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
       {error ? (
         <Text variant="caption" color="error" className="ml-xs">
           {error}
+        </Text>
+      ) : hint ? (
+        <Text variant="caption" color="muted" className="ml-xs">
+          {hint}
         </Text>
       ) : null}
     </View>
