@@ -4,6 +4,8 @@ import { OtpVerifyScreen } from "../screens/OtpVerifyScreen";
 
 const mockVerifyEmailCode = jest.fn();
 const mockVerifyCode = jest.fn();
+const mockTrack = jest.fn();
+const mockQueueSignup = jest.fn();
 const mockSignUpFinalize = jest.fn();
 const mockSignInFinalize = jest.fn();
 const mockSendEmailCode = jest.fn();
@@ -43,6 +45,11 @@ jest.mock("@clerk/expo", () => ({
   }),
 }));
 
+jest.mock("@/lib", () => ({
+  analytics: { track: (...a: unknown[]) => mockTrack(...a) },
+  queueSignup: (...a: unknown[]) => mockQueueSignup(...a),
+}));
+
 jest.mock("@/stores", () => ({
   useAuthStatus: () => "unauthenticated",
   useSessionActions: () => ({ setStatus: mockSetStatus }),
@@ -73,6 +80,31 @@ describe("OtpVerifyScreen (sign-up flow)", () => {
       expect(mockSetStatus).toHaveBeenCalledWith("loading");
       expect(mockSetBiometricUnlocked).toHaveBeenCalledWith(true);
     });
+  });
+
+  // `thrivo.signup` itself fires later, from `analytics.identify()` once
+  // PostHog has resolved the user — not from this screen. What this screen owns
+  // is queuing it at the right moment: after Clerk's session is finalized, not
+  // merely after the code is accepted.
+  it("queues the signup only once the Clerk session is finalized", async () => {
+    const screen = render(<OtpVerifyScreen />);
+
+    fireEvent.changeText(screen.getByLabelText("Digit 1"), "123456");
+
+    await waitFor(() => {
+      expect(mockSignUpFinalize).toHaveBeenCalled();
+      expect(mockQueueSignup).toHaveBeenCalled();
+    });
+  });
+
+  it("does not queue a signup when Clerk rejects the code", async () => {
+    mockVerifyEmailCode.mockResolvedValueOnce({ error: { message: "Invalid code." } });
+    const screen = render(<OtpVerifyScreen />);
+
+    fireEvent.changeText(screen.getByLabelText("Digit 1"), "123456");
+
+    await waitFor(() => expect(screen.getByText("Invalid code.")).toBeTruthy());
+    expect(mockQueueSignup).not.toHaveBeenCalled();
   });
 
   it("marks the first OTP input for initial focus", () => {

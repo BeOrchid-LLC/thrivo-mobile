@@ -18,6 +18,8 @@ export type AnalyticsEvent =
   | "thrivo.signup"
   | "thrivo.onboarding_completed"
   | "thrivo.food_logged"
+  | "thrivo.custom_food_created"
+  | "thrivo.log_copied"
   | "thrivo.barcode_scanned"
   | "thrivo.paywall_viewed"
   | "thrivo.upgrade_prompt_shown"

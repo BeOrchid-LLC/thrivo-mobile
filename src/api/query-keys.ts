@@ -15,6 +15,7 @@ export const queryKeys = {
   },
 
   foods: {
+    searchRoot: () => ["foods", "search"] as const,
     search: (q: string) =>
       ["foods", "search", q.trim().replace(/\s+/g, " ").toLowerCase()] as const,
     lookup: (barcode: string) => ["foods", "lookup", barcode] as const,

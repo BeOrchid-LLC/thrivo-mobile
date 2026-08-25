@@ -109,13 +109,16 @@ export function SignInScreen() {
   };
 
   return (
-    <Screen scroll>
-      <View className="gap-lg pt-xl">
+    <Screen
+      scroll
+      header={
         <PageHeader
           title="Sign in to Thrivo"
           subtitle="Welcome back. We'll email you a secure 6-digit code that expires in 5 minutes."
         />
-
+      }
+    >
+      <View className="gap-lg">
         <View className="mt-md gap-lg">
           <FormError message={callbackError} center />
 

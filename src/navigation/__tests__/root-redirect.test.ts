@@ -31,7 +31,7 @@ describe("resolveRootRedirect", () => {
         isOnboarded: true,
         isOnboardingSkipped: false,
       })
-    ).toBe("/(app)/dashboard");
+    ).toBe("/(app)/(tabs)/dashboard");
   });
 
   it("sends onboarding-skipped authenticated root visitors to dashboard", () => {
@@ -42,7 +42,7 @@ describe("resolveRootRedirect", () => {
         isOnboarded: false,
         isOnboardingSkipped: true,
       })
-    ).toBe("/(app)/dashboard");
+    ).toBe("/(app)/(tabs)/dashboard");
   });
 
   it("sends biometric-locked restored sessions from root to welcome", () => {

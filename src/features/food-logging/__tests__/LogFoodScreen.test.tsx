@@ -1,7 +1,7 @@
 import { act, fireEvent, render, waitFor } from "@testing-library/react-native";
 import type { FoodItem } from "@/contracts";
 import { emitTabRootReset } from "@/navigation/tab-root-reset";
-import { useFavoritesStore } from "@/stores";
+import { useFavoritesStore, useSessionStore } from "@/stores";
 import { localDay } from "@/utils";
 import { LogFoodScreen } from "../screens/LogFoodScreen";
 
@@ -26,6 +26,8 @@ const mockCameraScan = jest.fn();
 const mockUseSettings = jest.fn();
 const mockIsNetworkReachable = jest.fn(async () => true);
 const mockQueueBarcodeScan = jest.fn();
+const mockReadQueuedBarcodeScans = jest.fn(async (..._args: unknown[]) => [] as unknown[]);
+const mockRemoveQueuedBarcodeScan = jest.fn();
 const mockTrack = jest.fn();
 
 jest.mock("expo-camera", () => {
@@ -49,9 +51,9 @@ jest.mock("@react-native-community/datetimepicker", () => {
 jest.mock("@/lib", () => ({
   analytics: { track: (...args: unknown[]) => mockTrack(...args) },
   isNetworkReachable: () => mockIsNetworkReachable(),
-  queueBarcodeScan: (scan: unknown) => mockQueueBarcodeScan(scan),
-  readQueuedBarcodeScans: jest.fn(async () => []),
-  removeQueuedBarcodeScan: jest.fn(),
+  queueBarcodeScan: (...args: unknown[]) => mockQueueBarcodeScan(...args),
+  readQueuedBarcodeScans: (...args: unknown[]) => mockReadQueuedBarcodeScans(...args),
+  removeQueuedBarcodeScan: (...args: unknown[]) => mockRemoveQueuedBarcodeScan(...args),
 }));
 
 jest.mock("../hooks/useFoodLogging", () => ({
@@ -161,6 +163,9 @@ describe("LogFoodScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     useFavoritesStore.setState({ favoriteIds: [] });
+    // The session store is module state; a test that signs someone in would
+    // otherwise leave them signed in for every test after it.
+    useSessionStore.setState({ userId: null });
     mockUseFoodSearch.mockReturnValue(successSearch());
     mockUseRecentFoods.mockReturnValue(successQuery({ items: [] }));
     mockUseFavorites.mockReturnValue(successQuery({ items: [] }));
@@ -200,6 +205,7 @@ describe("LogFoodScreen", () => {
     mockUseSettings.mockReturnValue({ data: { unitSystem: "metric" } });
     mockIsNetworkReachable.mockResolvedValue(true);
     mockQueueBarcodeScan.mockResolvedValue(undefined);
+    mockReadQueuedBarcodeScans.mockResolvedValue([]);
   });
 
   it("renders the empty food state", () => {
@@ -390,11 +396,14 @@ describe("LogFoodScreen", () => {
     return waitFor(() => {
       expect(screen.getByText("Captured barcode")).toBeTruthy();
       expect(mockUseBarcodeLookup).toHaveBeenLastCalledWith("1234567890123");
+      // Funnel step is the decode itself, not the lookup result.
+      expect(mockTrack).toHaveBeenCalledWith("thrivo.barcode_scanned", expect.objectContaining({}));
     });
   });
 
-  it("queues a captured barcode while offline", async () => {
+  it("queues a captured barcode while offline, against the signed-in user", async () => {
     mockIsNetworkReachable.mockResolvedValue(false);
+    useSessionStore.setState({ userId: "user-1" });
 
     const screen = render(<LogFoodScreen />);
     fireEvent.press(screen.getByText("Scan barcode"));
@@ -403,11 +412,52 @@ describe("LogFoodScreen", () => {
     });
 
     await waitFor(() => {
+      // Owner-scoped, so it can never replay into another account.
       expect(mockQueueBarcodeScan).toHaveBeenCalledWith(
+        "user-1",
         expect.objectContaining({ barcode: "1234567890123", format: "ean13" })
       );
       expect(screen.getByText(/saved for lookup later/i)).toBeTruthy();
     });
+  });
+
+  it("replays a queued offline scan once the session id arrives", async () => {
+    // `userId` lands only after Clerk restores and GET /users/me resolves, so a
+    // cold start into this screen renders with none. The replay has to re-run
+    // when it appears — otherwise the queued scan sits in storage forever and
+    // nothing surfaces the failure.
+    mockReadQueuedBarcodeScans.mockResolvedValue([
+      { barcode: "1234567890123", format: "ean13", scannedAt: new Date().toISOString() },
+    ]);
+
+    const screen = render(<LogFoodScreen />);
+    fireEvent.press(screen.getByText("Scan barcode"));
+    expect(mockReadQueuedBarcodeScans).not.toHaveBeenCalled();
+
+    await act(async () => {
+      useSessionStore.setState({ userId: "user-1" });
+    });
+
+    await waitFor(() => {
+      expect(mockReadQueuedBarcodeScans).toHaveBeenCalledWith("user-1");
+      expect(screen.getByText("Replaying an offline scan.")).toBeTruthy();
+      expect(mockUseBarcodeLookup).toHaveBeenLastCalledWith("1234567890123");
+    });
+  });
+
+  it("clears the replayed scan from the queue once the lookup resolves", async () => {
+    mockReadQueuedBarcodeScans.mockResolvedValue([
+      { barcode: "1234567890123", format: "ean13", scannedAt: new Date().toISOString() },
+    ]);
+    mockUseBarcodeLookup.mockReturnValue(successQuery({ food }));
+    useSessionStore.setState({ userId: "user-1" });
+
+    const screen = render(<LogFoodScreen />);
+    fireEvent.press(screen.getByText("Scan barcode"));
+
+    await waitFor(() =>
+      expect(mockRemoveQueuedBarcodeScan).toHaveBeenCalledWith("user-1", "1234567890123")
+    );
   });
 
   it("renders water progress and supports quick add/delete", () => {

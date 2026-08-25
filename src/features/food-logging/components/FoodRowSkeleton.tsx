@@ -13,7 +13,7 @@ export function FoodRowSkeleton({ count = 3 }: { count?: number }) {
             <SkeletonText className="w-2/3" />
             <SkeletonText size="caption" className="w-1/3" />
           </View>
-          <SkeletonBlock className="h-[24px] w-[24px] rounded-pill" />
+          <SkeletonBlock className="h-icon w-icon rounded-pill" />
         </View>
       ))}
     </View>

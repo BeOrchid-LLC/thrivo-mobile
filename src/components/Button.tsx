@@ -48,7 +48,7 @@ export function Button({
       accessibilityRole="button"
       accessibilityState={{ disabled: Boolean(isDisabled), busy: loading }}
       disabled={isDisabled}
-      className={`min-h-[48px] items-center justify-center rounded-md px-lg ${variantClass[variant]} ${
+      className={`min-h-touchTarget items-center justify-center rounded-md px-lg ${variantClass[variant]} ${
         fullWidth ? "self-stretch" : ""
       } ${isDisabled ? "opacity-50" : ""} ${className ?? ""}`}
       {...rest}

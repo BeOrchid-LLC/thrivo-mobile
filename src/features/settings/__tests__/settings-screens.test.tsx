@@ -11,6 +11,8 @@ const mockLogoutMutate = jest.fn();
 const mockUpdateProfileMutate = jest.fn();
 const mockAvatarUploadMutate = jest.fn();
 
+const mockTrack = jest.fn();
+
 jest.mock("expo-router", () => ({
   router: { back: jest.fn(), push: jest.fn() },
 }));
@@ -39,6 +41,24 @@ jest.mock("@/features/auth/hooks/useAuth", () => ({
     isPending: false,
   }),
 }));
+
+jest.mock("@/lib", () => ({ analytics: { track: (...a: unknown[]) => mockTrack(...a) } }));
+
+// Render the picker as a pressable stand-in so the real onTimePicked handler in
+// SettingsScreen can be driven, rather than asserting against a copy of it.
+jest.mock("@/components/TimePicker", () => {
+  const { Pressable, Text } = jest.requireActual("react-native");
+  return {
+    TimePicker: ({ onChange }: { onChange: (e: unknown, d?: Date) => void }) => (
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => onChange({ type: "set" }, new Date(2026, 0, 1, 8, 30))}
+      >
+        <Text>confirm-time</Text>
+      </Pressable>
+    ),
+  };
+});
 
 jest.mock("../hooks/useSettings", () => ({
   useSettings: () => mockUseSettings(),
@@ -135,7 +155,7 @@ describe("settings screens", () => {
 
     fireEvent.press(screen.getByText("Alex Johnson"));
 
-    expect(router.push).toHaveBeenCalledWith("/(app)/settings/personal-info");
+    expect(router.push).toHaveBeenCalledWith("/(app)/(tabs)/settings/personal-info");
   });
 
   it("shows the profile image in settings when one is saved", () => {
@@ -202,5 +222,19 @@ describe("settings screens", () => {
       }),
       expect.objectContaining({ onSuccess: expect.any(Function) })
     );
+  });
+  it("reports a reminder change only when a time is confirmed", async () => {
+    const screen = render(<SettingsScreen />);
+
+    // Open the picker from the weekly weigh-in reminder row (index 0) — the
+    // other "Reminder time" row is hydration's interval picker, a different
+    // control. The daily food-log reminder no longer has its own time picker;
+    // it defers to Meal reminders (notifyTimes is authoritative).
+    fireEvent.press(screen.getAllByText("Reminder time")[0]);
+    fireEvent.press(await screen.findByText("confirm-time"));
+
+    expect(mockTrack).toHaveBeenCalledWith("thrivo.reminder_set", {
+      reminder: "weightCheckReminderTime",
+    });
   });
 });

@@ -11,7 +11,8 @@ import {
   type TimePickerEvent,
 } from "@/components";
 import { colors } from "@/theme";
-import { registerForPushNotifications } from "@/lib";
+import { localTimezone } from "@/utils";
+import { analytics, registerForPushNotifications } from "@/lib";
 import { type OnboardingDraft, useOnboardingDraftActions, useSessionActions } from "@/stores";
 import { OnboardingStep } from "@/features/onboarding/components/OnboardingStep";
 import { useSubmitOnboarding } from "@/features/onboarding/hooks/useCompleteOnboarding";
@@ -25,14 +26,6 @@ const COUNTS = [
   { label: "2", value: "2" },
   { label: "3", value: "3" },
 ];
-
-function localTimezone(): string {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-  } catch {
-    return "UTC";
-  }
-}
 
 function to12h(hhmm: string): string {
   const [h, m] = hhmm.split(":").map(Number);
@@ -91,6 +84,23 @@ export default function NotificationsStep({
     if (event.type === "set" || event.type === "dismissed") setEditing(null);
   };
 
+  /**
+   * Only a *saved* schedule counts — not a picker that was opened, and not a
+   * save that failed.
+   *
+   * This screen is where most users first set their reminder times, and it
+   * emitted nothing: the funnel only ever saw the Settings pickers, which write
+   * a different field entirely (see docs/reminder-scheduling-design.md). The
+   * `reminder` property separates the two surfaces, which is also the cheapest
+   * way to find out which one users actually reach for.
+   */
+  const trackReminderSet = (times: string[] | undefined) => {
+    analytics.track("thrivo.reminder_set", {
+      reminder: "notifyTimes",
+      count: times?.length ?? 0,
+    });
+  };
+
   const finish = async () => {
     setError(null);
     const next = fieldsToSave();
@@ -101,6 +111,7 @@ export default function NotificationsStep({
       } else {
         await submit("complete", { onboardingStep: 8, fields: next });
       }
+      trackReminderSet(next.notifyTimes);
     } catch {
       setError("We couldn't save your reminder preferences. Please try again.");
       return;
@@ -116,7 +127,10 @@ export default function NotificationsStep({
       );
       return;
     }
-    router.replace("/(app)/dashboard");
+    // The Settings revisit host owns its own navigation — only the onboarding
+    // run hands off to the dashboard.
+    if (mode === "revisit") return;
+    router.replace("/(app)/(tabs)/dashboard");
   };
 
   const skip = () => {
@@ -125,7 +139,7 @@ export default function NotificationsStep({
       return;
     }
     setIsOnboardingSkipped(true);
-    router.replace("/(app)/dashboard");
+    router.replace("/(app)/(tabs)/dashboard");
     void submit("skip", {
       silent: true,
       onboardingStep: 7,
@@ -161,9 +175,9 @@ export default function NotificationsStep({
         </>
       }
     >
-      <View className="flex-row items-center gap-md rounded-[14px] bg-primarySoft px-lg py-md">
+      <View className="flex-row items-center gap-md rounded-group bg-primarySoft px-lg py-md">
         <BellIcon size={28} color={colors.primary} />
-        <Text variant="caption" color="muted" className="uppercase tracking-[0.78px]">
+        <Text variant="caption" color="muted" className="uppercase tracking-label">
           Reminders per day
         </Text>
       </View>
@@ -180,7 +194,7 @@ export default function NotificationsStep({
           return (
             <View
               key={index}
-              className={`flex-row items-center rounded-[14px] border-[1.333px] px-lg py-md ${accent ? "border-primaryBright bg-primaryBright/[0.06]" : "border-gray-300 bg-white"}`}
+              className={`flex-row items-center rounded-group border-[1.333px] px-lg py-md ${accent ? "border-primaryBright bg-primaryBright/[0.06]" : "border-gray-300 bg-white"}`}
             >
               <View
                 className={`h-[28px] w-[28px] items-center justify-center rounded-pill ${accent ? "bg-primaryBright" : "bg-gray-200"}`}
@@ -196,7 +210,7 @@ export default function NotificationsStep({
                 accessibilityRole="button"
                 accessibilityLabel={`Edit ${LABELS[index]} reminder time`}
                 onPress={() => setEditing(index)}
-                className={`flex-row items-center gap-xs rounded-md px-md py-sm ${accent ? "bg-primaryBright/[0.12]" : "bg-gray-100"}`}
+                className={`min-h-touchTarget flex-row items-center gap-xs rounded-md px-md py-sm ${accent ? "bg-primaryBright/[0.12]" : "bg-gray-100"}`}
               >
                 <Text variant="caption" color={accent ? "primary" : "dark"}>
                   {to12h(time)}

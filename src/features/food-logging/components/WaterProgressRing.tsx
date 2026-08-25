@@ -1,6 +1,7 @@
 import { View } from "react-native";
 import Svg, { Circle } from "react-native-svg";
 import { Text } from "@/components";
+import { useCountUp } from "@/hooks/useCountUp";
 import { colors } from "@/theme";
 
 export interface WaterProgressRingProps {
@@ -20,6 +21,7 @@ export function WaterProgressRing({
   const clampedProgress = Math.max(0, Math.min(progressPercent, 100));
   const progressRatio = clampedProgress / 100;
   const activeColor = behind ? colors.accent : colors.primary;
+  const drawnRatio = useCountUp(progressRatio, { decimals: 3 });
 
   return (
     <View className="items-center justify-center" style={{ width: size, height: size }}>
@@ -41,14 +43,14 @@ export function WaterProgressRing({
             strokeWidth={strokeWidth}
             fill="transparent"
             strokeLinecap="round"
-            strokeDasharray={`${circumference * progressRatio} ${circumference}`}
+            strokeDasharray={`${circumference * drawnRatio} ${circumference}`}
             transform={`rotate(90 ${size / 2} ${size / 2})`}
           />
         ) : null}
       </Svg>
       <View className="absolute items-center">
-        <Text variant="heading2" color="muted">
-          {clampedProgress}%
+        <Text variant="heading2" color="muted" accessibilityLabel={`${clampedProgress}%`}>
+          {Math.round(drawnRatio * 100)}%
         </Text>
         <Text variant="body" color="muted">
           hydrated

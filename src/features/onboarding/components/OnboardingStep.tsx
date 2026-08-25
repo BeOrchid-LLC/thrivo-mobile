@@ -3,7 +3,7 @@ import { ScrollView, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { PageHeader } from "@/components";
-import { colors } from "@/theme";
+import { colors, spacing } from "@/theme";
 import { TOTAL_ONBOARDING_STEPS } from "../config";
 
 interface OnboardingStepProps {
@@ -43,34 +43,62 @@ export function OnboardingStep({
   variant = "onboarding",
 }: OnboardingStepProps) {
   const inner = (
-    <SafeAreaView style={{ flex: 1 }}>
+    // The settings variant renders inside the tab navigator, which already
+    // clears the home indicator; taking the bottom inset again would stack it on
+    // the footer's 16 and float the primary button off the tab bar. The
+    // onboarding variant is standalone and still needs it.
+    <SafeAreaView
+      style={{ flex: 1 }}
+      edges={variant === "settings" ? ["top", "left", "right"] : ["top", "bottom", "left", "right"]}
+    >
+      {/* Pinned: sits outside the ScrollView so the title and back button stay
+          put while the step content scrolls under them. */}
+      <View
+        style={{ paddingHorizontal: spacing.xl, paddingTop: spacing.xl, paddingBottom: spacing.md }}
+      >
+        {variant === "onboarding" ? (
+          <View className="flex-row gap-xs">
+            {Array.from({ length: TOTAL_ONBOARDING_STEPS }).map((_, i) => (
+              <View
+                key={i}
+                className={`h-[4px] flex-1 rounded-pill ${
+                  i < step ? "bg-primaryBright" : "bg-progressTrack"
+                }`}
+              />
+            ))}
+          </View>
+        ) : null}
+
+        <View className={variant === "onboarding" ? "mt-xl" : undefined}>
+          <PageHeader title={title} subtitle={subtitle} onBack={onBack} />
+        </View>
+      </View>
+
       <ScrollView
-        contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingVertical: 24 }}
+        style={{ flex: 1 }}
+        contentContainerStyle={{
+          flexGrow: 1,
+          paddingHorizontal: spacing.xl,
+          paddingVertical: spacing.xl,
+        }}
         keyboardShouldPersistTaps="handled"
       >
-        <View className="flex-1">
-          {variant === "onboarding" ? (
-            <View className="flex-row gap-xs">
-              {Array.from({ length: TOTAL_ONBOARDING_STEPS }).map((_, i) => (
-                <View
-                  key={i}
-                  className={`h-[4px] flex-1 rounded-[2px] ${
-                    i < step ? "bg-primaryBright" : "bg-progressTrack"
-                  }`}
-                />
-              ))}
-            </View>
-          ) : null}
-
-          <View className={variant === "onboarding" ? "mt-xl" : undefined}>
-            <PageHeader title={title} subtitle={subtitle} onBack={onBack} />
-          </View>
-
-          <View className="mt-2xl flex-1 gap-md">{children}</View>
-
-          <View className="mt-xl gap-sm">{footer}</View>
-        </View>
+        <View className="flex-1 gap-md">{children}</View>
       </ScrollView>
+
+      {/* Pinned action area. `spacing.lg` (16) below, matching `Screen`'s footer
+          so the primary button sits the same distance from the bottom on every
+          page in the app — this used to be 24 here and 16 everywhere else. */}
+      <View
+        style={{
+          paddingHorizontal: spacing.xl,
+          paddingTop: spacing.sm,
+          paddingBottom: spacing.lg,
+        }}
+        className="gap-sm"
+      >
+        {footer}
+      </View>
     </SafeAreaView>
   );
 

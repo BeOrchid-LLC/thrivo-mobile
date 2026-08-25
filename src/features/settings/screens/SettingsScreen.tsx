@@ -34,7 +34,7 @@ import { useMe } from "@/features/profile";
 import { useSubscription } from "@/features/subscription";
 import { authenticateBiometric, isBiometricAvailable } from "@/lib/biometric";
 import { useBiometricAuthEnabled, usePreferencesActions } from "@/stores";
-import { colors } from "@/theme";
+import { colors, rhythm } from "@/theme";
 import { getOnboardingProgress } from "@/features/onboarding/utils/progress";
 import { useSettings } from "../hooks/useSettings";
 import { useUpdateSettings } from "../hooks/useUpdateSettings";
@@ -214,17 +214,16 @@ export function SettingsScreen() {
       scroll
       edges={["top", "left", "right"]}
       backgroundColor={colors.white}
-      style={{ gap: 26, paddingTop: 32, paddingBottom: 32 }}
+      style={{ gap: rhythm.pageGap, paddingTop: rhythm.pageTop, paddingBottom: rhythm.pageTop }}
+      header={<PageHeader title="Settings" showBack={false} />}
       refreshing={refreshing}
       onRefresh={refresh}
     >
-      <PageHeader title="Settings" showBack={false} />
-
       <Section title="Profile">
         <Row
           iconWide
           icon={
-            <View className="h-[64px] w-[64px] items-center justify-center overflow-hidden rounded-full bg-primarySoft">
+            <View className="h-avatar w-avatar items-center justify-center overflow-hidden rounded-full bg-primarySoft">
               {user?.image ? (
                 <Image
                   accessibilityLabel="Profile photo"
@@ -252,7 +251,7 @@ export function SettingsScreen() {
               <CaretRight size={18} color={colors.gray[500]} />
             </View>
           }
-          onPress={() => router.push("/(app)/settings/personal-info")}
+          onPress={() => router.push("/(app)/(tabs)/settings/personal-info")}
         />
         <Row
           icon={<Ruler size={24} color={colors.dark} />}
@@ -292,7 +291,7 @@ export function SettingsScreen() {
             title="Onboarding"
             subtitle={`${getOnboardingProgress(user!).completedSteps} of ${getOnboardingProgress(user!).totalSteps} complete`}
             action={<CaretRight size={18} color={colors.gray[500]} />}
-            onPress={() => router.push("/(app)/settings/onboarding")}
+            onPress={() => router.push("/(app)/(tabs)/settings/onboarding")}
           />
         )}
         <Row
@@ -300,14 +299,14 @@ export function SettingsScreen() {
           title="Targets and activity"
           subtitle="Activity level and calorie target"
           action={<CaretRight size={18} color={colors.gray[500]} />}
-          onPress={() => router.push("/(app)/settings/edit/target")}
+          onPress={() => router.push("/(app)/(tabs)/settings/edit/target")}
         />
         <Row
           icon={<Clock size={24} color={colors.dark} />}
           title="Meal reminders"
           subtitle="Reminder times and timezone"
           action={<CaretRight size={18} color={colors.gray[500]} />}
-          onPress={() => router.push("/(app)/settings/edit/notifications")}
+          onPress={() => router.push("/(app)/(tabs)/settings/edit/notifications")}
         />
         {profile.isError ? (
           <SectionError
@@ -331,6 +330,7 @@ export function SettingsScreen() {
         <Row
           icon={<Clock size={24} color={colors.dark} />}
           title="Daily food log reminder"
+          subtitle="Uses the time set in Meal reminders"
           action={
             <Switch
               value={Boolean(userSettings?.dailyFoodLogReminderEnabled)}
@@ -457,7 +457,7 @@ export function SettingsScreen() {
               {sub?.entitlement === "premium" ? "Active" : "Plans"}
             </Text>
           }
-          onPress={() => router.push("/(app)/settings/subscription")}
+          onPress={() => router.push("/settings/subscription")}
         />
         {subscription.isError ? (
           <SectionError
@@ -476,9 +476,9 @@ export function SettingsScreen() {
               </Text>
             </View>
             <Pressable
-              className="mt-lg min-h-[44px] items-center justify-center"
+              className="mt-lg min-h-touchTarget items-center justify-center"
               accessibilityRole="button"
-              onPress={() => router.push("/(app)/settings/subscription")}
+              onPress={() => router.push("/settings/subscription")}
             >
               <Text color="error" className="font-semibold">
                 Cancel subscription
@@ -533,7 +533,7 @@ export function SettingsScreen() {
           title="Delete account"
           subtitle="Permanently remove your account and all of your data"
           action={<CaretRight size={18} color={colors.gray[500]} />}
-          onPress={() => router.push("/(app)/settings/delete-account")}
+          onPress={() => router.push("/(app)/(tabs)/settings/delete-account")}
         />
       </Section>
 

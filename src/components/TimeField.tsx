@@ -26,7 +26,7 @@ export function TimeField({
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}
         onPress={onPress}
-        className="h-[48px] items-center justify-center rounded-md border border-gray-300 bg-white"
+        className="h-control items-center justify-center rounded-md border border-gray-300 bg-white"
       >
         <Text variant="body" color="dark">
           {formatTime(value)}

@@ -18,3 +18,18 @@ export function addDays(day: string, delta: number): string {
 }
 
 export const isToday = (day: string): boolean => day === localDay();
+
+/**
+ * The device's IANA timezone, e.g. "Europe/London".
+ *
+ * The backend schedules reminders from this, so a stale value delivers them at
+ * the wrong local time. Falls back to UTC only if the platform cannot resolve
+ * one, which is better than sending nothing and leaving the column null.
+ */
+export function localTimezone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  } catch {
+    return "UTC";
+  }
+}

@@ -30,12 +30,12 @@ export default function Dashboard() {
     <Screen
       scroll
       edges={["top", "left", "right"]}
-      style={{ paddingTop: 32, paddingBottom: 16 }}
+      rhythm="default"
+      header={<DashboardHeader />}
       refreshing={refreshing}
       onRefresh={refresh}
     >
       <View className="gap-lg">
-        <DashboardHeader />
         <CaloriesSummarySection />
         <MacrosSection />
         <StreakSection />

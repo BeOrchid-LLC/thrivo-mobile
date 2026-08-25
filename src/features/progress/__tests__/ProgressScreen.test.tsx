@@ -179,7 +179,7 @@ describe("ProgressScreen", () => {
 
     fireEvent.press(screen.getByText("View subscription plans"));
 
-    expect(router.push).toHaveBeenCalledWith("/(app)/settings/subscription");
+    expect(router.push).toHaveBeenCalledWith("/settings/subscription");
     expect(mockUseMetricChart).toHaveBeenLastCalledWith("weight", "7d");
   });
 
@@ -245,7 +245,7 @@ describe("ProgressScreen", () => {
     const screen = render(<ProgressScreen />);
     fireEvent.press(screen.getByText("Log something you ate"));
 
-    expect(router.push).toHaveBeenCalledWith("/(app)/log");
+    expect(router.push).toHaveBeenCalledWith("/(app)/(tabs)/log");
   });
 
   it("opens a food-log sheet when a calendar date is pressed", () => {

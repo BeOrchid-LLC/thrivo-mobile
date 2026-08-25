@@ -22,11 +22,13 @@ export const colors = {
   accentText: "#8A6A2A", // amber-dark — tint-on-tint note copy on accentSoft (onboarding NoteBox)
   warningText: "#854D0E", // Tailwind yellow-800 equivalent for the subscription preview notice
   hairline: "#D8D8D8", // light outline — auth row / input border (Figma auth screens)
-  stepText: "#737373", // neutral body copy on onboarding step screens
   white: "#FFFFFF", // Figma: White
+  /** Glass sheen over the dark premium surfaces — white at low alpha. */
+  sheen: "rgba(255, 255, 255, 0.16)",
+  sheenFade: "rgba(255, 255, 255, 0)",
+  /** Lighter neutral for supporting body copy. Distinct from `gray.600`. */
   muted: "#737373",
   gray: {
-    2: "#F4F6F9",
     50: "#F9FAFB",
     100: "#F3F4F6",
     200: "#E5E7EB",

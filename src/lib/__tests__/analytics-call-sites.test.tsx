@@ -72,6 +72,30 @@ describe("analytics call sites", () => {
     expect(mockTrack).toHaveBeenCalledWith("thrivo.onboarding_completed");
   });
 
+  it("emits thrivo.food_logged for a catalog log, including replayed offline writes", async () => {
+    // Asserted against the registered mutation default, which is the path both a
+    // live tap and a queued write replayed on reconnect go through.
+    const { registerOfflineMutations, offlineMutationKeys } = require("@/api/offline-mutations");
+    const qc = new QueryClient();
+    registerOfflineMutations(qc);
+
+    const defaults = qc.getMutationDefaults(offlineMutationKeys.logFood);
+    await defaults.onSuccess?.({}, { payload: { day: "2026-08-22" } }, undefined, {} as never);
+
+    expect(mockTrack).toHaveBeenCalledWith("thrivo.food_logged", { source: "catalog" });
+  });
+
+  it("emits thrivo.food_logged for an AI estimate log", async () => {
+    const { registerOfflineMutations, offlineMutationKeys } = require("@/api/offline-mutations");
+    const qc = new QueryClient();
+    registerOfflineMutations(qc);
+
+    const defaults = qc.getMutationDefaults(offlineMutationKeys.logEstimate);
+    await defaults.onSuccess?.({}, { payload: { day: "2026-08-22" } }, undefined, {} as never);
+
+    expect(mockTrack).toHaveBeenCalledWith("thrivo.food_logged", { source: "estimate" });
+  });
+
   it("emits thrivo.upgrade_prompt_shown when a premium gate renders", () => {
     const { PremiumGate } = require("@/components/PremiumGate");
     render(

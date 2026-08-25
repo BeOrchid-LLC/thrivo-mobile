@@ -106,7 +106,7 @@ describe("WelcomeScreen", () => {
 
     await waitFor(() => expect(mockAuthenticateBiometric).toHaveBeenCalledTimes(1));
     expect(useBiometricUnlockStore.getState().isBiometricUnlocked).toBe(true);
-    expect(router.replace).toHaveBeenCalledWith("/(app)/dashboard");
+    expect(router.replace).toHaveBeenCalledWith("/(app)/(tabs)/dashboard");
   });
 
   it("routes biometric unlock to onboarding when the saved session still needs it", async () => {

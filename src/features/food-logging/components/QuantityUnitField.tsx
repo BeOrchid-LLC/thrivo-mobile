@@ -49,7 +49,7 @@ export function QuantityUnitField({
           onChangeText={onQuantityChange}
           keyboardType="decimal-pad"
           editable={!disabled}
-          className="h-[48px] flex-1 rounded-md border border-gray-300 bg-white text-center text-body-lg"
+          className="h-control flex-1 rounded-md border border-gray-300 bg-white text-center text-body-lg"
           style={{ color: colors.dark }}
         />
         <StepperButton

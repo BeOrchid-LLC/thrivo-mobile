@@ -22,7 +22,7 @@ export function OnboardingSettingsScreen() {
 
   if (profile.isLoading || settings.isLoading || !profile.data) {
     return (
-      <Screen backgroundColor="white" style={{ gap: 20, paddingTop: 32 }}>
+      <Screen backgroundColor="white" rhythm="default">
         <PageHeader title="Onboarding setup" />
         <SkeletonText size="heading" />
         <SkeletonText size="body" className="w-2/3" />
@@ -33,7 +33,7 @@ export function OnboardingSettingsScreen() {
   const progress = getOnboardingProgress(profile.data);
   if (progress.status === "complete") {
     return (
-      <Screen backgroundColor="white" style={{ gap: 20, paddingTop: 32 }}>
+      <Screen backgroundColor="white" rhythm="default">
         <PageHeader title="Onboarding complete" onBack={() => router.back()} />
         <View className="items-center gap-md py-2xl">
           <CheckCircle size={64} weight="fill" color={colors.successBright} />
@@ -82,13 +82,28 @@ export function OnboardingSettingsScreen() {
 
   const firstIncomplete = progress.firstIncompleteStep ?? 1;
   return (
-    <Screen scroll backgroundColor="white" style={{ gap: 20, paddingTop: 32, paddingBottom: 40 }}>
-      <PageHeader
-        title="Onboarding setup"
-        subtitle={`${progress.completedSteps} of ${TOTAL_ONBOARDING_STEPS} complete`}
-        onBack={() => router.back()}
-      />
-
+    <Screen
+      scroll
+      edges={["top", "left", "right"]}
+      backgroundColor="white"
+      rhythm="form"
+      header={
+        <PageHeader
+          title="Onboarding setup"
+          subtitle={`${progress.completedSteps} of ${TOTAL_ONBOARDING_STEPS} complete`}
+          onBack={() => router.back()}
+        />
+      }
+      footer={
+        <Button
+          label="Continue setup"
+          onPress={() => setActiveStep(firstIncomplete)}
+          disabled={!firstIncomplete}
+        />
+      }
+      style={{ paddingTop: 0, paddingBottom: 16 }}
+    >
+      {/* Header and primary action are sticky; only the step list scrolls. */}
       <View className="gap-sm">
         {ONBOARDING_STEPS.map((step) => {
           const complete = progress.completed[step.key] === true;
@@ -125,12 +140,6 @@ export function OnboardingSettingsScreen() {
           );
         })}
       </View>
-
-      <Button
-        label="Continue setup"
-        onPress={() => setActiveStep(firstIncomplete)}
-        disabled={!firstIncomplete}
-      />
     </Screen>
   );
 }

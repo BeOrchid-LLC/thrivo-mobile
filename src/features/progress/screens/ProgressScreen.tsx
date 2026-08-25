@@ -19,9 +19,10 @@ import {
   Text,
 } from "@/components";
 import { isApiError } from "@/api/errors";
+import { useCountUp } from "@/hooks/useCountUp";
 import { useCurrentDay } from "@/hooks/useCurrentDay";
 import { useEntitlement } from "@/hooks/useEntitlement";
-import { colors } from "@/theme";
+import { colors, rhythm } from "@/theme";
 import { formatWeight, localDay, roundTo, weightFromKg, weightToKg, weightUnitFor } from "@/utils";
 import type { ChartMetric, ChartPeriod, ChartPoint, ProgressResponse } from "@/contracts";
 import { useSettings } from "@/features/settings";
@@ -110,11 +111,11 @@ function ProgressHome({ day, onLogWeight }: { day: string; onLogWeight: () => vo
     <Screen
       scroll
       edges={["top", "left", "right"]}
-      style={{ gap: 24, paddingTop: 32, paddingBottom: 16 }}
+      rhythm="default"
+      header={<PageHeader title="Progress" showBack={false} />}
       refreshing={refreshing}
       onRefresh={refresh}
     >
-      <PageHeader title="Progress" showBack={false} />
       {data ? (
         <SummaryCards data={data} unitSystem={unitSystem} />
       ) : progress.isLoading ? (
@@ -166,6 +167,9 @@ function ProgressHome({ day, onLogWeight }: { day: string; onLogWeight: () => vo
               />
             ) : (
               <MetricChart
+                // Remounting on metric/period change replays the draw-on for
+                // the new series; without it the line would just swap in place.
+                key={`${metric}-${period}`}
                 points={chart.data?.chart.points ?? []}
                 metric={chart.data?.chart.metric ?? metric}
                 unit={chart.data?.chart.unit}
@@ -205,7 +209,7 @@ function ProgressHome({ day, onLogWeight }: { day: string; onLogWeight: () => vo
       <Button
         label="Log something you ate"
         variant="secondary"
-        onPress={() => router.push("/(app)/log")}
+        onPress={() => router.push("/(app)/(tabs)/log")}
       />
       <SelectSheet
         title="Metric"
@@ -229,7 +233,7 @@ function ProgressHome({ day, onLogWeight }: { day: string; onLogWeight: () => vo
         onClose={() => setPremiumModalOpen(false)}
         onSubscribe={() => {
           setPremiumModalOpen(false);
-          router.push("/(app)/settings/subscription");
+          router.push("/settings/subscription");
         }}
       />
       <CalendarDayLogSheet
@@ -254,7 +258,7 @@ function PremiumPeriodModal({
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View className="flex-1 items-center justify-center bg-black/30 px-xl">
         <View className="w-full gap-lg rounded-lg bg-white p-xl">
-          <View className="h-[48px] w-[48px] items-center justify-center self-center rounded-full bg-primarySoft">
+          <View className="h-badge w-badge items-center justify-center self-center rounded-full bg-primarySoft">
             <Warning size={26} color={colors.primary} />
           </View>
           <Text variant="body-lg" className="text-center font-semibold">
@@ -313,7 +317,7 @@ function CalendarDayLogSheet({
         />
       ) : detail?.isLocked ? (
         <View className="items-center gap-md py-md">
-          <View className="h-[52px] w-[52px] items-center justify-center rounded-full bg-gray-100">
+          <View className="h-badgeLg w-badgeLg items-center justify-center rounded-full bg-gray-100">
             <Lock size={26} color={colors.gray[500]} />
           </View>
           <Text variant="heading3" color="dark" className="text-center">
@@ -326,7 +330,7 @@ function CalendarDayLogSheet({
             label="View plans"
             onPress={() => {
               onClose();
-              router.push("/(app)/settings/subscription");
+              router.push("/settings/subscription");
             }}
           />
         </View>
@@ -401,9 +405,13 @@ function LogWeightScreen({ day, onBack }: { day: string; onBack: () => void }) {
   };
 
   return (
-    <Screen scroll style={{ gap: 24 }}>
-      <PageHeader title="Log weight" subtitle="What does the scale say today?" onBack={onBack} />
-
+    <Screen
+      scroll
+      style={{ gap: rhythm.pageGap }}
+      header={
+        <PageHeader title="Log weight" subtitle="What does the scale say today?" onBack={onBack} />
+      }
+    >
       <View className="gap-sm">
         <Text variant="body" color="dark">
           Today’s weight
@@ -417,7 +425,7 @@ function LogWeightScreen({ day, onBack }: { day: string; onBack: () => void }) {
             value={weight}
             onChangeText={setWeight}
             keyboardType="decimal-pad"
-            className="min-h-[48px] flex-1 rounded-md bg-gray-100 px-lg text-center font-semibold text-body"
+            className="min-h-control flex-1 rounded-md bg-gray-100 px-lg text-center font-semibold text-body"
             style={{ color: colors.dark }}
           />
           <Text color="primary">{weightUnit}</Text>
@@ -455,7 +463,7 @@ function LogWeightScreen({ day, onBack }: { day: string; onBack: () => void }) {
         />
       </Card>
 
-      <View className="min-h-[44px] flex-row items-center justify-center gap-sm rounded-md bg-primarySoft">
+      <View className="min-h-touchTarget flex-row items-center justify-center gap-sm rounded-md bg-primarySoft">
         <TrendDown size={20} color={colors.primary} />
         <Text variant="body" color="primary" className="font-semibold">
           {context.data?.context.projection.weeklyRateKg === null
@@ -569,6 +577,10 @@ function MetricChart({
     value: number;
   }[];
   const path = useMemo(() => chartPolyline(valid), [valid]);
+  // 0 -> 1 sweep that draws the trend line left to right. `strokeDasharray` is
+  // set to the full polyline length and the offset walks it back to zero, so the
+  // stroke appears to be drawn rather than faded in.
+  const drawn = useCountUp(1, { decimals: 4 });
   if (valid.length === 0) return <Text color="muted">No chart data yet.</Text>;
   const latest = valid[valid.length - 1];
 
@@ -583,10 +595,26 @@ function MetricChart({
         <Line x1="0" y1="150" x2="320" y2="150" stroke={colors.gray[300]} strokeWidth="1" />
         <Line x1="0" y1="95" x2="320" y2="95" stroke={colors.gray[200]} strokeWidth="1" />
         <Line x1="0" y1="40" x2="320" y2="40" stroke={colors.gray[200]} strokeWidth="1" />
-        <Path d={`${path.area} Z`} fill={colors.primarySoft} />
-        <Polyline points={path.line} fill="none" stroke={colors.primary} strokeWidth="3" />
-        {path.dots.map((dot) => (
-          <Circle key={`${dot.x}-${dot.y}`} cx={dot.x} cy={dot.y} r="4" fill={colors.primary} />
+        {/* The fill trails the stroke slightly, so the line leads the shape. */}
+        <Path d={`${path.area} Z`} fill={colors.primarySoft} opacity={drawn * drawn} />
+        <Polyline
+          points={path.line}
+          fill="none"
+          stroke={colors.primary}
+          strokeWidth="3"
+          strokeDasharray={path.length}
+          strokeDashoffset={path.length * (1 - drawn)}
+        />
+        {path.dots.map((dot, index) => (
+          <Circle
+            key={`${dot.x}-${dot.y}`}
+            cx={dot.x}
+            cy={dot.y}
+            r="4"
+            fill={colors.primary}
+            // Each dot pops as the stroke reaches it, instead of all at once.
+            opacity={drawn >= (path.dotProgress[index] ?? 0) ? 1 : 0}
+          />
         ))}
       </Svg>
     </View>
@@ -604,10 +632,22 @@ function chartPolyline(points: { value: number }[]) {
     return { x: roundTo(x, 1), y: roundTo(y, 1) };
   });
   const line = dots.map((dot) => `${dot.x},${dot.y}`).join(" ");
+  // Cumulative polyline length, used to drive the draw-on: `length` seeds the
+  // dash pattern and `dotProgress` says how far along each dot sits.
+  const segments = dots.slice(1).map((dot, index) => {
+    const previous = dots[index];
+    return Math.hypot(dot.x - previous.x, dot.y - previous.y);
+  });
+  const length = segments.reduce((total, segment) => total + segment, 0);
+  let travelled = 0;
+  const dotProgress = dots.map((_, index) => {
+    if (index > 0) travelled += segments[index - 1] ?? 0;
+    return length > 0 ? travelled / length : 0;
+  });
   const area = `M ${dots[0]?.x ?? 0} 150 ${dots.map((dot) => `L ${dot.x} ${dot.y}`).join(" ")} L ${
     dots[dots.length - 1]?.x ?? 320
   } 150`;
-  return { line, area, dots };
+  return { line, area, dots, length, dotProgress };
 }
 
 function StreakCalendar({
@@ -624,7 +664,7 @@ function StreakCalendar({
   const rows = chunk(days, 7);
 
   return (
-    <Card className="gap-md rounded-[16px] border-0 bg-gray-100 px-lg py-lg">
+    <Card className="gap-md border-0 bg-gray-100 px-lg py-lg">
       <View className="flex-row justify-between">
         <Text color="dark" className="font-semibold">
           Current streak: {currentStreakDays}
@@ -668,16 +708,24 @@ function CalendarDayCell({
     : day.logged
       ? "border-loggedGreenBorder bg-loggedGreen"
       : "border-gray-200 bg-white";
-  const textColor = day.today ? "inverse" : day.logged ? "primary" : "muted";
+  const textColor = day.today || day.logged ? "inverse" : "muted";
+  // Nothing was logged on this day, so the sheet would open empty — keep the
+  // cell inert instead of showing a dead-end bottom sheet.
+  const disabled = !day.logged;
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`View logs for ${day.day}`}
+      accessibilityLabel={disabled ? `No logs for ${day.day}` : `View logs for ${day.day}`}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
       onPress={onPress}
+      // 36px cell keeps the 7-column grid intact; hitSlop lifts the touch
+      // target to >=44pt (WCAG 2.2 AA), matching BackButton's approach.
+      hitSlop={4}
       className={`h-[36px] w-[36px] items-center justify-center rounded-md border ${stateClass} ${
         day.inMonth ? "" : "opacity-60"
-      }`}
+      } ${disabled ? "opacity-40" : ""}`}
     >
       <Text color={textColor} className={day.today ? "font-semibold" : undefined}>
         {day.dayOfMonth}

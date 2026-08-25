@@ -36,7 +36,7 @@ export function Segmented<T extends string>({
   style,
 }: SegmentedProps<T>) {
   return (
-    <View className="flex-row rounded-[10px] bg-gray-200 p-[3px]" style={style}>
+    <View className="flex-row rounded-md bg-gray-200 p-[3px]" style={style}>
       {options.map((opt) => {
         const active = opt.value === value;
         return (
@@ -45,7 +45,7 @@ export function Segmented<T extends string>({
             accessibilityRole="button"
             accessibilityState={{ selected: active }}
             onPress={() => onChange(opt.value)}
-            className={`min-h-[33px] flex-1 items-center justify-center rounded-[8px] ${active ? "bg-white" : ""}`}
+            className={`min-h-[33px] flex-1 items-center justify-center rounded-chip ${active ? "bg-white" : ""}`}
             style={active ? thumbShadow : undefined}
           >
             <Text variant="label" color={active ? "dark" : "gray500"}>

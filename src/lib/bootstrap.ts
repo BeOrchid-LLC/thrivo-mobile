@@ -1,4 +1,4 @@
-import { setTokenGetter, setUnauthenticatedHandler } from "@/api";
+import { clearPersistedQueryCache, setTokenGetter, setUnauthenticatedHandler } from "@/api";
 import { useSessionStore } from "@/stores";
 import { analytics } from "./analytics";
 import { monitoring } from "./monitoring";
@@ -30,6 +30,12 @@ export function wireApiSeams(): void {
     // previous one's entitlement.
     void subscription.logOut().catch((error: unknown) => {
       monitoring.captureException(error, { seam: "billing-logout" });
+    });
+    // A forced sign-out leaves the device exactly as an explicit one does. The
+    // dehydrated cache carries paused offline writes, which would otherwise
+    // replay for whoever signs in next.
+    void clearPersistedQueryCache().catch((error: unknown) => {
+      monitoring.captureException(error, { seam: "clear-query-cache-on-signout" });
     });
   });
 }

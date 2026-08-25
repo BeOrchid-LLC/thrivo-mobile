@@ -99,7 +99,11 @@ export function SearchResultsSheet({
             <Text variant="caption" color="muted">
               {"Don't see it?"}
             </Text>
-            <Pressable accessibilityRole="button" onPress={onDescribe}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={onDescribe}
+              className="min-h-touchTarget justify-center"
+            >
               <Text variant="body" color="primary" className="font-semibold">
                 Describe the meal instead
               </Text>
@@ -112,7 +116,11 @@ export function SearchResultsSheet({
             <Text variant="caption" color="muted">
               {"Don't see it?"}
             </Text>
-            <Pressable accessibilityRole="button" onPress={onDescribe}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={onDescribe}
+              className="min-h-touchTarget justify-center"
+            >
               <Text variant="body" color="primary" className="font-semibold">
                 Describe the meal instead
               </Text>

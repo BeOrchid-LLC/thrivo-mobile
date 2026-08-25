@@ -2,7 +2,7 @@ import { createElement, type ReactNode } from "react";
 import { fireEvent, render } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { router } from "expo-router";
-import Dashboard from "../../../../app/(app)/dashboard";
+import Dashboard from "../../../../app/(app)/(tabs)/dashboard";
 import type {
   DashboardCalories,
   FoodLogEntry,
@@ -189,8 +189,10 @@ describe("Dashboard graceful degradation", () => {
     const screen = renderDashboard();
 
     expect(screen.getByText("Subscribe to see your macros")).toBeTruthy();
-    fireEvent.press(screen.getByText("View plans"));
-    expect(mockPush).toHaveBeenCalledWith("/(app)/settings/subscription");
+    // The dashboard gate is the banner variant: the whole bar is the control,
+    // so there is no separate "View plans" button to press.
+    fireEvent.press(screen.getByLabelText("Subscribe to see your macros. View plans"));
+    expect(mockPush).toHaveBeenCalledWith("/settings/subscription");
   });
 
   it("shows dashboard section errors without hiding static content", () => {
@@ -226,7 +228,7 @@ describe("Dashboard graceful degradation", () => {
 
     fireEvent.press(screen.getByText("Log first meal"));
 
-    expect(mockPush).toHaveBeenCalledWith("/(app)/log");
+    expect(mockPush).toHaveBeenCalledWith("/(app)/(tabs)/log");
   });
 
   it("renders logged meals when the meal-log section has data", () => {

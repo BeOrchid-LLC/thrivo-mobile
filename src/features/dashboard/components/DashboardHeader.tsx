@@ -20,7 +20,7 @@ export function DashboardHeader() {
   const me = useMe();
 
   return (
-    <View className="mb-xs">
+    <View>
       <PageHeader
         title={`Hi, ${firstName(me.data?.name)}`}
         subtitle={todayLabel()}

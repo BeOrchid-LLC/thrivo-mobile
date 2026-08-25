@@ -36,13 +36,13 @@ export function SelectInput({
         <Text
           variant="caption"
           color="muted"
-          className={`ml-xs ${uppercaseLabel ? "uppercase tracking-[0.78px]" : ""}`}
+          className={`ml-xs ${uppercaseLabel ? "uppercase tracking-label" : ""}`}
         >
           {label}
         </Text>
       ) : null}
       <View
-        className={`min-h-[48px] flex-row items-center gap-sm rounded-md border bg-white px-lg ${borderClass}`}
+        className={`min-h-control flex-row items-center gap-sm rounded-md border bg-white px-lg ${borderClass}`}
       >
         <Text variant="body" color={value ? "dark" : "muted"} className="flex-1">
           {display}

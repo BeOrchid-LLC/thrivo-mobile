@@ -52,7 +52,7 @@ export function WelcomeScreen() {
   const isAuthenticated = status === "authenticated";
   useAuthScreenDiagnostics("welcome", status, clerk);
   const postUnlockTarget =
-    isOnboarded || isOnboardingSkipped ? "/(app)/dashboard" : "/(onboarding)/name";
+    isOnboarded || isOnboardingSkipped ? "/(app)/(tabs)/dashboard" : "/(onboarding)/name";
   const canUseBiometric =
     isAuthenticated && biometricEnabled && biometricAvailable && !isBiometricUnlocked;
 
@@ -154,7 +154,7 @@ export function WelcomeScreen() {
         <Text variant="heading3" color="dark" className="mt-md tracking-[-0.5px]">
           THRIVO
         </Text>
-        <Text variant="body" color="mutedText" className="mt-sm text-center">
+        <Text variant="body" color="subtle" className="mt-sm text-center">
           Weight loss that actually works
         </Text>
       </View>

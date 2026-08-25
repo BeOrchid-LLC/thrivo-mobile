@@ -45,7 +45,7 @@ export default function StartFreeStep({
       return;
     }
     setIsOnboardingSkipped(true);
-    router.replace("/(app)/dashboard");
+    router.replace("/(app)/(tabs)/dashboard");
     void submit("skip", { silent: true, onboardingStep: 6 });
   };
 
@@ -99,7 +99,7 @@ export default function StartFreeStep({
         </>
       }
     >
-      <View className="overflow-hidden rounded-[20px] border-[1.333px] border-primary">
+      <View className="overflow-hidden rounded-panel border-[1.333px] border-primary">
         <LinearGradient
           colors={[colors.dark, colors.gradientMid, colors.primaryBright]}
           start={{ x: 0, y: 0 }}
@@ -129,7 +129,7 @@ export default function StartFreeStep({
       <View className="gap-md">
         {TRIAL_FEATURES.map((feature) => (
           <View key={feature} className="flex-row items-center gap-sm">
-            <View className="h-[22px] w-[22px] items-center justify-center rounded-pill bg-primaryBright/[0.08]">
+            <View className="h-iconSm w-iconSm items-center justify-center rounded-pill bg-primaryBright/[0.08]">
               <CheckIcon size={12} color={colors.primary} />
             </View>
             <Text variant="body" color="dark" className="flex-1">

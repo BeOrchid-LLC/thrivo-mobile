@@ -7,7 +7,15 @@ export {
   removeQueuedBarcodeScan,
   type QueuedBarcodeScan,
 } from "./barcode-queue";
-export { registerForPushNotifications, addNotificationResponseListener } from "./notifications";
+export {
+  registerForPushNotifications,
+  syncPushRegistration,
+  addPushTokenChangeListener,
+  addNotificationResponseListener,
+  getNotificationPermission,
+  requestNotificationPermission,
+  type NotificationPermission,
+} from "./notifications";
 export { monitoring, withMonitoring, type Monitoring } from "./monitoring";
 export { analytics, queueSignup, type Analytics, type AnalyticsEvent } from "./analytics";
 export {

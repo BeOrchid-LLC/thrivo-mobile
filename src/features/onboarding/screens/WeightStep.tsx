@@ -101,7 +101,7 @@ export default function WeightStep({
     const fields = buildFields();
     setFields(fields);
     setIsOnboardingSkipped(true);
-    router.replace("/(app)/dashboard");
+    router.replace("/(app)/(tabs)/dashboard");
     void submit("skip", { silent: true, onboardingStep: 3, fields });
   };
 
