@@ -1,6 +1,6 @@
 import { forwardRef, useState, type ReactNode } from "react";
 import { TextInput, View, type TextInputProps } from "react-native";
-import { colors } from "@/theme";
+import { colors, inputFont } from "@/theme";
 import { Text } from "./Text";
 
 export interface InputProps extends TextInputProps {
@@ -89,8 +89,8 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
           placeholderTextColor={colors.gray[400]}
           onFocus={handleFocus}
           onBlur={handleBlur}
-          className={`flex-1 py-0 text-body ${className ?? ""}`}
-          style={[{ color: colors.dark }, style]}
+          className={`flex-1 py-0 ${className ?? ""}`}
+          style={[inputFont("body"), { color: colors.dark }, style]}
         />
         {trailingText ? (
           <Text variant="body-sm" color="gray500">

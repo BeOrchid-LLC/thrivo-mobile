@@ -5,7 +5,7 @@ import { Platform, TextInput, View } from "react-native";
 import { useAuth, useSignIn, useSignUp } from "@clerk/expo";
 import { Button, FormError, PageHeader, Screen, Text } from "@/components";
 import { queueSignup } from "@/lib";
-import { colors } from "@/theme";
+import { colors, inputFont } from "@/theme";
 import { useAuthStatus, useBiometricUnlockActions, useSessionActions } from "@/stores";
 import { logAuthError, useAuthScreenDiagnostics } from "../auth-debug";
 
@@ -234,10 +234,11 @@ export function OtpVerifyScreen() {
                     inputs.current[index - 1]?.focus();
                   }
                 }}
-                className={`h-[54px] w-[46px] rounded-md border bg-white text-center text-otp ${
+                className={`h-[54px] w-[46px] rounded-md border bg-white text-center ${
                   error ? "border-error" : digit ? "border-primary" : "border-gray-300"
                 }`}
                 style={{
+                  ...inputFont("otp"),
                   borderCurve: "continuous",
                   color: colors.dark,
                   fontVariant: ["tabular-nums"],

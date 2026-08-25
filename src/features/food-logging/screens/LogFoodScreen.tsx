@@ -41,7 +41,7 @@ import {
   removeQueuedBarcodeScan,
 } from "@/lib";
 import { useUserId } from "@/stores";
-import { colors, rhythm } from "@/theme";
+import { colors, inputFont, rhythm } from "@/theme";
 import { useSettings } from "@/features/settings";
 import { subscribeTabRootReset } from "@/navigation/tab-root-reset";
 import { formatWater, isToday, roundTo, waterFromMl, waterUnitFor } from "@/utils";
@@ -873,8 +873,8 @@ function DescribeMealScreen({ day, onBack }: { day: string; onBack: () => void }
           value={quantity}
           onChangeText={setQuantity}
           keyboardType="decimal-pad"
-          className="h-control flex-1 rounded-md border border-gray-300 bg-white text-center text-body-lg"
-          style={{ color: colors.dark }}
+          className="h-control flex-1 rounded-md border border-gray-300 bg-white text-center"
+          style={[inputFont("body-lg"), { color: colors.dark }]}
         />
         <Text variant="body" color="primary">
           {measure === "weight" ? "grams" : measure}

@@ -14,6 +14,14 @@
 const regular = "Inter_400Regular";
 const semiBold = "Inter_600SemiBold";
 
+/** The loaded Inter families, for the few places that need one by name. */
+export const fontFamilies = {
+  regular,
+  medium: "Inter_500Medium",
+  semiBold,
+  bold: "Inter_700Bold",
+} as const;
+
 export const typography = {
   hero: {
     fontFamily: semiBold,
@@ -96,3 +104,21 @@ export const typography = {
 };
 
 export type Typography = typeof typography;
+
+/**
+ * The family and size of a ramp variant, **without** its line height — the font
+ * a `TextInput` should be given.
+ *
+ * React Native adds a line height's extra leading above the text in a TextInput
+ * on iOS rather than splitting it, so any variant whose line height exceeds its
+ * font size (every one of them) pushes the glyphs down and leaves the field
+ * looking bottom-heavy: more space above the text than below it. Text renders
+ * fine with the leading, which is why `Text` keeps using the classes.
+ */
+export function inputFont(variant: keyof Typography): {
+  fontFamily: string;
+  fontSize: number;
+} {
+  const { fontFamily, fontSize } = typography[variant];
+  return { fontFamily, fontSize };
+}

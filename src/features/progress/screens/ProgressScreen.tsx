@@ -22,7 +22,7 @@ import { isApiError } from "@/api/errors";
 import { useCountUp } from "@/hooks/useCountUp";
 import { useCurrentDay } from "@/hooks/useCurrentDay";
 import { useEntitlement } from "@/hooks/useEntitlement";
-import { colors, rhythm } from "@/theme";
+import { colors, fontFamilies, inputFont, rhythm } from "@/theme";
 import { formatWeight, localDay, roundTo, weightFromKg, weightToKg, weightUnitFor } from "@/utils";
 import type { ChartMetric, ChartPeriod, ChartPoint, ProgressResponse } from "@/contracts";
 import { useSettings } from "@/features/settings";
@@ -425,8 +425,8 @@ function LogWeightScreen({ day, onBack }: { day: string; onBack: () => void }) {
             value={weight}
             onChangeText={setWeight}
             keyboardType="decimal-pad"
-            className="min-h-control flex-1 rounded-md bg-gray-100 px-lg text-center font-semibold text-body"
-            style={{ color: colors.dark }}
+            className="min-h-control flex-1 rounded-md bg-gray-100 px-lg text-center"
+            style={[inputFont("body"), { color: colors.dark, fontFamily: fontFamilies.semiBold }]}
           />
           <Text color="primary">{weightUnit}</Text>
           <StepperButton
