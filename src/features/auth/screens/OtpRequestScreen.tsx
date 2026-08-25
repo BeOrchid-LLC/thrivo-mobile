@@ -101,7 +101,7 @@ export function OtpRequestScreen() {
               value={value}
               onChangeText={onChange}
               onBlur={onBlur}
-              fill="transparent"
+              variant="auth"
               error={errors.name?.message}
             />
           )}
@@ -121,7 +121,7 @@ export function OtpRequestScreen() {
               value={value}
               onChangeText={onChange}
               onBlur={onBlur}
-              fill="transparent"
+              variant="auth"
               error={errors.email?.message}
             />
           )}

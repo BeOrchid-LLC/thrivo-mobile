@@ -12,8 +12,12 @@ export interface InputProps extends TextInputProps {
   trailingText?: string;
   /** Supporting copy under the field. Hidden while an `error` is showing. */
   hint?: string;
-  /** Field fill. `transparent` lets a page gradient through — the auth screens. */
-  fill?: "white" | "transparent";
+  /**
+   * `auth` matches the V2 auth frames: the field takes the page gradient rather
+   * than a white fill, and the label/hint sit flush with the field edge instead
+   * of the 4pt inset the rest of the app uses.
+   */
+  variant?: "default" | "auth";
   /** Render the label in the V2 onboarding style: uppercase + wide tracking. */
   uppercaseLabel?: boolean;
 }
@@ -35,7 +39,7 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
     leadingIcon,
     trailingText,
     hint,
-    fill = "white",
+    variant = "default",
     uppercaseLabel,
     className,
     style,
@@ -58,6 +62,8 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
   };
 
   const borderClass = error ? "border-error" : focused ? "border-primary" : "border-gray-300";
+  const isAuth = variant === "auth";
+  const captionInset = isAuth ? "" : "ml-xs";
 
   return (
     <View className="gap-xs">
@@ -65,14 +71,14 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
         <Text
           variant="caption"
           color="muted"
-          className={`ml-xs ${uppercaseLabel ? "uppercase tracking-label" : ""}`}
+          className={`${captionInset} ${uppercaseLabel ? "uppercase tracking-label" : ""}`}
         >
           {label}
         </Text>
       ) : null}
       <View
         className={`min-h-control flex-row items-center gap-sm rounded-md border px-lg ${
-          fill === "transparent" ? "bg-transparent" : "bg-white"
+          isAuth ? "bg-transparent" : "bg-white"
         } ${borderClass}`}
       >
         {leadingIcon}
@@ -93,11 +99,11 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
         ) : null}
       </View>
       {error ? (
-        <Text variant="caption" color="error" className="ml-xs">
+        <Text variant="caption" color="error" className={captionInset}>
           {error}
         </Text>
       ) : hint ? (
-        <Text variant="caption" color="muted" className="ml-xs">
+        <Text variant="caption" color="muted" className={captionInset}>
           {hint}
         </Text>
       ) : null}

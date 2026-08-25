@@ -21,11 +21,13 @@ const TITLE_TO_SUBTITLE = 18;
 /** Gap under the subtitle, and between every row of the form below it. */
 const FORM_GAP = 32;
 /** Holds the subtitle to the two-line wrap the frames show. */
-const SUBTITLE_MAX_WIDTH = 304;
+const SUBTITLE_MAX_WIDTH = 306;
 
 export interface AuthScreenShellProps {
   title: string;
   subtitle: string;
+  /** Override when the frame's subtitle breaks at a narrower width. */
+  subtitleWidth?: number;
   children: ReactNode;
 }
 
@@ -35,7 +37,12 @@ export interface AuthScreenShellProps {
  * screens differ only in their form, so the chrome lives here instead of being
  * laid out twice and drifting.
  */
-export function AuthScreenShell({ title, subtitle, children }: AuthScreenShellProps) {
+export function AuthScreenShell({
+  title,
+  subtitle,
+  subtitleWidth = SUBTITLE_MAX_WIDTH,
+  children,
+}: AuthScreenShellProps) {
   return (
     // First stop is the page background token, second the soft green tint —
     // same pairing as the welcome screen, so the auth surfaces read as one set.
@@ -69,7 +76,7 @@ export function AuthScreenShell({ title, subtitle, children }: AuthScreenShellPr
               <Text
                 variant="body"
                 color="subtle"
-                style={{ marginTop: TITLE_TO_SUBTITLE, maxWidth: SUBTITLE_MAX_WIDTH }}
+                style={{ marginTop: TITLE_TO_SUBTITLE, maxWidth: subtitleWidth }}
                 className="text-center"
               >
                 {subtitle}
