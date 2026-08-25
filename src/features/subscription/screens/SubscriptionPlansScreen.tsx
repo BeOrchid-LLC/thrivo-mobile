@@ -163,7 +163,7 @@ export function SubscriptionPlansScreen() {
   const backendPlan = sub?.plans?.find((p) => p.plan === selectedPlan);
   const priceLabel = storeProduct?.priceLabel ?? backendPlan?.priceLabel ?? null;
   const trialAvailable = billingLive && storeProduct ? storeProduct.hasFreeTrial : !sub?.trialUsed;
-  const canTransact = !billingLive || Boolean(storeProduct);
+  const canTransact = billingLive && Boolean(storeProduct);
 
   useEffect(() => {
     analytics.track("thrivo.paywall_viewed");
