@@ -4,7 +4,7 @@ export type RootGroup = string | undefined;
 export type RootRedirectTarget =
   | "/(auth)/sign-in"
   | "/(auth)/welcome"
-  | "/(onboarding)/name"
+  | "/(onboarding)/goal"
   | "/(app)/(tabs)/dashboard";
 
 interface RootRedirectInput {
@@ -44,7 +44,7 @@ export function resolveRootRedirect({
   }
 
   if (status === "authenticated" && !isOnboarded && !isOnboardingSkipped) {
-    return atRoot || (!inOnboarding && !inAuthCallback) ? "/(onboarding)/name" : null;
+    return atRoot || (!inOnboarding && !inAuthCallback) ? "/(onboarding)/goal" : null;
   }
 
   if (status === "authenticated" && (isOnboarded || isOnboardingSkipped)) {

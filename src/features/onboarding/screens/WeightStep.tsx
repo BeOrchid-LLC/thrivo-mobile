@@ -78,7 +78,7 @@ export default function WeightStep({
       currentWeightKg: currentNum > 0 ? roundTo(toKg(currentNum)) : undefined,
       targetWeightKg: needsTarget && targetNum > 0 ? roundTo(toKg(targetNum)) : undefined,
       unitSystem: (unit === "kg" ? "metric" : "imperial") satisfies UnitSystem,
-      onboardingStep: 3,
+      onboardingStep: 2,
     };
   };
 
@@ -102,12 +102,12 @@ export default function WeightStep({
     setFields(fields);
     setIsOnboardingSkipped(true);
     router.replace("/(app)/(tabs)/dashboard");
-    void submit("skip", { silent: true, onboardingStep: 3, fields });
+    void submit("skip", { silent: true, onboardingStep: 2, fields });
   };
 
   return (
     <OnboardingStep
-      step={3}
+      step={2}
       title="Let's talk weight"
       subtitle="We'll calculate how far you are from your goal."
       onBack={mode === "revisit" ? onBack : undefined}

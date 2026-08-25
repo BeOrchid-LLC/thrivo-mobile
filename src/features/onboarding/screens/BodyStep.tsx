@@ -84,7 +84,7 @@ export default function BodyStep({
     ageYears: ageNum >= 13 ? ageNum : undefined,
     sex,
     unitSystem: heightUnit satisfies UnitSystem,
-    onboardingStep: 4,
+    onboardingStep: 3,
   });
 
   const next = () => {
@@ -107,12 +107,12 @@ export default function BodyStep({
     setFields(fields);
     setIsOnboardingSkipped(true);
     router.replace("/(app)/(tabs)/dashboard");
-    void submit("skip", { silent: true, onboardingStep: 4, fields });
+    void submit("skip", { silent: true, onboardingStep: 3, fields });
   };
 
   return (
     <OnboardingStep
-      step={4}
+      step={3}
       title="A bit more about your body"
       subtitle="Used only for your calorie formula."
       onBack={mode === "revisit" ? onBack : undefined}

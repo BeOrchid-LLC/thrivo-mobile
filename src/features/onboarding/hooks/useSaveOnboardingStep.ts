@@ -4,6 +4,7 @@ import { useMe, useUpdateProfile } from "@/features/profile";
 import { useUpdateSettings } from "@/features/settings";
 import { analytics } from "@/lib";
 import type { OnboardingDraft } from "@/stores";
+import { ONBOARDING_COMPLETE_STEP } from "../config";
 
 export function useSaveOnboardingStep() {
   const profile = useMe();
@@ -16,7 +17,7 @@ export function useSaveOnboardingStep() {
       const currentStep = profile.data?.onboardingStep ?? 1;
       const payload: UpdateProfilePayload = {
         ...profileFields,
-        onboardingStep: complete ? 8 : Math.max(currentStep, step),
+        onboardingStep: complete ? ONBOARDING_COMPLETE_STEP : Math.max(currentStep, step),
         ...(complete ? { activationIntent: "complete" as const } : {}),
       };
 

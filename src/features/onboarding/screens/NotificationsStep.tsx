@@ -17,6 +17,7 @@ import { type OnboardingDraft, useOnboardingDraftActions, useSessionActions } fr
 import { OnboardingStep } from "@/features/onboarding/components/OnboardingStep";
 import { useSubmitOnboarding } from "@/features/onboarding/hooks/useCompleteOnboarding";
 import { useOnboardingPrefill } from "@/features/onboarding/hooks/useOnboardingPrefill";
+import { ONBOARDING_COMPLETE_STEP } from "../config";
 import type { OnboardingStepProps } from "../types";
 
 const LABELS = ["Morning", "Midday", "Evening"];
@@ -73,7 +74,7 @@ export default function NotificationsStep({
   const fieldsToSave = (): Partial<OnboardingDraft> => ({
     notifyTimes: selectedTimes,
     timezone: draft.timezone ?? localTimezone(),
-    onboardingStep: 7,
+    onboardingStep: 6,
   });
 
   const onTimeChange = (event: TimePickerEvent, date?: Date) => {
@@ -109,7 +110,7 @@ export default function NotificationsStep({
       if (mode === "revisit") {
         await onNext?.(next);
       } else {
-        await submit("complete", { onboardingStep: 8, fields: next });
+        await submit("complete", { onboardingStep: ONBOARDING_COMPLETE_STEP, fields: next });
       }
       trackReminderSet(next.notifyTimes);
     } catch {
@@ -142,14 +143,14 @@ export default function NotificationsStep({
     router.replace("/(app)/(tabs)/dashboard");
     void submit("skip", {
       silent: true,
-      onboardingStep: 7,
+      onboardingStep: 6,
       fields: { notifyTimes: undefined, timezone: undefined },
     });
   };
 
   return (
     <OnboardingStep
-      step={7}
+      step={6}
       title="Food log reminders"
       subtitle="Pick 1–3 local times a day to remember your food log."
       onBack={mode === "revisit" ? onBack : undefined}

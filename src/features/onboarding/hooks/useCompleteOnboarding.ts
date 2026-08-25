@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import type { User, ActivationIntent, UpdateProfilePayload } from "@/contracts";
 import { useUpdateProfile } from "@/features/profile";
 import { type OnboardingDraft, useOnboardingDraft, useOnboardingDraftActions } from "@/stores";
+import { ONBOARDING_COMPLETE_STEP } from "../config";
 
 interface SubmitOptions {
   silent?: boolean;
@@ -70,6 +71,9 @@ export function useSubmitOnboarding() {
 
 export function useCompleteOnboarding() {
   const { submit, isPending, error } = useSubmitOnboarding();
-  const complete = useCallback(() => submit("complete", { onboardingStep: 8 }), [submit]);
+  const complete = useCallback(
+    () => submit("complete", { onboardingStep: ONBOARDING_COMPLETE_STEP }),
+    [submit]
+  );
   return { complete, isPending, error };
 }

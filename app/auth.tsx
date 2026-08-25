@@ -24,7 +24,7 @@ export default function AuthCallbackScreen() {
   useEffect(() => {
     if (status === "authenticated") {
       router.replace(
-        isOnboarded || isOnboardingSkipped ? "/(app)/(tabs)/dashboard" : "/(onboarding)/name"
+        isOnboarded || isOnboardingSkipped ? "/(app)/(tabs)/dashboard" : "/(onboarding)/goal"
       );
     }
   }, [isOnboarded, isOnboardingSkipped, status]);

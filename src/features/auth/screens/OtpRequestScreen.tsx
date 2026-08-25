@@ -5,7 +5,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useAuth, useSignUp } from "@clerk/expo";
 import { Button, FormError, Input, MailIcon } from "@/components";
-import { radii } from "@/theme";
 import { emailSchema } from "@/contracts";
 import { useAuthStatus, useOnboardingDraftActions } from "@/stores";
 import { logAuthError, useAuthScreenDiagnostics } from "../auth-debug";
@@ -14,7 +13,7 @@ import { AuthSwitchLink } from "../components/AuthSwitchLink";
 
 const BUTTON_HEIGHT = 52;
 /** Figma sits the two field groups closer than the page's 32pt form rhythm. */
-const FIELD_GAP = 24;
+const FIELD_GAP = 22;
 
 const otpRequestForm = z.object({
   name: z.string().trim().min(1, "Enter your name"),
@@ -130,13 +129,7 @@ export function OtpRequestScreen() {
 
       <FormError message={errors.root?.message} />
 
-      <Button
-        label="Request Magic Link"
-        loading={isSubmitting}
-        onPress={send}
-        // Figma: 52pt tall with the 14 radius, not the 48/10 default control.
-        style={{ height: BUTTON_HEIGHT, borderRadius: radii.group }}
-      />
+      <Button label="Request Magic Link" loading={isSubmitting} onPress={send} />
 
       <AuthSwitchLink
         prompt="Already have an account?"

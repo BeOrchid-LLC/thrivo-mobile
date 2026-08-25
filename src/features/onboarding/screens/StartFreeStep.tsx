@@ -38,7 +38,7 @@ export default function StartFreeStep({
   const product = productForPlan(offerings.data, "monthly");
 
   const continueWithoutPreview = () => {
-    const fields = { onboardingStep: 6 as const };
+    const fields = { onboardingStep: 5 as const };
     setFields(fields);
     if (mode === "revisit") {
       void onNext?.(fields);
@@ -46,7 +46,7 @@ export default function StartFreeStep({
     }
     setIsOnboardingSkipped(true);
     router.replace("/(app)/(tabs)/dashboard");
-    void submit("skip", { silent: true, onboardingStep: 6 });
+    void submit("skip", { silent: true, onboardingStep: 5 });
   };
 
   const startTrial = async () => {
@@ -59,8 +59,8 @@ export default function StartFreeStep({
         isTrial: product.hasFreeTrial,
       });
       if (!result.confirmed) throw new Error("Activation delayed");
-      await submit("skip", { silent: false, onboardingStep: 6 });
-      if (mode === "revisit") await onNext?.({ onboardingStep: 6 });
+      await submit("skip", { silent: false, onboardingStep: 5 });
+      if (mode === "revisit") await onNext?.({ onboardingStep: 5 });
       else router.push("/(onboarding)/notifications");
     } catch {
       setError("We couldn't start your premium preview. Please try again.");
@@ -69,7 +69,7 @@ export default function StartFreeStep({
 
   return (
     <OnboardingStep
-      step={6}
+      step={5}
       title="Start your premium preview"
       subtitle="Choose the store offer shown below. Pricing and any introductory period come from your app store."
       onBack={mode === "revisit" ? onBack : undefined}

@@ -6,7 +6,8 @@ type Variant = "primary" | "secondary" | "ghost" | "outline";
 
 // Primary swaps the green for the design-system hover/active shades; secondary and
 // ghost have no green fill so they dim on press; outline is a primary-bordered
-// transparent button. `active:` = pressed, `hover:` = web.
+// transparent button with a dark label, the way the V2 frames draw a secondary
+// action. `active:` = pressed, `hover:` = web.
 const variantClass: Record<Variant, string> = {
   primary: "bg-primary hover:bg-primaryHover active:bg-primaryActive",
   secondary: "bg-gray-100 active:opacity-[0.85]",
@@ -18,7 +19,7 @@ const labelColorFor: Record<Variant, "inverse" | "dark" | "primary"> = {
   primary: "inverse",
   secondary: "dark",
   ghost: "primary",
-  outline: "primary",
+  outline: "dark",
 };
 
 export interface ButtonProps extends Omit<PressableProps, "children"> {
@@ -29,7 +30,8 @@ export interface ButtonProps extends Omit<PressableProps, "children"> {
 }
 
 /**
- * Themed pressable button. Min height 48 keeps tap targets ≥44pt (WCAG 2.2 AA,
+ * Themed pressable button. 52pt tall with the 14 radius, the size every V2 frame
+ * draws a button at — comfortably above the ≥44pt tap target floor (WCAG 2.2 AA,
  * MOBILE_ARCHITECTURE §7). `loading`/`disabled` block presses.
  */
 export function Button({
@@ -48,7 +50,7 @@ export function Button({
       accessibilityRole="button"
       accessibilityState={{ disabled: Boolean(isDisabled), busy: loading }}
       disabled={isDisabled}
-      className={`min-h-touchTarget items-center justify-center rounded-md px-lg ${variantClass[variant]} ${
+      className={`min-h-controlLg items-center justify-center rounded-group px-lg ${variantClass[variant]} ${
         fullWidth ? "self-stretch" : ""
       } ${isDisabled ? "opacity-50" : ""} ${className ?? ""}`}
       {...rest}

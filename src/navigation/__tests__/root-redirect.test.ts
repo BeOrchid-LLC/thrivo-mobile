@@ -20,7 +20,7 @@ describe("resolveRootRedirect", () => {
         isOnboarded: false,
         isOnboardingSkipped: false,
       })
-    ).toBe("/(onboarding)/name");
+    ).toBe("/(onboarding)/goal");
   });
 
   it("sends onboarded authenticated root visitors to dashboard", () => {

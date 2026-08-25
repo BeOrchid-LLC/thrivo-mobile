@@ -131,7 +131,7 @@ export default function TargetStep({
   const buildFields = () => ({
     activityLevel,
     manualDailyTargetKcal: showManual ? manualNum : null,
-    onboardingStep: 5 as const,
+    onboardingStep: 4 as const,
   });
 
   const next = () => {
@@ -154,12 +154,12 @@ export default function TargetStep({
     setFields(fields);
     setIsOnboardingSkipped(true);
     router.replace("/(app)/(tabs)/dashboard");
-    void submit("skip", { silent: true, onboardingStep: 5, fields });
+    void submit("skip", { silent: true, onboardingStep: 4, fields });
   };
 
   return (
     <OnboardingStep
-      step={5}
+      step={4}
       title="Your daily calorie target"
       onBack={mode === "revisit" ? onBack : undefined}
       variant={variant}

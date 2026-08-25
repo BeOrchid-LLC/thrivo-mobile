@@ -5,7 +5,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useAuth, useSignIn } from "@clerk/expo";
 import { Button, FormError, Input, MailIcon } from "@/components";
-import { radii } from "@/theme";
 import { emailSchema } from "@/contracts";
 import { useAuthStatus, useOnboardingDraft } from "@/stores";
 import appleIcon from "../../../assets/auth-apple.png";
@@ -16,8 +15,6 @@ import { AuthScreenShell } from "../components/AuthScreenShell";
 import { AuthSwitchLink } from "../components/AuthSwitchLink";
 import { logAuthError, useAuthScreenDiagnostics } from "../auth-debug";
 import { useAppleSignIn, useGoogleSignIn } from "../hooks/useAuth";
-
-const BUTTON_HEIGHT = 52;
 
 type SignInParams = { authError?: string };
 type SocialProvider = "google" | "apple";
@@ -141,13 +138,7 @@ export function SignInScreen() {
 
       <FormError message={errors.root?.message} />
 
-      <Button
-        label="Request Magic Link"
-        loading={isSubmitting}
-        onPress={send}
-        // Figma: 52pt tall with the 14 radius, not the 48/10 default control.
-        style={{ height: BUTTON_HEIGHT, borderRadius: radii.group }}
-      />
+      <Button label="Request Magic Link" loading={isSubmitting} onPress={send} />
 
       {showGoogle || showApple ? (
         <>

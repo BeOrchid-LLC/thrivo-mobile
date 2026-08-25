@@ -13,13 +13,13 @@ import { colors } from "@/theme";
  */
 const PAGE_PADDING_X = 20;
 /** Sits the mark just under the status bar, on top of the safe-area inset. */
-const PAGE_PADDING_TOP = 4;
+const PAGE_PADDING_TOP = 3;
 const PAGE_PADDING_BOTTOM = 40;
 const MARK_SIZE = 33;
-const MARK_TO_TITLE = 40;
-const TITLE_TO_SUBTITLE = 18;
+const MARK_TO_TITLE = 38;
+const TITLE_TO_SUBTITLE = 17;
 /** Gap under the subtitle, and between every row of the form below it. */
-const FORM_GAP = 32;
+const FORM_GAP = 31;
 /** Holds the subtitle to the two-line wrap the frames show. */
 const SUBTITLE_MAX_WIDTH = 306;
 

@@ -52,7 +52,7 @@ export function WelcomeScreen() {
   const isAuthenticated = status === "authenticated";
   useAuthScreenDiagnostics("welcome", status, clerk);
   const postUnlockTarget =
-    isOnboarded || isOnboardingSkipped ? "/(app)/(tabs)/dashboard" : "/(onboarding)/name";
+    isOnboarded || isOnboardingSkipped ? "/(app)/(tabs)/dashboard" : "/(onboarding)/goal";
   const canUseBiometric =
     isAuthenticated && biometricEnabled && biometricAvailable && !isBiometricUnlocked;
 

@@ -83,6 +83,21 @@ function androidFreePhase(pkg: PurchasesPackage): FreePhase | null {
   return (option?.freePhase as FreePhase | null) ?? null;
 }
 
+/**
+ * The SDK installs a default log handler on `configure()` that routes its ERROR
+ * level through `console.error`. In dev that turns ordinary outcomes — most
+ * often the user tapping Cancel on the native purchase sheet — into a
+ * full-screen LogBox error. Claiming the handler first keeps the SDK away from
+ * `console.error`; real failures still surface through the thrown error that
+ * `purchase()` and `restore()` propagate.
+ */
+function installLogHandler(): void {
+  if (typeof Purchases.setLogHandler !== "function") return;
+  Purchases.setLogHandler((_level: unknown, message: string) => {
+    if (__DEV__) console.log(`[RevenueCat] ${message}`);
+  });
+}
+
 let ready: Promise<void> | null = null;
 let configuredUserId: string | null = null;
 const packageCache = new Map<string, PurchasesPackage>();
@@ -110,6 +125,7 @@ const revenueCatAdapter: SubscriptionAdapter = {
     const apiKey = env.revenueCatKey;
     if (!apiKey || configuredUserId === userId) return;
     const attempt = (async () => {
+      installLogHandler();
       if (await Purchases.isConfigured()) await Purchases.logIn(userId);
       else {
         Purchases.configure({ apiKey, appUserID: userId });

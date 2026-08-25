@@ -6,7 +6,7 @@ const mockSubmit = jest.fn();
 const mockRegister = jest.fn();
 
 jest.mock("expo-router", () => ({
-  router: { push: jest.fn(), replace: jest.fn() },
+  router: { push: jest.fn(), replace: jest.fn(), canGoBack: jest.fn(() => false) },
 }));
 
 jest.mock("@/lib", () => ({
