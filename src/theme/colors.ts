@@ -5,9 +5,13 @@
  * borders/dividers/disabled states that the design guide leaves unspecified.
  */
 export const colors = {
-  primary: "#09823C", // Thrivo logo green
-  primaryHover: "#0A9A47",
-  primaryActive: "#076B32",
+  // Sourced from the V2 auth frames (Sign In / Sign Up), which carry a lighter
+  // brand green than the older Design Guide value (#09823C). ⚠️ White label copy
+  // on this green measures 2.8:1 — below the WCAG 2.2 AA 4.5:1 floor the old
+  // green cleared at 4.9:1. Every filled primary button in the app is affected.
+  primary: "#55AB68", // Thrivo logo green
+  primaryHover: "#6DB77D",
+  primaryActive: "#499359",
   primaryTint: "#EAF3DE",
   primarySoft: "#E8F7EE", // light green tint — success badges / soft fills (V2 auth screens)
   primaryBright: "#27AE60", // brighter green — progress fill, success check (V2 screens)
@@ -17,7 +21,7 @@ export const colors = {
   loggedGreenBorder: "#64B889", // "logged" streak-calendar day border (ProgressScreen)
   dark: "#1A1A2E", // Figma: Gray 1 (primary text)
   light: "#F4F6F9", // page background / input fields
-  accent: "#F39C12", // Figma: Orange
+  accent: "#E7A03C", // Figma: Orange
   accentSoft: "#FEF5E7", // light amber tint — warning/expired badges (V2 auth screens)
   accentText: "#8A6A2A", // amber-dark — tint-on-tint note copy on accentSoft (onboarding NoteBox)
   warningText: "#854D0E", // Tailwind yellow-800 equivalent for the subscription preview notice
@@ -40,9 +44,9 @@ export const colors = {
     800: "#1F2937",
     900: "#111827",
   },
-  success: "#09823C", // shares Thrivo Green
+  success: "#55AB68", // shares Thrivo Green
   successBright: "#16A34A", // onboarding completion icon
-  warning: "#F39C12", // shares Orange accent
+  warning: "#E7A03C", // shares Orange accent
   error: "#C0392B", // Figma: Thrivo Red
 };
 
