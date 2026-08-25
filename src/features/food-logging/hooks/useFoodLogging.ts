@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   invalidateFoodLogViews,
@@ -10,6 +10,7 @@ import {
   type LogEstimateVars,
   type LogFoodVars,
 } from "@/api";
+import { analytics, isNetworkReachable } from "@/lib";
 import { useFavoritesActions, useFavoritesStore } from "@/stores";
 import { localDay } from "@/utils";
 import type {
@@ -22,9 +23,11 @@ import type {
   LogFoodPayload,
   UpdateLogPayload,
   UpdateWaterPayload,
+  UpsertFoodPayload,
 } from "@/contracts";
 import {
   addFavorite,
+  createFood,
   deleteFoodLog,
   deleteWater,
   estimateFood,
@@ -41,6 +44,7 @@ import {
   updateWater,
   type WaterHistoryFilters,
 } from "../api/food-logging.api";
+import { buildCopyPlan } from "../utils/copyLog";
 
 const FOOD_SEARCH_PAGE_SIZE = 10;
 
@@ -230,6 +234,85 @@ export function useDeleteFoodLog() {
     mutationFn: (id: string) => deleteFoodLog(id),
     onSuccess: () => invalidateFoodLogViews(queryClient, localDay()),
   });
+}
+
+/**
+ * Creates a personal food (`POST /foods`). The new item is only visible to its
+ * owner, so the caches that can already contain it — catalog search and the
+ * recent list — are dropped rather than patched; the next read is authoritative.
+ */
+export function useCreateFood() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: UpsertFoodPayload) => createFood(payload),
+    onSuccess: () => {
+      analytics.track("thrivo.custom_food_created");
+      void queryClient.invalidateQueries({ queryKey: queryKeys.foods.searchRoot() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.foods.recent() });
+    },
+  });
+}
+
+export interface CopyResult {
+  copied: number;
+  failed: number;
+  /** Entries with no catalog link (described-meal estimates) — never sent. */
+  skipped: number;
+  /** Queued offline instead of sent; they replay on reconnect. */
+  queued: number;
+}
+
+/**
+ * Re-logs a set of past entries onto another day, one `POST /foods/log` per
+ * entry — there is no bulk endpoint, and inventing one client-side would mean
+ * duplicating the server's portion maths.
+ *
+ * Sequential on purpose: `useOfflineWrite` wraps a single mutation observer, and
+ * firing overlapping `mutateAsync` calls through it would drop all but the last
+ * call's result. Offline, the writes are queued (idempotency-keyed) and reported
+ * as queued rather than pretending they landed.
+ */
+export function useCopyFoodLog() {
+  const logFood = useLogFood();
+  const [isCopying, setIsCopying] = useState(false);
+
+  const copy = async (
+    entries: readonly FoodLogEntry[],
+    targetDay: string,
+    scope: "day" | "meal"
+  ): Promise<CopyResult> => {
+    const plan = buildCopyPlan(entries, targetDay);
+    if (plan.payloads.length === 0) {
+      return { copied: 0, failed: 0, skipped: plan.skipped, queued: 0 };
+    }
+
+    setIsCopying(true);
+    try {
+      if (!(await isNetworkReachable())) {
+        for (const payload of plan.payloads) logFood.mutate(payload);
+        return { copied: 0, failed: 0, skipped: plan.skipped, queued: plan.payloads.length };
+      }
+
+      let copied = 0;
+      let failed = 0;
+      for (const payload of plan.payloads) {
+        try {
+          await logFood.mutateAsync(payload);
+          copied += 1;
+        } catch {
+          failed += 1;
+        }
+      }
+      // One event per copy action, not per item — the per-item `food_logged`
+      // events are already emitted by the offline write's registered default.
+      if (copied > 0) analytics.track("thrivo.log_copied", { scope, count: copied });
+      return { copied, failed, skipped: plan.skipped, queued: 0 };
+    } finally {
+      setIsCopying(false);
+    }
+  };
+
+  return { copy, isCopying };
 }
 
 /**

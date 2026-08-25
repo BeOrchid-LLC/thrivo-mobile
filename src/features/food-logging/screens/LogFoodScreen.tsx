@@ -12,6 +12,7 @@ import {
   CaretRight,
   Heart,
   MagnifyingGlass,
+  NotePencil,
   TextAlignLeft,
   Warning,
   XCircle,
@@ -45,6 +46,7 @@ import { useSettings } from "@/features/settings";
 import { subscribeTabRootReset } from "@/navigation/tab-root-reset";
 import { formatWater, isToday, roundTo, waterFromMl, waterUnitFor } from "@/utils";
 import type { FoodItem, FoodLogEntry, PortionMeasure, WaterEntry } from "@/contracts";
+import { CreateFoodScreen } from "./CreateFoodScreen";
 import { EditFoodLogSheet } from "../components/EditFoodLogSheet";
 import { FavoriteButton } from "../components/FavoriteButton";
 import { FoodResultRow } from "../components/FoodResultRow";
@@ -70,7 +72,7 @@ import {
 } from "../hooks/useFoodLogging";
 
 type Segment = "food" | "water";
-type Subview = "main" | "scan" | "describe";
+type Subview = "main" | "scan" | "describe" | "create";
 
 const portions: { label: string; value: PortionMeasure }[] = [
   { label: "Serving", value: "serving" },
@@ -138,6 +140,7 @@ export function LogFoodScreen() {
   if (subview === "scan") return <ScanBarcodeScreen day={day} onBack={() => setSubview("main")} />;
   if (subview === "describe")
     return <DescribeMealScreen day={day} onBack={() => setSubview("main")} />;
+  if (subview === "create") return <CreateFoodScreen day={day} onBack={() => setSubview("main")} />;
 
   return (
     <Screen
@@ -168,6 +171,7 @@ export function LogFoodScreen() {
           day={day}
           onScan={() => setSubview("scan")}
           onDescribe={() => setSubview("describe")}
+          onCreate={() => setSubview("create")}
         />
       ) : (
         <WaterHome day={day} />
@@ -180,10 +184,12 @@ function FoodHome({
   day,
   onScan,
   onDescribe,
+  onCreate,
 }: {
   day: string;
   onScan: () => void;
   onDescribe: () => void;
+  onCreate: () => void;
 }) {
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebouncedValue(query, 350);
@@ -228,6 +234,11 @@ function FoodHome({
           icon={<TextAlignLeft size={22} color={colors.dark} />}
           label="Describe it"
           onPress={onDescribe}
+        />
+        <QuickAction
+          icon={<NotePencil size={22} color={colors.dark} />}
+          label="Create food"
+          onPress={onCreate}
         />
       </View>
       <Input
@@ -938,11 +949,15 @@ function QuickAction({
   onPress: () => void;
 }) {
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} className="items-center gap-xs">
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      className="w-[76px] items-center gap-xs"
+    >
       <View className="h-[42px] w-[42px] items-center justify-center rounded-pill bg-primarySoft">
         {icon}
       </View>
-      <Text variant="caption" color="dark">
+      <Text variant="caption" color="dark" className="text-center">
         {label}
       </Text>
     </Pressable>

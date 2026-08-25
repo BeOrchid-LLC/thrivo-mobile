@@ -1,6 +1,6 @@
 import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { router, useLocalSearchParams } from "expo-router";
-import { Heart } from "phosphor-react-native";
+import { CopySimple, Heart } from "phosphor-react-native";
 import { ActivityIndicator, Pressable, View } from "react-native";
 import { FlashList, type FlashListRef, type ListRenderItem } from "@shopify/flash-list";
 import {
@@ -24,10 +24,11 @@ import type {
   MealTime,
 } from "@/contracts";
 import { MEAL_TIME_WINDOWS } from "@/contracts";
-import { EditFoodLogSheet, useFavorites } from "@/features/food-logging";
+import { CopyLogSheet, EditFoodLogSheet, useFavorites } from "@/features/food-logging";
 import { FavoriteButton } from "@/features/food-logging/components/FavoriteButton";
 import { useDebouncedValue } from "@/hooks";
 import { colors } from "@/theme";
+import { isToday } from "@/utils";
 import type { FoodLogHistoryFilters } from "../api/dashboard.api";
 import { useFoodLogHistory } from "../hooks/useDashboard";
 
@@ -150,6 +151,7 @@ export function FoodHistoryScreen({ refreshing, onRefresh }: FoodHistoryScreenPr
 
   const history = useFoodLogHistory(period, undefined, filters);
   const [editingEntry, setEditingEntry] = useState<FoodLogEntry | null>(null);
+  const [copyingDay, setCopyingDay] = useState<string | null>(null);
 
   const suppressDateHeaders = sort === "highest" || sort === "lowest";
   const listItems = useMemo(
@@ -226,7 +228,15 @@ export function FoodHistoryScreen({ refreshing, onRefresh }: FoodHistoryScreenPr
     if (item.type === "locked") {
       return <LockedEarlierHistory historyLimitDays={item.historyLimitDays} />;
     }
-    if (item.type === "header") return <HistoryDayHeader day={item.day} />;
+    if (item.type === "header") {
+      // Copying today onto today would just duplicate it.
+      return (
+        <HistoryDayHeader
+          day={item.day}
+          onCopy={isToday(item.day) ? undefined : () => setCopyingDay(item.day)}
+        />
+      );
+    }
     if (item.type === "footer-spinner") {
       return (
         <View className="items-center py-md">
@@ -375,6 +385,11 @@ export function FoodHistoryScreen({ refreshing, onRefresh }: FoodHistoryScreenPr
         visible={editingEntry !== null}
         onClose={() => setEditingEntry(null)}
       />
+      <CopyLogSheet
+        day={copyingDay}
+        visible={copyingDay !== null}
+        onClose={() => setCopyingDay(null)}
+      />
       <SelectSheet
         title="Select period"
         options={periodOptions}
@@ -407,12 +422,26 @@ export function FoodHistoryScreen({ refreshing, onRefresh }: FoodHistoryScreenPr
 }
 
 /** Sticky — needs its own background so scrolling entries don't show through underneath it. */
-function HistoryDayHeader({ day }: { day: string }) {
+function HistoryDayHeader({ day, onCopy }: { day: string; onCopy?: () => void }) {
   return (
-    <View className="bg-white pb-sm pt-md">
+    <View className="flex-row items-center justify-between bg-white pb-sm pt-md">
       <Text variant="heading3" color="dark">
         {day}
       </Text>
+      {onCopy ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Copy ${day} to today`}
+          onPress={onCopy}
+          hitSlop={8}
+          className="flex-row items-center gap-xs py-xs"
+        >
+          <CopySimple size={18} color={colors.primary} />
+          <Text variant="caption" color="primary" className="font-semibold">
+            Copy
+          </Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }

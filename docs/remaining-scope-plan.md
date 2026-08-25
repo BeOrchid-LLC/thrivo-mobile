@@ -271,23 +271,66 @@ ledger, and permission denial falls back to the in-app reminder.
 
 ---
 
-## Step 4 — Remaining food-logging features — build, or formally cut from v1
+## Step 4 — Remaining food-logging features — *complete in this repo*
 
-The PRD accepts either outcome, as long as the app and the spec agree.
+**The build-vs-cut decision is made** (client, 24 Aug 2026): custom food entry
+and copy-a-meal/copy-a-day are in and now built; **quick-add calories is cut
+from v1** — "Describe it" already covers the ad-hoc case, and the client's scope
+message names only the two features as what makes food logging MVP-ready.
 
-| Feature | Current state (verified) |
-| --- | --- |
-| Custom-food entry on mobile | Not present |
-| Copy-a-day / copy-a-meal | Not present |
-| Quick-add calories | Not present as a distinct flow |
+| Feature | Decision | State |
+| --- | --- | --- |
+| Custom-food entry on mobile | Build | ✅ built |
+| Copy-a-meal / copy-a-day | Build | ✅ built |
+| Quick-add calories | **Cut from v1** | not built, by decision |
 
 - **Accept:** each works end to end, **or** is removed so the app and the spec
-  agree.
+  agree. Met: two built, one explicitly cut.
 
-**Notes:** this is the cheapest place to protect the timeline. Recommend deciding
-build-vs-cut per feature *before* Step 6, because each one that ships may deserve
-its own analytics event. Barcode scanning and search/logging already work, so the
-core loop is not at risk either way.
+**Custom food entry.** Log Food → *Create food* (fourth quick action) opens
+`CreateFoodScreen`: name, brand, serving label, optional serving weight,
+calories and the three macros. `POST /foods` was already declared in the
+endpoints contract and unwired; nothing on the backend changed. Saving opens the
+normal `LogItemSheet` on the new item, so *create* and *log* are one flow rather
+than two — which is what the client's scope note asked for.
+
+- Validation lives in `utils/customFood.ts`, not the screen, and mirrors the
+  shared `boundedNutrients` ceilings (5000 kcal / 500 P / 800 C / 500 F) so the
+  form can never accept a value the backend rejects. Blank macros save as 0; a
+  blank calorie field does not.
+- Errors appear only after the first save attempt — validating each keystroke
+  flags half-typed numbers as wrong while the user is still typing.
+- The created food is personal (owner-only), so the caches that could contain it
+  — catalog search and recents — are invalidated rather than patched.
+
+**Copy a meal or a day.** Food history → any past day's header has a *Copy*
+action, which opens `CopyLogSheet`: pick the whole day or one meal-time block,
+see the item count and calories, confirm. Copies land on **today**, keeping each
+entry's time of day, so a copied breakfast stays a breakfast.
+
+- Meal blocks are derived from the shared `MEAL_TIME_WINDOWS` constant (the same
+  source the server's SQL predicate and the history filter use), so the app can't
+  disagree with the backend about what "evening" means. `night` wraps midnight.
+- The sheet re-fetches the source day (`GET /foods/log/day`) instead of reusing
+  the rows the history list is showing: history can be filtered or searched, and
+  "copy the day" must mean the whole day.
+- **No bulk endpoint was added.** Copying is one `POST /foods/log` per entry,
+  sequential — the offline write wraps a single mutation observer, so overlapping
+  calls would drop all but the last result. Offline, the writes queue
+  (idempotency-keyed) and are reported as *queued*, not as copied.
+- **Described-meal estimates cannot be copied** and are never silently dropped:
+  they carry no `foodItemId`, and a stored entry has no external snapshot to
+  re-send, so the sheet counts them and says so.
+- Copying today onto today is not offered — it would just duplicate the day.
+
+*Analytics:* `thrivo.custom_food_created`, and `thrivo.log_copied` once per copy
+action with `{ scope: "day" | "meal", count }` — the individual items are already
+counted by `thrivo.food_logged`. Both are added to the closed union and to the
+funnel guard in `src/lib/__tests__/analytics-events.test.ts`.
+
+*Tests:* 18 across the two features — meal-time bucketing (including the
+midnight wrap), copy-plan building and skipped estimates, the sequential/offline
+copy loop, form validation bounds, and both screens.
 
 ---
 

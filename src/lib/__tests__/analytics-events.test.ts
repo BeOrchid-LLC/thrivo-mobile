@@ -15,18 +15,27 @@ import { join } from "node:path";
 const SRC = join(__dirname, "..", "..");
 
 /**
- * Events the Remaining Scope PRD requires, plus `thrivo.checkin_submitted`.
+ * Events the Remaining Scope PRD requires, plus three agreed additions.
  *
  * The check-in event is not in the PRD's list. It is kept deliberately: Step 5
  * makes check-ins a real feature with a mood-aware response, so submissions are
  * a funnel step worth counting, and the event already had a call site. Dropping
  * it would lose data for no gain. Recorded here rather than left as an open
  * question — see docs/remaining-scope-plan.md §Step 6.
+ *
+ * `thrivo.custom_food_created` and `thrivo.log_copied` come with the Step 4
+ * food-logging features. Each shipped feature that can carry the log deserves
+ * its own funnel step: without them, a custom food and a copied day are
+ * indistinguishable from ordinary catalog logs in the funnel. `log_copied`
+ * fires once per copy action (scope: day | meal), not once per item — the items
+ * are already counted by `thrivo.food_logged`.
  */
 const REQUIRED_EVENTS = [
   "thrivo.signup",
   "thrivo.onboarding_completed",
   "thrivo.food_logged",
+  "thrivo.custom_food_created",
+  "thrivo.log_copied",
   "thrivo.barcode_scanned",
   "thrivo.paywall_viewed",
   "thrivo.upgrade_prompt_shown",
