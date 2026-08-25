@@ -344,6 +344,22 @@ export function SettingsScreen() {
         />
         <Row
           icon={<Bell size={22} color={colors.dark} />}
+          title="Psychology tips"
+          subtitle="Daily tips in push notifications"
+          action={
+            <Switch
+              accessibilityLabel="Psychology tips"
+              value={Boolean(userSettings?.psychologyTipPushEnabled)}
+              disabled={settingsLoading}
+              onValueChange={(psychologyTipPushEnabled) =>
+                updateSettings.mutate({ psychologyTipPushEnabled })
+              }
+              trackColor={{ true: colors.primaryBright, false: colors.gray[300] }}
+            />
+          }
+        />
+        <Row
+          icon={<Bell size={22} color={colors.dark} />}
           title="Weekly review email"
           subtitle="Your previous week, Sundays around 9:00 AM"
           action={

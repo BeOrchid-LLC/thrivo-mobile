@@ -1,13 +1,36 @@
 import { Platform } from "react-native";
 import Constants from "expo-constants";
+import * as Application from "expo-application";
+import * as Crypto from "expo-crypto";
 import type * as NotificationsModule from "expo-notifications";
+import * as SecureStore from "expo-secure-store";
 import { callApi } from "@/api";
+
+const PUSH_DEVICE_ID_KEY = "thrivo.push.device-id";
+
+async function resolvePushDeviceId(): Promise<string> {
+  const platformId =
+    Platform.OS === "android"
+      ? Application.getAndroidId()
+      : Platform.OS === "ios"
+        ? await Application.getIosIdForVendorAsync()
+        : null;
+  if (platformId) return `${Platform.OS}:${platformId}`;
+
+  const stored = await SecureStore.getItemAsync(PUSH_DEVICE_ID_KEY);
+  if (stored) return stored;
+
+  const generated = `${Platform.OS}:${Crypto.randomUUID()}`;
+  await SecureStore.setItemAsync(PUSH_DEVICE_ID_KEY, generated);
+  return generated;
+}
 
 /**
  * Push notifications adapter (Expo Notifications — MOBILE_ARCHITECTURE §8).
  * Permission is requested after login; denial degrades gracefully (in-app
  * reminder only). The Expo token is registered with the backend so it can send
- * the daily nudge; tapping a nudge routes to the check-in screen.
+ * scheduled food-log reminders and psychology tips. Food-log taps route to
+ * logging; psychology-tip taps route to check-in.
  *
  * **Expo Go is unsupported on purpose.** SDK 53 removed Android remote push from
  * Expo Go, and merely *importing* `expo-notifications` there logs a red error at
@@ -63,11 +86,13 @@ async function registerToken(
   const { data: expoPushToken } = await Notifications.getExpoPushTokenAsync(
     projectId ? { projectId } : undefined
   );
+  const deviceId = await resolvePushDeviceId();
 
   await callApi("PUSH_REGISTER", {
     payload: {
       expoPushToken,
       platform: Platform.OS === "ios" ? "ios" : "android",
+      deviceId,
       notifyTimes,
     },
   });

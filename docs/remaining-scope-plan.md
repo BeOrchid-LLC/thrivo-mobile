@@ -212,8 +212,8 @@ nothing.
 
 ## Step 3 — Timezone-aware reminders
 
-- Deliver at each user's chosen local times; today reminders fire globally at a
-  single UTC time.
+- Deliver food-log reminders at each user's chosen local times; the existing
+  psychology-tip push remains a separate once-daily flow.
 - Handle permission grant/denial, timezone changes, and token refresh.
 - **Accept:** a reminder set for 8am arrives at 8am in the user's timezone, on a
   real device.
@@ -264,6 +264,10 @@ Decision record and options are in
 
 **Step 3 is now code-complete end to end** — mobile (this repo) and backend —
 pending review, commit, and deploy of the backend branch.
+
+**Scheduler behaviour to expect:** invalid timezones are skipped, daylight-saving
+gaps are not synthesized, fall-back repeats are deduplicated by the delivery
+ledger, and permission denial falls back to the in-app reminder.
 
 ---
 
@@ -344,6 +348,10 @@ tips — **draft copy for review/editing via the admin tip-bank CRUD, not final*
 scratch) via the admin panel, and deploy the branch. The seeder only runs once
 on an empty table — an environment that already ran the old 15-tip seed needs
 the 30 new ones inserted separately (noted in the code).
+
+**Push relationship:** `psychologyTipPushEnabled` is a separate Settings-only
+preference for push delivery. Disabling it does not remove the tip from an
+in-app check-in response.
 
 ---
 
