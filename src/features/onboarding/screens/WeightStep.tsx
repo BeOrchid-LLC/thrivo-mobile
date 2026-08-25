@@ -1,17 +1,24 @@
 import { useEffect, useState } from "react";
 import { router } from "expo-router";
-import { Button, Input, Segmented } from "@/components";
+import { Button, Input } from "@/components";
 import type { UnitSystem } from "@/contracts";
 import { kgToLb, lbToKg, roundTo } from "@/utils";
 import { type OnboardingDraft, useOnboardingDraftActions, useSessionActions } from "@/stores";
 import { OnboardingStep } from "@/features/onboarding/components/OnboardingStep";
 import { InsightPill } from "@/features/onboarding/components/InsightPill";
+import { UnitChips } from "@/features/onboarding/components/UnitChips";
 import { useSubmitOnboarding } from "@/features/onboarding/hooks/useCompleteOnboarding";
 import { useOnboardingPrefill } from "@/features/onboarding/hooks/useOnboardingPrefill";
 import { isValidWeightKg } from "@/features/onboarding/utils/validation";
 import type { OnboardingStepProps } from "../types";
 
 type Unit = "kg" | "lb";
+
+// Both fields carry the chips in the frame, and both drive the one unit.
+const UNIT_OPTIONS = [
+  { label: "kg", value: "kg" },
+  { label: "lbs", value: "lb" },
+] as const satisfies readonly { label: string; value: Unit }[];
 
 const toDisplay = (kg: number | undefined, unit: Unit): string => {
   if (kg === undefined) return "";
@@ -108,8 +115,10 @@ export default function WeightStep({
   return (
     <OnboardingStep
       step={2}
-      title="Let's talk weight"
-      subtitle="We'll calculate how far you are from your goal."
+      // The frame sets the two field groups further apart than the option cards.
+      contentGap={22}
+      title="Tell us about your weight"
+      subtitle="We listen, we don't judge."
       onBack={mode === "revisit" ? onBack : undefined}
       variant={variant}
       footer={
@@ -121,37 +130,45 @@ export default function WeightStep({
             onPress={next}
           />
           <Button
-            label={mode === "revisit" ? "Done later" : "Skip for now"}
-            variant="ghost"
+            label={mode === "revisit" ? "Done later" : "Skip For Now"}
+            variant="outline"
             loading={mode === "initial" && isPending}
             onPress={skip}
           />
         </>
       }
     >
-      <Segmented<Unit>
-        options={[
-          { label: "lbs", value: "lb" },
-          { label: "kg", value: "kg" },
-        ]}
-        value={unit}
-        onChange={switchUnit}
-      />
       <Input
-        label="Current weight"
-        uppercaseLabel
+        variant="onboarding"
+        label="Current Weight"
+        hint="How much do you weigh at the moment?"
         trailingText={unitLabel}
-        placeholder={unit === "kg" ? "70" : "154"}
+        trailingAccessory={
+          <UnitChips
+            options={UNIT_OPTIONS}
+            value={unit}
+            onChange={switchUnit}
+            accessibilityLabel="Weight unit"
+          />
+        }
         keyboardType="decimal-pad"
         value={current}
         onChangeText={setCurrent}
       />
       {needsTarget ? (
         <Input
-          label="Target weight"
-          uppercaseLabel
+          variant="onboarding"
+          label="Target Weight"
+          hint="What's your ideal weight?"
           trailingText={unitLabel}
-          placeholder={unit === "kg" ? "65" : "143"}
+          trailingAccessory={
+            <UnitChips
+              options={UNIT_OPTIONS}
+              value={unit}
+              onChange={switchUnit}
+              accessibilityLabel="Target weight unit"
+            />
+          }
           keyboardType="decimal-pad"
           value={target}
           onChangeText={setTarget}

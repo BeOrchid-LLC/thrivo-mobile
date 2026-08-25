@@ -37,6 +37,8 @@ interface OnboardingStepProps {
   children: ReactNode;
   /** Action area (Continue / Skip etc.). */
   footer: ReactNode;
+  /** Gap between content rows. Defaults to the card spacing the frames use. */
+  contentGap?: number;
   /** Override the back button behavior (defaults to router.back). */
   onBack?: () => void;
   /**
@@ -78,6 +80,7 @@ export function OnboardingStep({
   subtitle,
   children,
   footer,
+  contentGap = CONTENT_GAP,
   onBack,
   variant = "onboarding",
 }: OnboardingStepProps) {
@@ -184,7 +187,7 @@ export function OnboardingStep({
             </Text>
           ) : null}
 
-          <View style={{ marginTop: SUBTITLE_TO_CONTENT, gap: CONTENT_GAP }}>{children}</View>
+          <View style={{ marginTop: SUBTITLE_TO_CONTENT, gap: contentGap }}>{children}</View>
 
           <View style={{ marginTop: CONTENT_TO_FOOTER, gap: FOOTER_GAP }}>{footer}</View>
         </ScrollView>

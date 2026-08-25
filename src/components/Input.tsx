@@ -12,12 +12,18 @@ export interface InputProps extends TextInputProps {
   trailingText?: string;
   /** Supporting copy under the field. Hidden while an `error` is showing. */
   hint?: string;
+  /** Rendered beside the field, inside the label/hint group (e.g. unit chips). */
+  trailingAccessory?: ReactNode;
   /**
-   * `auth` matches the V2 auth frames: the field takes the page gradient rather
-   * than a white fill, and the label/hint sit flush with the field edge instead
-   * of the 4pt inset the rest of the app uses.
+   * Which frame set the field is dressed for. Both V2 variants sit the label and
+   * hint flush with the field edge rather than the 4pt inset the rest of the app
+   * uses; they differ in the fill, and onboarding states its label and hint in
+   * body colour rather than muted.
+   *
+   * - `auth`: no fill, so the page gradient shows through.
+   * - `onboarding`: the page-background fill.
    */
-  variant?: "default" | "auth";
+  variant?: "default" | "auth" | "onboarding";
   /** Render the label in the V2 onboarding style: uppercase + wide tracking. */
   uppercaseLabel?: boolean;
 }
@@ -39,6 +45,7 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
     leadingIcon,
     trailingText,
     hint,
+    trailingAccessory,
     variant = "default",
     uppercaseLabel,
     className,
@@ -62,48 +69,54 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
   };
 
   const borderClass = error ? "border-error" : focused ? "border-primary" : "border-gray-300";
-  const isAuth = variant === "auth";
-  const captionInset = isAuth ? "" : "ml-xs";
+  const isFramed = variant !== "default";
+  const captionInset = isFramed ? "" : "ml-xs";
+  const captionColor = variant === "onboarding" ? "dark" : "muted";
+  const fillClass =
+    variant === "auth" ? "bg-transparent" : variant === "onboarding" ? "bg-light" : "bg-white";
 
   return (
     <View className="gap-xs">
       {label ? (
         <Text
           variant="caption"
-          color="muted"
+          color={captionColor}
           className={`${captionInset} ${uppercaseLabel ? "uppercase tracking-label" : ""}`}
         >
           {label}
         </Text>
       ) : null}
-      <View
-        className={`min-h-control flex-row items-center gap-sm rounded-md border px-lg ${
-          isAuth ? "bg-transparent" : "bg-white"
-        } ${borderClass}`}
-      >
-        {leadingIcon}
-        <TextInput
-          ref={ref}
-          {...rest}
-          accessibilityLabel={accessibilityLabel ?? label}
-          placeholderTextColor={colors.gray[400]}
-          onFocus={handleFocus}
-          onBlur={handleBlur}
-          className={`flex-1 py-0 ${className ?? ""}`}
-          style={[inputFont("body"), { color: colors.dark }, style]}
-        />
-        {trailingText ? (
-          <Text variant="body-sm" color="gray500">
-            {trailingText}
-          </Text>
-        ) : null}
+      <View className={trailingAccessory ? "flex-row items-center gap-xs" : undefined}>
+        <View
+          className={`min-h-control flex-row items-center gap-sm rounded-md border px-lg ${
+            trailingAccessory ? "flex-1" : ""
+          } ${fillClass} ${borderClass}`}
+        >
+          {leadingIcon}
+          <TextInput
+            ref={ref}
+            {...rest}
+            accessibilityLabel={accessibilityLabel ?? label}
+            placeholderTextColor={colors.gray[400]}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
+            className={`flex-1 py-0 ${className ?? ""}`}
+            style={[inputFont("body"), { color: colors.dark }, style]}
+          />
+          {trailingText ? (
+            <Text variant="body-sm" color="subtle">
+              {trailingText}
+            </Text>
+          ) : null}
+        </View>
+        {trailingAccessory}
       </View>
       {error ? (
         <Text variant="caption" color="error" className={captionInset}>
           {error}
         </Text>
       ) : hint ? (
-        <Text variant="caption" color="muted" className={captionInset}>
+        <Text variant="caption" color={captionColor} className={captionInset}>
           {hint}
         </Text>
       ) : null}
