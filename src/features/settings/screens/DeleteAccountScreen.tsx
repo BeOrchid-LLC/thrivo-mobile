@@ -59,7 +59,7 @@ export function DeleteAccountScreen() {
       onSuccess: () => {
         // The session is gone; send them to the unauthenticated root rather than
         // letting the guard bounce them through a half-torn-down tab layout.
-        router.replace("/(auth)/welcome");
+        router.replace("/(auth)/sign-in");
       },
     });
   };

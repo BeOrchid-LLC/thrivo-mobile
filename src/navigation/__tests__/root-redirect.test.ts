@@ -1,7 +1,7 @@
 import { resolveRootRedirect } from "../root-redirect";
 
 describe("resolveRootRedirect", () => {
-  it("sends unauthenticated root visitors to welcome", () => {
+  it("sends unauthenticated root visitors to sign-in", () => {
     expect(
       resolveRootRedirect({
         group: undefined,
@@ -9,7 +9,7 @@ describe("resolveRootRedirect", () => {
         isOnboarded: false,
         isOnboardingSkipped: false,
       })
-    ).toBe("/(auth)/welcome");
+    ).toBe("/(auth)/sign-in");
   });
 
   it("sends authenticated root visitors who need onboarding to onboarding", () => {

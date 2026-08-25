@@ -36,7 +36,7 @@ export default function AuthCallbackScreen() {
           title="Sign-in is taking too long"
           message="We could not finish activating your Google sign-in. Please try again."
           retryLabel="Try again"
-          onRetry={() => router.replace("/(auth)/welcome")}
+          onRetry={() => router.replace("/(auth)/sign-in")}
         />
       </Screen>
     );

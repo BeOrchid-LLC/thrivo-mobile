@@ -2,6 +2,7 @@ import type { AuthStatus } from "@/stores/session.store";
 
 export type RootGroup = string | undefined;
 export type RootRedirectTarget =
+  | "/(auth)/sign-in"
   | "/(auth)/welcome"
   | "/(onboarding)/name"
   | "/(app)/(tabs)/dashboard";
@@ -31,8 +32,11 @@ export function resolveRootRedirect({
     return null;
   }
 
+  // Sign-in is the unauthenticated entry point: a cold start lands here, and the
+  // screen itself links across to sign-up. Welcome stays reachable, but only as
+  // the biometric unlock surface below.
   if (status === "unauthenticated" && (atRoot || (!inAuth && !inAuthCallback))) {
-    return "/(auth)/welcome";
+    return "/(auth)/sign-in";
   }
 
   if (status === "authenticated" && isBiometricLocked) {
