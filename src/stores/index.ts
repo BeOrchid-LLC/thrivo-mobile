@@ -6,6 +6,7 @@ export {
   useSessionStore,
   useAccountStatus,
   useAuthStatus,
+  useRestoreError,
   useIsAuthenticated,
   useUserId,
   useIsOnboarded,
