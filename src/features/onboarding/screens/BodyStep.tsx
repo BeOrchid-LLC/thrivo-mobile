@@ -9,7 +9,14 @@ import { OnboardingStep } from "@/features/onboarding/components/OnboardingStep"
 import { UnitChips } from "@/features/onboarding/components/UnitChips";
 import { useSubmitOnboarding } from "@/features/onboarding/hooks/useCompleteOnboarding";
 import { useOnboardingPrefill } from "@/features/onboarding/hooks/useOnboardingPrefill";
-import { isValidAgeYears, isValidHeightCm } from "@/features/onboarding/utils/validation";
+import {
+  AGE_RANGE_YEARS,
+  HEIGHT_RANGE_CM,
+  isValidAgeYears,
+  isValidHeightCm,
+  parseDecimal,
+  parsePositiveInteger,
+} from "@/features/onboarding/utils/validation";
 import type { OnboardingStepProps } from "../types";
 
 type HeightUnit = "metric" | "imperial";
@@ -66,27 +73,57 @@ export default function BodyStep({
     if (!sex && draft.sex) setSex(draft.sex);
   }, [age, cm, draft.ageYears, draft.heightCm, draft.sex, ft, heightUnit, inch, initialFtIn, sex]);
 
+  const ftNum = parseDecimal(ft);
+  const inchNum = parseDecimal(inch);
   const heightCm =
     heightUnit === "metric"
-      ? Number.parseFloat(cm)
-      : Number.parseFloat(ft) > 0
-        ? ftInToCm(Number.parseFloat(ft), Number.parseFloat(inch) || 0)
+      ? (parseDecimal(cm) ?? Number.NaN)
+      : ftNum !== undefined && ftNum > 0 && (inch.trim().length === 0 || inchNum !== undefined)
+        ? ftInToCm(ftNum, inchNum ?? 0)
         : Number.NaN;
-  const ageNum = Number.parseInt(age, 10);
+  const ageNum = parsePositiveInteger(age) ?? Number.NaN;
   const valid = isValidHeightCm(heightCm) && isValidAgeYears(ageNum) && sex !== undefined;
+
+  /**
+   * The keypad is a hint, not a restriction, so each field states what is wrong
+   * with what it holds instead of leaving Continue disabled with no reason. An
+   * untouched field says nothing.
+   */
+  const heightError = (): string | undefined => {
+    const entered = heightUnit === "metric" ? cm : `${ft}${inch}`;
+    if (entered.trim().length === 0) return undefined;
+    if (Number.isNaN(heightCm)) return "Numbers only";
+    if (!isValidHeightCm(heightCm)) {
+      const feet = (cm: number) => {
+        const { ft: feetPart, inch: inchPart } = cmToFtIn(cm);
+        return `${feetPart}'${inchPart}"`;
+      };
+      return heightUnit === "metric"
+        ? `Enter ${HEIGHT_RANGE_CM.min}–${HEIGHT_RANGE_CM.max} cm`
+        : `Enter ${feet(HEIGHT_RANGE_CM.min)}–${feet(HEIGHT_RANGE_CM.max)}`;
+    }
+    return undefined;
+  };
+
+  const ageError = (): string | undefined => {
+    if (age.trim().length === 0) return undefined;
+    if (Number.isNaN(ageNum)) return "Numbers only";
+    if (!isValidAgeYears(ageNum)) return `Enter ${AGE_RANGE_YEARS.min}–${AGE_RANGE_YEARS.max}`;
+    return undefined;
+  };
 
   const switchHeightUnit = (next: HeightUnit) => {
     if (next === heightUnit) return;
     if (next === "imperial") {
-      const value = Number.parseFloat(cm);
+      const value = parseDecimal(cm) ?? Number.NaN;
       if (value > 0) {
         const converted = cmToFtIn(value);
         setFt(String(converted.ft));
         setInch(String(converted.inch));
       }
     } else {
-      const value = Number.parseFloat(ft);
-      if (value > 0) setCm(String(ftInToCm(value, Number.parseFloat(inch) || 0)));
+      const value = parseDecimal(ft) ?? Number.NaN;
+      if (value > 0) setCm(String(ftInToCm(value, parseDecimal(inch) ?? 0)));
     }
     setHeightUnit(next);
   };
@@ -159,7 +196,7 @@ export default function BodyStep({
                   variant="onboarding"
                   accessibilityLabel="Height in feet"
                   trailingText="ft"
-                  keyboardType="number-pad"
+                  numeric="integer"
                   value={ft}
                   onChangeText={setFt}
                 />
@@ -169,7 +206,7 @@ export default function BodyStep({
                   variant="onboarding"
                   accessibilityLabel="Height in inches"
                   trailingText="in"
-                  keyboardType="number-pad"
+                  numeric="integer"
                   value={inch}
                   onChangeText={setInch}
                 />
@@ -181,7 +218,7 @@ export default function BodyStep({
                 variant="onboarding"
                 accessibilityLabel="Height in centimetres"
                 trailingText="cm"
-                keyboardType="number-pad"
+                numeric="integer"
                 value={cm}
                 onChangeText={setCm}
               />
@@ -194,8 +231,10 @@ export default function BodyStep({
             accessibilityLabel="Height unit"
           />
         </View>
-        <Text variant="caption" color="dark">
-          How tall are you?
+        {/* One line under the whole group, because in feet + inches the height
+            is two fields and the problem belongs to neither on its own. */}
+        <Text variant="caption" color={heightError() ? "error" : "dark"}>
+          {heightError() ?? "How tall are you?"}
         </Text>
       </View>
 
@@ -205,9 +244,10 @@ export default function BodyStep({
         <Input
           variant="onboarding"
           label="Age"
-          keyboardType="number-pad"
+          numeric="integer"
           value={age}
           onChangeText={setAge}
+          error={ageError()}
         />
 
         <SelectInput

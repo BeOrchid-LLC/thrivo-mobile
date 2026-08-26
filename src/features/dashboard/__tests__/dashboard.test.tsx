@@ -21,6 +21,8 @@ const mockUseDashboardMealLog = jest.fn();
 const mockUseAddWater = jest.fn();
 const mockUseFavorites = jest.fn();
 const mockUseToggleFavorite = jest.fn();
+const mockUseCheckins = jest.fn();
+const mockUseCreateCheckin = jest.fn();
 const mockPush = jest.fn();
 
 jest.mock("@/features/profile", () => ({
@@ -34,6 +36,13 @@ jest.mock("../hooks/useDashboard", () => ({
   useDashboardWater: () => mockUseDashboardWater(),
   useDashboardMealLog: () => mockUseDashboardMealLog(),
   useAddWater: () => mockUseAddWater(),
+}));
+
+// The deep path, matching how DashboardSections imports it — the feature barrel
+// re-exports CheckinScreen, which imports back into @/features/dashboard.
+jest.mock("@/features/checkin/hooks/useCheckin", () => ({
+  useCheckins: () => mockUseCheckins(),
+  useCreateCheckin: () => mockUseCreateCheckin(),
 }));
 
 jest.mock("@/features/food-logging/hooks/useFoodLogging", () => {
@@ -150,6 +159,14 @@ describe("Dashboard graceful degradation", () => {
     mockUseAddWater.mockReturnValue({ mutate: jest.fn(), isPending: false, error: null });
     mockUseFavorites.mockReturnValue({ data: { items: [] } });
     mockUseToggleFavorite.mockReturnValue(jest.fn());
+    mockUseCheckins.mockReturnValue(successQuery([]));
+    mockUseCreateCheckin.mockReturnValue({
+      mutate: jest.fn(),
+      isPending: false,
+      isError: false,
+      data: undefined,
+      variables: undefined,
+    });
   });
 
   it("renders static header content while dashboard sections are loading", () => {
@@ -192,10 +209,13 @@ describe("Dashboard graceful degradation", () => {
     // The dashboard gate is the banner variant: the whole bar is the control,
     // so there is no separate "View plans" button to press.
     fireEvent.press(screen.getByLabelText("Subscribe to see your macros. View plans"));
-    expect(mockPush).toHaveBeenCalledWith("/settings/subscription");
+    expect(mockPush).toHaveBeenCalledWith("/(app)/subscription");
   });
 
-  it("shows dashboard section errors without hiding static content", () => {
+  // A failing section says nothing. Four stacked "Could not load X" cards read as
+  // a broken app rather than four slow queries, and pull-to-refresh already
+  // covers the recovery the retry buttons used to offer.
+  it("stays quiet when dashboard sections fail, without losing the page", () => {
     mockUseDashboardCalories.mockReturnValue(errorQuery);
     mockUseDashboardMacros.mockReturnValue(errorQuery);
     mockUseDashboardStreak.mockReturnValue(errorQuery);
@@ -204,10 +224,11 @@ describe("Dashboard graceful degradation", () => {
     const screen = renderDashboard();
 
     expect(screen.getByText("Hi, Ada")).toBeTruthy();
-    expect(screen.getByText("Could not load calories")).toBeTruthy();
-    expect(screen.getByText("Could not load macros")).toBeTruthy();
-    expect(screen.getByText("Could not load streak")).toBeTruthy();
-    expect(screen.getByText("Could not load water")).toBeTruthy();
+    expect(screen.queryByText("Could not load calories")).toBeNull();
+    expect(screen.queryByText("Could not load macros")).toBeNull();
+    expect(screen.queryByText("Could not load streak")).toBeNull();
+    expect(screen.queryByText("Could not load water")).toBeNull();
+    expect(screen.queryByText("Retry")).toBeNull();
   });
 
   it("keeps the rest of the dashboard available when only the meal log fails", () => {
@@ -217,8 +238,7 @@ describe("Dashboard graceful degradation", () => {
 
     expect(screen.getByText("of 1,800 daily target")).toBeTruthy();
     expect(screen.getByText("0 of 8 glasses")).toBeTruthy();
-    expect(screen.getByText("Could not load meals")).toBeTruthy();
-    expect(screen.queryByText("Could not load calories")).toBeNull();
+    expect(screen.queryByText("Could not load meals")).toBeNull();
   });
 
   it("renders the empty meal state and opens the log tab from the first-meal CTA", () => {
@@ -241,22 +261,61 @@ describe("Dashboard graceful degradation", () => {
     expect(screen.getByText("Greek yogurt")).toBeTruthy();
   });
 
-  it("shows the logged time and a functional favorite heart on today's entries", () => {
+  it("groups today's entries under their meal, with a functional favorite heart", () => {
     const toggleFavorite = jest.fn();
     mockUseToggleFavorite.mockReturnValue(toggleFavorite);
+    // 8am local, so the entry lands in the morning bucket wherever this runs.
+    const breakfast = {
+      ...loggedEntry,
+      consumedAt: new Date(2026, 5, 22, 8, 0, 0).toISOString(),
+    };
     mockUseDashboardMealLog.mockReturnValue(
-      successQuery({ day: "2026-06-22", entries: [loggedEntry], isEmptyDay: false })
+      successQuery({ day: "2026-06-22", entries: [breakfast], isEmptyDay: false })
     );
 
     const screen = renderDashboard();
 
-    const expectedTime = new Date(loggedEntry.consumedAt).toLocaleTimeString([], {
-      hour: "numeric",
-      minute: "2-digit",
-    });
-    expect(screen.getByText(new RegExp(expectedTime.replace(/\s/g, "\\s")))).toBeTruthy();
+    // The header composes "Breakfast" and its total into one Text node.
+    expect(screen.getByText(/Breakfast/)).toBeTruthy();
+    // Once on the group header, once on the row.
+    expect(screen.getAllByText(`${breakfast.nutrients.calories} kcal`)).toHaveLength(2);
     fireEvent.press(screen.getByLabelText("Add favorite"));
 
     expect(toggleFavorite).toHaveBeenCalledWith(loggedEntry.foodItemId);
+  });
+
+  it("offers the mood check-in and writes the tapped mood for today", () => {
+    const mutate = jest.fn();
+    mockUseCreateCheckin.mockReturnValue({
+      mutate,
+      isPending: false,
+      isError: false,
+      data: undefined,
+      variables: undefined,
+    });
+
+    const screen = renderDashboard();
+
+    expect(screen.getByText("How are you feeling today?")).toBeTruthy();
+    fireEvent.press(screen.getByLabelText("Feeling great"));
+
+    expect(mutate).toHaveBeenCalledWith(expect.objectContaining({ mood: "great" }));
+  });
+
+  it("collapses the mood row once today is already checked in", () => {
+    const today = new Date();
+    const day = [
+      today.getFullYear(),
+      String(today.getMonth() + 1).padStart(2, "0"),
+      String(today.getDate()).padStart(2, "0"),
+    ].join("-");
+    mockUseCheckins.mockReturnValue(
+      successQuery([{ id: "c1", mood: "good", day, note: null, tip: null, createdAt: day }])
+    );
+
+    const screen = renderDashboard();
+
+    expect(screen.queryByText("How are you feeling today?")).toBeNull();
+    expect(screen.getByText(/Feeling good/)).toBeTruthy();
   });
 });

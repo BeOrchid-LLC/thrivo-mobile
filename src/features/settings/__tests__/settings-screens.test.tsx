@@ -8,6 +8,7 @@ const mockUseSettings = jest.fn();
 const mockUpdateSettingsMutate = jest.fn();
 const mockUseSubscription = jest.fn();
 const mockLogoutMutate = jest.fn();
+const mockCancelMutate = jest.fn();
 const mockUpdateProfileMutate = jest.fn();
 const mockAvatarUploadMutate = jest.fn();
 
@@ -35,6 +36,10 @@ jest.mock("@/features/subscription", () => ({
   useSubscription: () => mockUseSubscription(),
 }));
 
+jest.mock("@/features/subscription/hooks/useCancelSubscription", () => ({
+  useCancelSubscription: () => ({ mutate: mockCancelMutate, isPending: false }),
+}));
+
 jest.mock("@/features/auth/hooks/useAuth", () => ({
   useLogout: () => ({
     mutate: mockLogoutMutate,
@@ -42,7 +47,10 @@ jest.mock("@/features/auth/hooks/useAuth", () => ({
   }),
 }));
 
-jest.mock("@/lib", () => ({ analytics: { track: (...a: unknown[]) => mockTrack(...a) } }));
+jest.mock("@/lib", () => ({
+  analytics: { track: (...a: unknown[]) => mockTrack(...a) },
+  isBillingConfigured: () => false,
+}));
 
 // Render the picker as a pressable stand-in so the real onTimePicked handler in
 // SettingsScreen can be driven, rather than asserting against a copy of it.
@@ -155,7 +163,7 @@ describe("settings screens", () => {
 
     fireEvent.press(screen.getByText("Alex Johnson"));
 
-    expect(router.push).toHaveBeenCalledWith("/(app)/(tabs)/settings/personal-info");
+    expect(router.push).toHaveBeenCalledWith("/(app)/personal-info");
   });
 
   it("shows the profile image in settings when one is saved", () => {
@@ -165,6 +173,70 @@ describe("settings screens", () => {
 
     expect(screen.getByLabelText("Profile photo")).toBeTruthy();
     expect(screen.queryByText("AJ")).toBeNull();
+  });
+
+  /**
+   * The subscription card is the only place in the app that states what the next
+   * charge is and when. Getting it wrong — naming a charge for a subscription
+   * that will not renew, or a date that is really when access stops — is the
+   * kind of error people notice on their bank statement.
+   */
+  it("states the plan, the next charge and its date", () => {
+    const screen = render(<SettingsScreen />);
+
+    expect(screen.getByText("Thrivo monthly")).toBeTruthy();
+    expect(screen.getByText("Active - Renews Jul. 16")).toBeTruthy();
+    expect(screen.getByText("Next charge")).toBeTruthy();
+    expect(screen.getByText("$14.99 on Jul. 16")).toBeTruthy();
+  });
+
+  it("names no next charge for a subscription that will not renew", () => {
+    mockUseSubscription.mockReturnValue({
+      data: {
+        subscription: {
+          ...subscription.subscription,
+          status: "canceled",
+          cancelAtPeriodEnd: true,
+          renewsAt: null,
+        },
+      },
+      isLoading: false,
+    });
+
+    const screen = render(<SettingsScreen />);
+
+    expect(screen.getByText("Access until Jul. 16")).toBeTruthy();
+    expect(screen.queryByText("Next charge")).toBeNull();
+    expect(screen.queryByText("Cancel subscription")).toBeNull();
+  });
+
+  it("confirms before cancelling, and only says it is done once it is", () => {
+    mockCancelMutate.mockImplementation((_payload, options) =>
+      options?.onSuccess?.({ openedStore: false })
+    );
+    const screen = render(<SettingsScreen />);
+
+    fireEvent.press(screen.getByText("Cancel subscription"));
+    expect(screen.getByText("Cancel your subscription?")).toBeTruthy();
+    expect(screen.queryByText("Subscription cancelled")).toBeNull();
+
+    fireEvent.press(screen.getByText("Cancel my subscription"));
+
+    expect(mockCancelMutate).toHaveBeenCalled();
+    expect(screen.getByText("Subscription cancelled")).toBeTruthy();
+    expect(
+      screen.getByText("Confirmation sent to alex@email.com. Access continues until July 16, 2026.")
+    ).toBeTruthy();
+  });
+
+  it("keeps premium when the confirmation is declined", () => {
+    const screen = render(<SettingsScreen />);
+
+    fireEvent.press(screen.getByText("Cancel subscription"));
+    fireEvent.press(screen.getByText("Keep premium"));
+
+    expect(mockCancelMutate).not.toHaveBeenCalled();
+    expect(screen.queryByText("Cancel your subscription?")).toBeNull();
   });
 
   it("persists unit and notification setting changes from select sheets", () => {

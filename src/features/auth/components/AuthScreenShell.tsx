@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
-import { KeyboardAvoidingView, Platform, ScrollView, View } from "react-native";
+import { ScrollView, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Text, ThrivoMark } from "@/components";
+import { KeyboardAvoider, Text, ThrivoMark } from "@/components";
 import { colors } from "@/theme";
 
 /**
@@ -12,9 +12,12 @@ import { colors } from "@/theme";
  * dimensions.
  */
 const PAGE_PADDING_X = 20;
-/** Sits the mark just under the status bar, on top of the safe-area inset. */
-const PAGE_PADDING_TOP = 3;
-const PAGE_PADDING_BOTTOM = 40;
+/**
+ * The block is centred in the page, so the vertical padding is only the
+ * breathing room it keeps once it grows tall enough to scroll (small screens,
+ * keyboard open) — symmetric top and bottom so the centring survives.
+ */
+const PAGE_PADDING_Y = 40;
 const MARK_SIZE = 33;
 const MARK_TO_TITLE = 38;
 const TITLE_TO_SUBTITLE = 17;
@@ -48,16 +51,13 @@ export function AuthScreenShell({
     // same pairing as the welcome screen, so the auth surfaces read as one set.
     <LinearGradient colors={[colors.light, colors.primarySoft]} style={{ flex: 1 }}>
       <SafeAreaView style={{ flex: 1 }}>
-        <KeyboardAvoidingView
-          style={{ flex: 1 }}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-        >
+        <KeyboardAvoider>
           <ScrollView
             contentContainerStyle={{
               flexGrow: 1,
+              justifyContent: "center",
               paddingHorizontal: PAGE_PADDING_X,
-              paddingTop: PAGE_PADDING_TOP,
-              paddingBottom: PAGE_PADDING_BOTTOM,
+              paddingVertical: PAGE_PADDING_Y,
             }}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
@@ -85,7 +85,7 @@ export function AuthScreenShell({
 
             <View style={{ marginTop: FORM_GAP, gap: FORM_GAP }}>{children}</View>
           </ScrollView>
-        </KeyboardAvoidingView>
+        </KeyboardAvoider>
       </SafeAreaView>
     </LinearGradient>
   );

@@ -10,6 +10,18 @@ export interface SectionErrorProps {
   className?: string;
 }
 
+/**
+ * Section errors are switched off product-wide. Screens stacked several "Could
+ * not load X" cards down a page whose remaining content was perfectly usable,
+ * which read as the app being broken rather than one query being slow. Recovery
+ * is pull-to-refresh and the query layer's own retry instead.
+ *
+ * The switch lives here rather than at the ~20 call sites so the branches stay
+ * in place: no screen has to relearn which of its sections can fail, and turning
+ * the cards back on is this one line.
+ */
+const SHOW_SECTION_ERRORS: boolean = false;
+
 /** Compact, local error state for one section without blocking the full screen. */
 export function SectionError({
   title,
@@ -18,6 +30,8 @@ export function SectionError({
   retryLabel = "Retry",
   className,
 }: SectionErrorProps) {
+  if (!SHOW_SECTION_ERRORS) return null;
+
   return (
     <View
       accessibilityRole="alert"

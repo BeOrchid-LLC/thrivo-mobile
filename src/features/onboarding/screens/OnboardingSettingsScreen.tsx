@@ -84,7 +84,6 @@ export function OnboardingSettingsScreen() {
   return (
     <Screen
       scroll
-      edges={["top", "left", "right"]}
       backgroundColor="white"
       rhythm="form"
       header={

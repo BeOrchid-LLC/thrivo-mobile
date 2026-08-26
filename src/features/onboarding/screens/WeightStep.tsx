@@ -9,7 +9,11 @@ import { InsightPill } from "@/features/onboarding/components/InsightPill";
 import { UnitChips } from "@/features/onboarding/components/UnitChips";
 import { useSubmitOnboarding } from "@/features/onboarding/hooks/useCompleteOnboarding";
 import { useOnboardingPrefill } from "@/features/onboarding/hooks/useOnboardingPrefill";
-import { isValidWeightKg } from "@/features/onboarding/utils/validation";
+import {
+  WEIGHT_RANGE_KG,
+  isValidWeightKg,
+  parseDecimal,
+} from "@/features/onboarding/utils/validation";
 import type { OnboardingStepProps } from "../types";
 
 type Unit = "kg" | "lb";
@@ -52,13 +56,31 @@ export default function WeightStep({
   }, [current, draft.currentWeightKg, draft.targetWeightKg, target, unit]);
 
   const needsTarget = draft.goal !== "maintain";
-  const currentNum = Number.parseFloat(current);
-  const targetNum = Number.parseFloat(target);
-  const toKgValue = (n: number) => (unit === "kg" ? n : lbToKg(n));
-  const valid =
-    isValidWeightKg(toKgValue(currentNum)) &&
-    (!needsTarget || isValidWeightKg(toKgValue(targetNum)));
   const unitLabel = unit === "kg" ? "kg" : "lbs";
+  const toKgValue = (n: number) => (unit === "kg" ? n : lbToKg(n));
+  const isEntered = (value: string) =>
+    isValidWeightKg(toKgValue(parseDecimal(value) ?? Number.NaN));
+  const currentNum = isEntered(current) ? parseDecimal(current)! : Number.NaN;
+  const targetNum = isEntered(target) ? parseDecimal(target)! : Number.NaN;
+  const valid = isEntered(current) && (!needsTarget || isEntered(target));
+
+  /**
+   * The keypad is only a hint — a hardware keyboard or a paste can leave "qe"
+   * or a phone number in the field — so each field says what is wrong with what
+   * it is holding rather than silently disabling Continue. Nothing is said
+   * until there is something to say: an empty field is not an error yet.
+   */
+  const weightError = (value: string): string | undefined => {
+    if (value.trim().length === 0) return undefined;
+    const entered = parseDecimal(value);
+    if (entered === undefined) return "Numbers only";
+    if (!isValidWeightKg(toKgValue(entered))) {
+      const bound = (kg: number) => Math.round(unit === "kg" ? kg : kgToLb(kg));
+      return `Enter ${bound(WEIGHT_RANGE_KG.min)}–${bound(WEIGHT_RANGE_KG.max)} ${unitLabel}`;
+    }
+    return undefined;
+  };
+
   const rate = unit === "kg" ? 1 : 2;
   const gap = needsTarget && currentNum > 0 && targetNum > 0 ? Math.abs(currentNum - targetNum) : 0;
   const insight =
@@ -69,8 +91,8 @@ export default function WeightStep({
   const switchUnit = (next: Unit) => {
     if (next === unit) return;
     const reinterpret = (value: string) => {
-      const n = Number.parseFloat(value);
-      if (!(n > 0)) return value;
+      const n = parseDecimal(value);
+      if (n === undefined || !(n > 0)) return value;
       const kg = unit === "kg" ? n : lbToKg(n);
       return String(roundTo(next === "kg" ? kg : kgToLb(kg)));
     };
@@ -151,9 +173,10 @@ export default function WeightStep({
             accessibilityLabel="Weight unit"
           />
         }
-        keyboardType="decimal-pad"
+        numeric="decimal"
         value={current}
         onChangeText={setCurrent}
+        error={weightError(current)}
       />
       {needsTarget ? (
         <Input
@@ -169,9 +192,10 @@ export default function WeightStep({
               accessibilityLabel="Target weight unit"
             />
           }
-          keyboardType="decimal-pad"
+          numeric="decimal"
           value={target}
           onChangeText={setTarget}
+          error={weightError(target)}
         />
       ) : null}
       {insight ? <InsightPill>{insight}</InsightPill> : null}

@@ -11,8 +11,11 @@ import { STEP_SCREENS } from "@/features/onboarding/step-screens";
  * Deep-links a single onboarding step in "settings" chrome (no progress bar,
  * white background) so the user can re-edit any field after onboarding.
  *
- * Route: /(app)/settings/edit/[step] where [step] is an OnboardingStepKey.
- * Called from SettingsScreen for Targets and Reminders.
+ * Route: /(app)/settings-edit/[step] where [step] is an OnboardingStepKey. It
+ * sits beside the tabs rather than inside them, so it covers the tab bar —
+ * these are full-page tasks, not a tab you browse.
+ *
+ * Called from SettingsScreen for Targets and activity.
  */
 export default function SettingsEditStepScreen() {
   const { step: stepKey } = useLocalSearchParams<{ step: string }>();

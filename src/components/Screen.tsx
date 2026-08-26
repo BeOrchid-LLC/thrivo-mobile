@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import { SafeAreaView, type Edge } from "react-native-safe-area-context";
 import { colors, rhythm, spacing } from "@/theme";
+import { KeyboardAvoider } from "./KeyboardAvoider";
 
 /**
  * Named page rhythms. Screens pick one instead of writing `gap`/`padding`
@@ -50,6 +51,14 @@ export interface ScreenProps {
   footer?: ReactNode;
   /** Wrap content in a ScrollView (default false for fixed layouts). */
   scroll?: boolean;
+  /**
+   * Lift the page above the keyboard (default true). On by default because a
+   * screen that ends up with a field in it should not have to remember to ask —
+   * the failure is a pinned footer, or the rest of the page, sealed off behind
+   * the keyboard with no way to scroll to it. Costs nothing on a screen with no
+   * fields: the lift only happens while a keyboard is up.
+   */
+  avoidKeyboard?: boolean;
   /** Safe-area edges to apply. Defaults to all. */
   edges?: readonly Edge[];
   /** Apply default horizontal+vertical padding (default true). */
@@ -74,6 +83,7 @@ export function Screen({
   header,
   footer,
   scroll = false,
+  avoidKeyboard = true,
   edges = ["top", "bottom", "left", "right"],
   padded = true,
   rhythm: rhythmName,
@@ -105,8 +115,8 @@ export function Screen({
     style,
   ];
 
-  return (
-    <SafeAreaView style={{ flex: 1, backgroundColor }} edges={edges}>
+  const body = (
+    <>
       {header ? (
         <View
           style={{
@@ -158,6 +168,12 @@ export function Screen({
           {footer}
         </View>
       ) : null}
+    </>
+  );
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor }} edges={edges}>
+      {avoidKeyboard ? <KeyboardAvoider>{body}</KeyboardAvoider> : body}
     </SafeAreaView>
   );
 }

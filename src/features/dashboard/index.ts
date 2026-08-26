@@ -3,11 +3,13 @@ export type { MacroTotals } from "./components/MacroBars";
 export { StreakBanner } from "./components/StreakBanner";
 export { WaterTracker } from "./components/WaterTracker";
 export { MealLog } from "./components/MealLog";
+export { MoodCheckinRow, MoodCheckinSummary } from "./components/MoodCheckinRow";
 export { DashboardHeader } from "./components/DashboardHeader";
 export { FoodHistoryScreen } from "./components/FoodHistoryScreen";
 export {
   CaloriesSummarySection,
   MacrosSection,
+  MoodCheckinSection,
   StreakSection,
   WaterSection,
   TodayMealLogSection,

@@ -490,7 +490,7 @@ function LockedEarlierHistory({ historyLimitDays }: { historyLimitDays: number }
       <PremiumGate
         title="Subscribe to see your full history"
         subtitle={`Free history includes the most recent ${historyLimitDays} days.`}
-        onViewPlans={() => router.push("/settings/subscription")}
+        onViewPlans={() => router.push("/(app)/subscription")}
       >
         <Card className="min-h-[190px] gap-md bg-gray-100">
           {Array.from({ length: 3 }).map((_, index) => (

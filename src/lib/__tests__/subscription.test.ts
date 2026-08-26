@@ -22,7 +22,7 @@ function pkg(identifier: string, packageType: string) {
   return {
     identifier,
     packageType,
-    product: { identifier, priceString: "$14.99", introPrice: null },
+    product: { identifier, price: 14.99, priceString: "$14.99", introPrice: null },
   };
 }
 

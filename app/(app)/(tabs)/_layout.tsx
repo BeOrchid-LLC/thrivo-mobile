@@ -1,6 +1,6 @@
 import { Tabs, router } from "expo-router";
 import type { Icon } from "phosphor-react-native";
-import { ChartLineUp, ChartPieSlice, Scan, UserGear } from "phosphor-react-native";
+import { ChartLineUp, ChartPieSlice, ForkKnife, UserGear } from "phosphor-react-native";
 import { emitTabRootReset } from "@/navigation/tab-root-reset";
 import type { AppTabParamList } from "@/navigation/types";
 import { colors } from "@/theme";
@@ -67,9 +67,9 @@ export default function AppLayout() {
         name="log"
         listeners={tabRootListeners("log")}
         options={{
-          title: "Log Food",
-          tabBarIcon: tabIcon(Scan),
-          tabBarAccessibilityLabel: "Log food",
+          title: "Food Tracker",
+          tabBarIcon: tabIcon(ForkKnife),
+          tabBarAccessibilityLabel: "Food tracker",
         }}
       />
       <Tabs.Screen

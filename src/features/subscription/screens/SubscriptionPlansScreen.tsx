@@ -1,22 +1,15 @@
-import { useEffect, useState, type ReactNode } from "react";
-import { Modal, Pressable, View } from "react-native";
-import { router } from "expo-router";
-import { ArrowsClockwise, Check, CrownSimple, SealCheck, X } from "phosphor-react-native";
-import {
-  Button,
-  PageHeader,
-  PremiumSurface,
-  Screen,
-  Segmented,
-  Text,
-  useToast,
-} from "@/components";
+import { useEffect, useState } from "react";
+import { Pressable, View } from "react-native";
+import { ArrowsClockwise, SealCheck } from "phosphor-react-native";
+import { Button, NoteBox, PageHeader, Screen, Segmented, Text, useToast } from "@/components";
 import type { SubscriptionPlan } from "@/contracts";
-import { analytics, isBillingConfigured } from "@/lib";
-import { colors, rhythm } from "@/theme";
+import { analytics, isBillingConfigured, type SubscriptionProduct } from "@/lib";
+import { colors, sizing } from "@/theme";
+import { addDays, formatLongDate, localDay } from "@/utils";
+import { CancelSubscriptionDialogs } from "../components/CancelSubscriptionDialogs";
+import { PlanCard, type PlanCardRow } from "../components/PlanCard";
 import {
   productForPlan,
-  useCancelSubscription,
   useOfferings,
   useOfferingsDiagnostics,
   usePurchaseSubscription,
@@ -25,79 +18,65 @@ import {
   useSubscription,
 } from "../index";
 
+/** The frame's four value props, in its order. */
 const FEATURES = [
-  "Food, water, calories, and weight history beyond 14 days",
-  "Longer trend charts across progress metrics",
-  "Full food log history for reviewing patterns",
-  "Premium insights as they become available",
+  "Unlimited food logging & barcode scanner",
+  "Meal recommendations tailored to your goal",
+  "Weekly progress reports & trend charts",
+  "Apple Health & Google Fit sync",
 ];
 
 const PLAN_LABEL: Record<SubscriptionPlan, string> = { monthly: "Monthly", annual: "Annual" };
 const PERIOD: Record<SubscriptionPlan, string> = { monthly: "month", annual: "year" };
-
-function formatDate(value: string | null | undefined): string {
-  if (!value) return "";
-  return new Intl.DateTimeFormat("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  }).format(new Date(value));
-}
+/** Trial length to quote before the store has answered with the real one. */
+const FALLBACK_TRIAL_DAYS = 14;
 
 function otherPlan(plan: SubscriptionPlan): SubscriptionPlan {
   return plan === "monthly" ? "annual" : "monthly";
 }
 
-function ModalShell({
-  tone,
-  title,
-  body,
-  children,
-}: {
-  tone: "danger" | "success";
-  title: string;
-  body: string;
-  children: ReactNode;
-}) {
-  const isSuccess = tone === "success";
-  return (
-    <View className="flex-1 items-center justify-center bg-black/30 px-xl">
-      <View className="w-full gap-lg rounded-lg bg-white p-xl">
-        <View
-          className={`h-badge w-badge items-center justify-center self-center rounded-full ${
-            isSuccess ? "bg-primarySoft" : "bg-red-100"
-          }`}
-        >
-          {isSuccess ? (
-            <Check size={26} color={colors.primaryBright} />
-          ) : (
-            <X size={26} color={colors.error} />
-          )}
-        </View>
-        <Text variant="body-lg" className="text-center font-semibold">
-          {title}
-        </Text>
-        <Text variant="body" color="dark" className="text-center">
-          {body}
-        </Text>
-        {children}
-      </View>
-    </View>
-  );
+/** "20 Jun 2026" / "20 Jun" — the frame's date form. */
+function formatDay(day: string, withYear: boolean): string {
+  const [year, month, date] = day.split("-").map(Number);
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    ...(withYear ? { year: "numeric" } : {}),
+  }).format(new Date(year, month - 1, date));
 }
 
-/** Detail row for the dark premium surface — light text, hairline divider. */
-function PlanRow({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
-  return (
-    <View className="flex-row items-center justify-between border-b border-white/[0.14] pb-sm">
-      <Text variant="body" color="light70">
-        {label}
-      </Text>
-      <Text variant="body" color={accent ? "accent" : "light"} className="font-semibold">
-        {value}
-      </Text>
-    </View>
-  );
+/**
+ * The dates the frame quotes, derived from the trial length the store itself
+ * reports so the paywall and the purchase sheet can never disagree.
+ */
+function trialDates(days: number) {
+  const endsOn = addDays(localDay(), days);
+  return { days, endsLong: formatDay(endsOn, true), endsShort: formatDay(endsOn, false) };
+}
+
+/**
+ * What a year on the annual plan saves against twelve months of the monthly
+ * one. `null` whenever the store has not priced both plans — a savings claim we
+ * cannot compute from live prices is one we must not make.
+ */
+function annualSaving(
+  monthly: SubscriptionProduct | undefined,
+  annual: SubscriptionProduct | undefined
+): string | null {
+  if (!monthly?.price || !annual?.price) return null;
+  // Floored, never rounded: rounding 29.88 up to 30 would advertise a saving
+  // the store does not actually give.
+  const saved = Math.floor(monthly.price * 12 - annual.price);
+  if (saved <= 0) return null;
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency: annual.currencyCode || monthly.currencyCode,
+      maximumFractionDigits: 0,
+    }).format(saved);
+  } catch {
+    return null;
+  }
 }
 
 function DetailRow({ label, value, tone }: { label: string; value: string; tone?: "warning" }) {
@@ -131,6 +110,10 @@ function DetailRow({ label, value, tone }: { label: string; value: string; tone?
  *
  * Cancelling and resuming both happen in the store, because Apple and Google do
  * not let an app do either on the user's behalf.
+ *
+ * The plans state is drawn to the Figma "Subscription Plans" frame: the header
+ * and the purchase actions are pinned, and only the plan itself scrolls — the
+ * price and the button a user is deciding between are never both off-screen.
  */
 export function SubscriptionPlansScreen() {
   const subscription = useSubscription();
@@ -139,7 +122,6 @@ export function SubscriptionPlansScreen() {
   const startTrial = useStartTrial();
   const purchase = usePurchaseSubscription();
   const restore = useRestorePurchases();
-  const cancel = useCancelSubscription();
   const { showToast } = useToast();
 
   const sub = subscription.data?.subscription;
@@ -151,7 +133,6 @@ export function SubscriptionPlansScreen() {
   // plan" starts from where the user actually is.
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan>(currentPlan ?? "monthly");
   const [confirmCancelOpen, setConfirmCancelOpen] = useState(false);
-  const [cancelledOpen, setCancelledOpen] = useState(false);
 
   const isPremium = sub?.entitlement === "premium";
   const isTrialing = status === "trialing";
@@ -162,8 +143,16 @@ export function SubscriptionPlansScreen() {
   const storeProduct = productForPlan(offerings.data, selectedPlan);
   const backendPlan = sub?.plans?.find((p) => p.plan === selectedPlan);
   const priceLabel = storeProduct?.priceLabel ?? backendPlan?.priceLabel ?? null;
+  const periodLabel = storeProduct?.periodLabel ?? PERIOD[selectedPlan];
   const trialAvailable = billingLive && storeProduct ? storeProduct.hasFreeTrial : !sub?.trialUsed;
   const canTransact = !billingLive || Boolean(storeProduct);
+  const trial = trialAvailable
+    ? trialDates(storeProduct?.trialDays ?? sub?.trialDays ?? FALLBACK_TRIAL_DAYS)
+    : null;
+  const saving =
+    selectedPlan === "annual"
+      ? annualSaving(productForPlan(offerings.data, "monthly"), storeProduct)
+      : null;
 
   useEffect(() => {
     analytics.track("thrivo.paywall_viewed");
@@ -173,15 +162,6 @@ export function SubscriptionPlansScreen() {
   useEffect(() => {
     if (currentPlan) setSelectedPlan(currentPlan);
   }, [currentPlan]);
-
-  useEffect(() => {
-    if (!cancelledOpen) return undefined;
-    const timeout = setTimeout(() => {
-      setCancelledOpen(false);
-      router.replace("/(app)/(tabs)/dashboard");
-    }, 30000);
-    return () => clearTimeout(timeout);
-  }, [cancelledOpen]);
 
   const buy = (plan: SubscriptionPlan, { asTrial }: { asTrial: boolean }) => {
     const productId = productForPlan(offerings.data, plan)?.id;
@@ -214,12 +194,78 @@ export function SubscriptionPlansScreen() {
 
   const isWorking = startTrial.isPending || purchase.isPending;
 
+  const planRows: PlanCardRow[] = trial
+    ? [
+        { label: "Trial ends", value: trial.endsLong },
+        {
+          label: "First charge",
+          value: priceLabel ? `${priceLabel} on ${trial.endsShort}` : trial.endsShort,
+        },
+        { label: "Cancel before then", value: "Pay nothing", accent: true },
+      ]
+    : [
+        { label: "Plan price", value: priceLabel ?? "Unavailable" },
+        { label: "First charge", value: "Today" },
+        { label: "Cancel anytime", value: "In Settings", accent: true },
+      ];
+
+  /**
+   * The purchase actions, pinned. Everything that decides whether money moves —
+   * the disclosure, the button, and what happens after the trial — stays on
+   * screen while the plan scrolls behind it.
+   */
+  const purchaseFooter = offerings.isLoading ? (
+    <Button label="Loading plans…" disabled onPress={() => undefined} />
+  ) : canTransact ? (
+    <View className="gap-md">
+      <Text variant="body-sm" color="muted" className="text-center">
+        {trial
+          ? `A card is required — you won't be charged until ${trial.endsLong}.`
+          : "You'll be charged through your app store account. Cancel any time."}
+      </Text>
+      <Button
+        label={
+          trial
+            ? "Start free trial — $0 today"
+            : priceLabel
+              ? `Subscribe — ${priceLabel}`
+              : `Subscribe ${PLAN_LABEL[selectedPlan].toLowerCase()}`
+        }
+        loading={isWorking}
+        onPress={() => buy(selectedPlan, { asTrial: trialAvailable })}
+      />
+      <Text variant="caption" color="subtle" className="text-center font-regular">
+        {trial
+          ? `${priceLabel ?? "The plan price"}/${periodLabel} after ${trial.endsLong}. Cancel in Settings.`
+          : "Cancel any time in Settings."}
+      </Text>
+    </View>
+  ) : (
+    <View className="gap-sm">
+      <Text color="error" className="text-center">
+        We couldn&apos;t load plans from the App Store.
+      </Text>
+      {__DEV__ && offerings.error instanceof Error ? (
+        <Text variant="caption" color="muted" className="text-center">
+          {offerings.error.message}
+        </Text>
+      ) : null}
+      <Button
+        label="Try again"
+        variant="secondary"
+        loading={offerings.isFetching}
+        onPress={() => void offerings.refetch()}
+      />
+    </View>
+  );
+
   return (
     <Screen
       scroll
+      rhythm="default"
       backgroundColor={colors.light}
-      style={{ gap: rhythm.pageGap, paddingBottom: rhythm.tabBarClearance }}
       header={<PageHeader title={isPremium ? "Your subscription" : "Subscription plans"} />}
+      footer={isPremium ? undefined : purchaseFooter}
     >
       {isPremium ? (
         <>
@@ -244,20 +290,20 @@ export function SubscriptionPlansScreen() {
               {isLapsing ? (
                 <DetailRow
                   label="Access ends"
-                  value={formatDate(sub?.accessEndsAt) || "End of billing period"}
+                  value={formatLongDate(sub?.accessEndsAt) || "End of billing period"}
                   tone="warning"
                 />
               ) : isTrialing ? (
                 <>
                   <DetailRow
                     label="Trial ends"
-                    value={formatDate(sub?.accessEndsAt ?? sub?.renewsAt) || "—"}
+                    value={formatLongDate(sub?.accessEndsAt ?? sub?.renewsAt) || "—"}
                   />
                   <DetailRow label="Then you pay" value={sub?.priceLabel ?? priceLabel ?? "—"} />
                 </>
               ) : (
                 <>
-                  <DetailRow label="Renews on" value={formatDate(sub?.renewsAt) || "—"} />
+                  <DetailRow label="Renews on" value={formatLongDate(sub?.renewsAt) || "—"} />
                   <DetailRow label="Price" value={sub?.priceLabel ?? priceLabel ?? "—"} />
                 </>
               )}
@@ -267,7 +313,7 @@ export function SubscriptionPlansScreen() {
           {isLapsing ? (
             <View className="gap-md">
               <Text color="muted" className="text-center">
-                You keep premium until {formatDate(sub?.accessEndsAt) || "the period ends"}.
+                You keep premium until {formatLongDate(sub?.accessEndsAt) || "the period ends"}.
                 Resubscribe any time to keep it.
               </Text>
               <Button
@@ -302,55 +348,37 @@ export function SubscriptionPlansScreen() {
         </>
       ) : (
         <>
-          <Segmented
-            value={selectedPlan}
-            onChange={setSelectedPlan}
-            options={[
-              { label: "Monthly", value: "monthly" },
-              { label: "Annual", value: "annual" },
-            ]}
+          <View className="gap-lg">
+            <Segmented
+              value={selectedPlan}
+              onChange={setSelectedPlan}
+              options={[
+                { label: "Monthly", value: "monthly" },
+                { label: "Annual", value: "annual" },
+              ]}
+            />
+            <Text variant="body-sm" color="muted">
+              {trial
+                ? `Full access for ${trial.days} days, then ${priceLabel ?? "the plan price"}/${periodLabel}. Cancel any time.`
+                : `${priceLabel ?? "The plan price"} per ${periodLabel}. Cancel any time.`}
+            </Text>
+          </View>
+
+          {/* The annual plan wears the app's premium surface and carries the
+              saving; the monthly one is its soft-green twin. Same card, so
+              switching plan moves nothing but the numbers. */}
+          <PlanCard
+            tone={selectedPlan === "annual" ? "dark" : "light"}
+            priceLabel={priceLabel ?? "—"}
+            periodLabel={periodLabel}
+            headline={
+              saving ? `Save ${saving}` : trial ? `${trial.days}-day free trial` : "Cancel anytime"
+            }
+            badge={selectedPlan === "annual" && saving ? "Best value" : undefined}
+            rows={planRows}
           />
 
-          <Text variant="body" color="muted">
-            Premium unlocks activity history and trend charts beyond 14 days.
-          </Text>
-
-          {/* The paywall hero wears the same premium surface as the onboarding
-              trial card and the in-context upgrade gate, so the paid tier looks
-              like one recognisable thing wherever it is offered. */}
-          <PremiumSurface raised>
-            <View className="flex-row items-center gap-sm">
-              <View className="h-badge w-badge items-center justify-center rounded-pill bg-accent/[0.16]">
-                <CrownSimple size={22} color={colors.accent} weight="fill" />
-              </View>
-              <Text variant="caption" color="accent" className="uppercase tracking-label">
-                Thrivo Premium
-              </Text>
-            </View>
-
-            <View className="mt-lg flex-row items-end">
-              <Text variant="hero" color="light" className="font-bold">
-                {priceLabel ?? "—"}
-              </Text>
-              <Text variant="body" color="light70" className="mb-xs ml-xs">
-                / {PERIOD[selectedPlan]}
-              </Text>
-            </View>
-            {trialAvailable ? (
-              <Text variant="body" color="accent" className="mt-xs font-bold">
-                {sub?.trialDays ?? 14}-day free trial first
-              </Text>
-            ) : null}
-
-            <View className="mt-lg gap-sm">
-              <PlanRow label="Plan" value={PLAN_LABEL[selectedPlan]} />
-              <PlanRow
-                label="Billed"
-                value={priceLabel ? `${priceLabel} per ${PERIOD[selectedPlan]}` : "—"}
-              />
-              {trialAvailable ? <PlanRow label="Due today" value="Pay nothing" accent /> : null}
-            </View>
-          </PremiumSurface>
+          <NoteBox title="How to cancel in 2 taps">Settings → Subscription → Cancel</NoteBox>
 
           {billingLive ? null : (
             <View className="rounded-lg border border-yellow-200 bg-yellow-50 px-lg py-md">
@@ -368,54 +396,13 @@ export function SubscriptionPlansScreen() {
       <View className="gap-lg">
         {FEATURES.map((feature) => (
           <View key={feature} className="flex-row items-center gap-md">
-            <SealCheck size={22} color={colors.primaryBright} />
-            <Text className="flex-1">{feature}</Text>
+            <SealCheck size={sizing.iconSm} color={colors.primary} />
+            <Text variant="body-sm" className="flex-1">
+              {feature}
+            </Text>
           </View>
         ))}
       </View>
-
-      {!isPremium ? (
-        <View className="gap-md">
-          {offerings.isLoading ? (
-            <Button label="Loading plans…" disabled onPress={() => undefined} />
-          ) : canTransact ? (
-            <>
-              <Button
-                label={
-                  trialAvailable
-                    ? "Start free trial"
-                    : `Subscribe ${PLAN_LABEL[selectedPlan].toLowerCase()}`
-                }
-                loading={isWorking}
-                disabled={offerings.isLoading || !canTransact}
-                onPress={() => buy(selectedPlan, { asTrial: trialAvailable })}
-              />
-              <Text color="muted" className="text-center">
-                {trialAvailable
-                  ? "Cancel any time before the trial ends and you won't be charged."
-                  : "You'll be charged through your app store account. Cancel any time."}
-              </Text>
-            </>
-          ) : (
-            <View className="gap-sm">
-              <Text color="error" className="text-center">
-                We couldn&apos;t load plans from the App Store.
-              </Text>
-              {__DEV__ && offerings.error instanceof Error ? (
-                <Text variant="caption" color="muted" className="text-center">
-                  {offerings.error.message}
-                </Text>
-              ) : null}
-              <Button
-                label="Try again"
-                variant="secondary"
-                loading={offerings.isFetching}
-                onPress={() => void offerings.refetch()}
-              />
-            </View>
-          )}
-        </View>
-      ) : null}
 
       {billingLive ? (
         <Pressable
@@ -442,55 +429,12 @@ export function SubscriptionPlansScreen() {
         </Pressable>
       ) : null}
 
-      <Modal visible={confirmCancelOpen} transparent animationType="fade">
-        <ModalShell
-          tone="danger"
-          title="Cancel your subscription?"
-          body={
-            billingLive
-              ? `We'll take you to your app store subscription settings. You'll keep premium until ${formatDate(sub?.renewsAt ?? sub?.accessEndsAt) || "the end of the period"}.`
-              : `You'll keep premium access until ${formatDate(sub?.accessEndsAt) || "the end of your billing period"}. No partial refunds.`
-          }
-        >
-          <Button label="Keep premium" onPress={() => setConfirmCancelOpen(false)} />
-          <Button
-            label={billingLive ? "Manage in app store" : "Cancel my subscription"}
-            variant="secondary"
-            loading={cancel.isPending}
-            className="bg-red-100"
-            onPress={() =>
-              cancel.mutate(
-                {},
-                {
-                  onSuccess: (result) => {
-                    setConfirmCancelOpen(false);
-                    // Store cancellations finish outside the app, so only the
-                    // backend path can honestly claim it is done.
-                    if (!result.openedStore) setCancelledOpen(true);
-                  },
-                }
-              )
-            }
-          />
-        </ModalShell>
-      </Modal>
-
-      <Modal visible={cancelledOpen} transparent animationType="fade">
-        <ModalShell
-          tone="success"
-          title="Subscription cancelled"
-          body={`Confirmation sent to your email. Access continues until ${formatDate(sub?.accessEndsAt) || "the end of your billing period"}.`}
-        >
-          <Button
-            label="Back to dashboard"
-            variant="secondary"
-            onPress={() => {
-              setCancelledOpen(false);
-              router.replace("/(app)/(tabs)/dashboard");
-            }}
-          />
-        </ModalShell>
-      </Modal>
+      <CancelSubscriptionDialogs
+        visible={confirmCancelOpen}
+        onClose={() => setConfirmCancelOpen(false)}
+        accessEndsAt={sub?.accessEndsAt}
+        renewsAt={sub?.renewsAt}
+      />
     </Screen>
   );
 }

@@ -27,6 +27,7 @@ export type TextColor =
   | "warningText"
   | "error"
   | "success"
+  | "successBright"
   | "targetGreen";
 
 // Variant carries size + line height (text-*) and the Inter family weight
@@ -62,6 +63,7 @@ const colorValue: Record<TextColor, string> = {
   warningText: colors.warningText,
   error: colors.error,
   success: colors.success,
+  successBright: colors.successBright,
   targetGreen: colors.targetGreen,
 };
 

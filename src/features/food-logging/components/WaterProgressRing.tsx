@@ -13,7 +13,7 @@ export interface WaterProgressRingProps {
 export function WaterProgressRing({
   progressPercent,
   behind = false,
-  size = 136,
+  size = 100,
 }: WaterProgressRingProps) {
   const strokeWidth = 10;
   const radius = (size - strokeWidth) / 2;
@@ -49,10 +49,10 @@ export function WaterProgressRing({
         ) : null}
       </Svg>
       <View className="absolute items-center">
-        <Text variant="heading2" color="muted" accessibilityLabel={`${clampedProgress}%`}>
+        <Text variant="heading3" color="dark" accessibilityLabel={`${clampedProgress}%`}>
           {Math.round(drawnRatio * 100)}%
         </Text>
-        <Text variant="body" color="muted">
+        <Text variant="micro" color="muted">
           hydrated
         </Text>
       </View>

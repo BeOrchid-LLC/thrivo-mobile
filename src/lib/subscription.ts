@@ -12,6 +12,8 @@ export interface SubscriptionProduct {
   id: string;
   productId: string;
   priceLabel: string;
+  /** The same price as a number, for comparing plans (annual savings). */
+  price: number;
   periodLabel: string;
   currencyCode: string;
   plan: SubscriptionPlan;
@@ -191,6 +193,7 @@ const revenueCatAdapter: SubscriptionAdapter = {
           id: pkg.identifier,
           productId: pkg.product.identifier,
           priceLabel: pkg.product.priceString,
+          price: pkg.product.price,
           periodLabel: plan === "annual" ? "year" : "month",
           currencyCode: pkg.product.currencyCode,
           plan,

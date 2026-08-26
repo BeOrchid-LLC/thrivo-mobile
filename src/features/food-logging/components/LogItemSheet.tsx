@@ -198,7 +198,7 @@ export function LogItemSheet({ item, day, visible, onClose }: LogItemSheetProps)
         <PremiumGate
           title="Subscribe to see macros"
           subtitle="Protein, carbs, and fat unlock with Premium."
-          onViewPlans={() => router.push("/settings/subscription")}
+          onViewPlans={() => router.push("/(app)/subscription")}
         >
           {macros}
         </PremiumGate>

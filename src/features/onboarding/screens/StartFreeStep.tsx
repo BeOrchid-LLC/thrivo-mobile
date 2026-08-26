@@ -16,7 +16,7 @@ import {
   useOfferingsDiagnostics,
   usePurchaseSubscription,
 } from "@/features/subscription";
-import { useOnboardingDraftActions } from "@/stores";
+import { useOnboardingDraftActions, useSessionActions } from "@/stores";
 import { isBillingConfigured, type SubscriptionProduct } from "@/lib";
 import type { OnboardingStepProps } from "../types";
 
@@ -28,14 +28,17 @@ const TRIAL_FEATURES = [
   "No ads, no fake coaches, no upsells",
 ];
 
-/** Figma "Onboarding S6" metrics that the shared step chrome does not carry. */
-const CARD_PADDING = spacing.xl;
-const FEATURE_ICON = 22;
-// The frame sets the panel, the feature list and the actions further apart than
-// the earlier steps set their cards.
-const CONTENT_GAP = 24;
-// The dark half of the panel runs to just past the middle before it turns green.
-const GRADIENT_STOPS = [0, 0.55, 1] as const;
+/**
+ * Figma "Onboarding S6" metrics the shared step chrome does not carry, measured
+ * off the frame. The panel sets more air above and below its content than
+ * beside it, and the ledger sits further from the headline than the scale's 24.
+ */
+const CARD_PADDING_X = spacing.xl;
+const CARD_PADDING_Y = 28;
+const HEADLINE_TO_LEDGER = 28;
+const FEATURE_ICON = 24;
+/** The frame sets the panel and the feature list a little apart. */
+const CONTENT_GAP = 21;
 
 const formatDay = (day: string, withYear: boolean): string => {
   const [year, month, date] = day.split("-").map(Number);
@@ -74,6 +77,7 @@ export default function StartFreeStep({
   useOfferingsDiagnostics(offerings);
   const purchase = usePurchaseSubscription();
   const { setFields } = useOnboardingDraftActions();
+  const { setIsOnboardingSkipped } = useSessionActions();
   const { submit, isPending } = useSubmitOnboarding();
   const [error, setError] = useState<string | null>(null);
   const product = productForPlan(offerings.data, "monthly");
@@ -99,6 +103,23 @@ export default function StartFreeStep({
     }
   };
 
+  /**
+   * The paywall is not a gate: a user who declines the trial goes straight to
+   * the dashboard, the same way every other step's skip does. The flag keeps
+   * the root guard from bouncing them back into onboarding, and the profile
+   * write is fire-and-forget so the hand-off is instant.
+   */
+  const skip = () => {
+    if (mode === "revisit") {
+      onDone?.();
+      return;
+    }
+    setFields({ onboardingStep: 5 });
+    setIsOnboardingSkipped(true);
+    router.replace("/(app)/(tabs)/dashboard");
+    void submit("skip", { silent: true, onboardingStep: 5 });
+  };
+
   return (
     <OnboardingStep
       // S6 is the frame's closing screen, so it titles the page "Almost done"
@@ -107,6 +128,9 @@ export default function StartFreeStep({
       sectionTitle="Almost done"
       title="Start your free trial"
       subtitle="Everything Thrivo offers, unlocked. No hidden fees."
+      // S6 states its subtitle in the body colour rather than the grey the
+      // question steps use.
+      subtitleColor="dark"
       contentGap={CONTENT_GAP}
       onBack={mode === "revisit" ? onBack : undefined}
       variant={variant}
@@ -119,9 +143,9 @@ export default function StartFreeStep({
             loading={isPending || isSaving || purchase.isPending || offerings.isLoading}
             onPress={() => void startTrial()}
           />
-          <Text variant="caption" color="muted" className="text-center font-regular">
+          <Text variant="caption" color="subtle" className="text-center">
             {trial
-              ? `A card is required to start your trial. You won't be charged until ${trial.endsLong}. Cancel anytime before then.`
+              ? `A card is required to start your trial. You won’t be charged until ${trial.endsLong}. Cancel anytime before then.`
               : "A card is required. You can cancel anytime in Settings."}
           </Text>
           {error ? (
@@ -129,41 +153,40 @@ export default function StartFreeStep({
               {error}
             </Text>
           ) : null}
-          {mode === "revisit" ? (
-            <Button
-              label="Continue without premium"
-              variant="ghost"
-              disabled={isPending || isSaving}
-              onPress={() => onDone?.()}
-            />
-          ) : null}
+          <Button
+            label={mode === "revisit" ? "Continue without premium" : "Skip for now"}
+            variant={mode === "revisit" ? "ghost" : "outline"}
+            disabled={isPending || isSaving}
+            onPress={skip}
+          />
         </>
       }
     >
-      <View className="overflow-hidden rounded-group border-[1.333px] border-primaryBright">
+      <View className="overflow-hidden rounded-group border-[1.5px] border-targetGreen">
+        {/* Straight down, dark to the brand green — the frame's panel shows no
+            horizontal shift at any height. */}
         <LinearGradient
-          colors={[colors.dark, colors.gradientMid, colors.primaryBright]}
-          locations={[...GRADIENT_STOPS]}
+          colors={[colors.dark, colors.primary]}
           start={{ x: 0, y: 0 }}
-          end={{ x: 0.35, y: 1 }}
-          style={{ padding: CARD_PADDING }}
+          end={{ x: 0, y: 1 }}
+          style={{ paddingHorizontal: CARD_PADDING_X, paddingVertical: CARD_PADDING_Y }}
         >
           <View className="flex-row items-end">
-            <Text variant="hero" color="light" className="font-bold">
+            <Text variant="heading2" color="inverse" className="font-bold">
               {price ?? "—"}
             </Text>
-            <Text variant="body" color="light70" className="mb-[3px] ml-sm">
+            <Text variant="body" color="inverse" className="ml-sm">
               / {product?.periodLabel ?? "month"}
             </Text>
           </View>
-          <Text variant="body" color="accent" className="mt-sm font-bold">
+          <Text variant="body" color="accent" className="mt-md font-bold">
             {trial
               ? `${trial.days}-day free trial`
               : product
                 ? "Cancel anytime"
                 : "Store offer unavailable"}
           </Text>
-          <View className="mt-xl gap-md">
+          <View style={{ marginTop: HEADLINE_TO_LEDGER }} className="gap-md">
             {trial ? (
               <>
                 <PriceRow label="Trial ends" value={trial.endsLong} />
@@ -189,7 +212,7 @@ export default function StartFreeStep({
       <View className="max-w-full gap-lg self-center">
         {TRIAL_FEATURES.map((feature) => (
           <View key={feature} className="flex-row items-center gap-sm">
-            <SealCheck size={FEATURE_ICON} color={colors.primaryBright} />
+            <SealCheck size={FEATURE_ICON} color={colors.primary} />
             <Text variant="body" color="dark" className="shrink">
               {feature}
             </Text>
@@ -203,10 +226,10 @@ export default function StartFreeStep({
 function PriceRow({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
     <View className="flex-row items-center justify-between gap-md">
-      <Text variant="label" color="light70">
+      <Text variant="label" color="light" className="font-medium">
         {label}
       </Text>
-      <Text variant="label" color={accent ? "accent" : "light"} className="shrink font-semibold">
+      <Text variant="label" color={accent ? "accent" : "inverse"} className="shrink font-semibold">
         {value}
       </Text>
     </View>

@@ -22,6 +22,8 @@ export const sizing = {
   control: 48,
   /** Taller control — radio rows, segmented rows. */
   controlLg: 52,
+  /** Two-line control — a stacked value + unit tile (water quick add). */
+  controlXl: 64,
 
   /** Circular icon badge. */
   badge: 48,
@@ -32,6 +34,11 @@ export const sizing = {
 
   /** Decorative icon tile inside a card — not itself a tap target. */
   tile: 44,
+
+  /** Fixed label column of a labelled progress row, so every bar starts on one x. */
+  labelColumn: 68,
+  /** Right-aligned numeric readout beside a progress bar ("110/200g"). */
+  readoutColumn: 88,
 
   /** Icon boxes. `icon` is the default. */
   iconSm: 22,

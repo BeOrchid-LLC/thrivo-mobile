@@ -1,6 +1,7 @@
 import {
   EMPTY_CUSTOM_FOOD,
-  sanitizeDecimalInput,
+  numericFieldError,
+  parseDecimal,
   validateCustomFood,
   type CustomFoodForm,
 } from "../utils/customFood";
@@ -74,21 +75,42 @@ describe("validateCustomFood", () => {
   });
 });
 
-describe("sanitizeDecimalInput", () => {
-  it("drops anything that is not part of a number", () => {
-    expect(sanitizeDecimalInput("sdf")).toBe("");
-    expect(sanitizeDecimalInput("12abc3")).toBe("123");
-    expect(sanitizeDecimalInput("-5")).toBe("5");
+describe("parseDecimal", () => {
+  it("refuses anything that is not wholly a number", () => {
+    expect(parseDecimal("sdf")).toBeUndefined();
+    expect(parseDecimal("12abc3")).toBeUndefined();
+    expect(parseDecimal("-5")).toBeUndefined();
+    // `Number("1e5")` is 100000, which is never what someone typing grams meant.
+    expect(parseDecimal("1e5")).toBeUndefined();
   });
 
-  it("accepts a comma as the decimal separator and keeps only the first point", () => {
-    expect(sanitizeDecimalInput("1,5")).toBe("1.5");
-    expect(sanitizeDecimalInput("1,5.2")).toBe("1.52");
-    expect(sanitizeDecimalInput("12.5")).toBe("12.5");
+  it("reads a comma as the decimal separator", () => {
+    expect(parseDecimal("1,5")).toBe(1.5);
+    expect(parseDecimal("12.5")).toBe(12.5);
+    expect(parseDecimal("1,5.2")).toBeUndefined();
   });
 
-  it("leaves a partially typed number alone", () => {
-    expect(sanitizeDecimalInput("12.")).toBe("12.");
-    expect(sanitizeDecimalInput("")).toBe("");
+  it("accepts a partially typed number so the field stays quiet mid-entry", () => {
+    expect(parseDecimal("12.")).toBe(12);
+    expect(parseDecimal("")).toBeUndefined();
+  });
+});
+
+describe("numericFieldError", () => {
+  it("says nothing about an empty field", () => {
+    expect(numericFieldError("calories", "")).toBeUndefined();
+    expect(numericFieldError("calories", "   ")).toBeUndefined();
+  });
+
+  it("names the problem rather than dropping the keystrokes", () => {
+    expect(numericFieldError("calories", "sdf")).toBe("Numbers only");
+    expect(numericFieldError("calories", "12abc3")).toBe("Numbers only");
+  });
+
+  it("states the accepted range once the value parses", () => {
+    expect(numericFieldError("calories", "5001")).toBe("Enter 0\u20135000 kcal");
+    expect(numericFieldError("proteinG", "501")).toBe("Enter 0\u2013500 g");
+    expect(numericFieldError("servingGrams", "0")).toBe("Enter 1\u201310000 g");
+    expect(numericFieldError("servingGrams", "250")).toBeUndefined();
   });
 });

@@ -19,7 +19,9 @@ export interface CustomFoodForm {
 export type CustomFoodField = keyof CustomFoodForm;
 
 /** The fields that only ever hold a number. */
-export const NUMERIC_CUSTOM_FOOD_FIELDS: readonly CustomFoodField[] = [
+export type NumericCustomFoodField = "servingGrams" | "calories" | "proteinG" | "carbsG" | "fatG";
+
+export const NUMERIC_CUSTOM_FOOD_FIELDS: readonly NumericCustomFoodField[] = [
   "servingGrams",
   "calories",
   "proteinG",
@@ -27,19 +29,56 @@ export const NUMERIC_CUSTOM_FOOD_FIELDS: readonly CustomFoodField[] = [
   "fatG",
 ];
 
+export const isNumericCustomFoodField = (field: CustomFoodField): field is NumericCustomFoodField =>
+  (NUMERIC_CUSTOM_FOOD_FIELDS as readonly CustomFoodField[]).includes(field);
+
 /**
- * Keeps a numeric field numeric as it is typed.
+ * The accepted range for each numeric field, and the unit its message states.
  *
- * `keyboardType="decimal-pad"` is a hint, not a constraint — an Android soft
- * keyboard, a hardware keyboard, or a paste can all put letters in the field,
- * and the user only finds out when saving fails. Commas become dots (many
- * locales' decimal separator sits where the dot is expected) and every later
- * dot is dropped, so "1,5.2" types as "1.52" rather than an unparseable string.
+ * The macro ceilings mirror the shared `boundedNutrients` contract, so the form
+ * never accepts a value the backend would reject.
  */
-export function sanitizeDecimalInput(value: string): string {
-  const cleaned = value.replace(/,/g, ".").replace(/[^0-9.]/g, "");
-  const [whole, ...rest] = cleaned.split(".");
-  return rest.length > 0 ? `${whole}.${rest.join("")}` : whole;
+export const CUSTOM_FOOD_RANGES = {
+  servingGrams: { min: 1, max: 10_000, unit: "g" },
+  calories: { min: 0, max: 5000, unit: "kcal" },
+  proteinG: { min: 0, max: 500, unit: "g" },
+  carbsG: { min: 0, max: 800, unit: "g" },
+  fatG: { min: 0, max: 500, unit: "g" },
+} as const satisfies Record<NumericCustomFoodField, { min: number; max: number; unit: string }>;
+
+/**
+ * Strict decimal parse — the same rule the onboarding number fields use.
+ *
+ * `Number.parseFloat` reads "123abc" as 123 and `Number` reads "1e5" as 100000;
+ * neither is what someone typing grams meant. A trailing separator is allowed
+ * so the field does not complain half way through "1.5", and a comma reads as
+ * one because that is where several locales' keypads put the separator.
+ */
+export function parseDecimal(value: string): number | undefined {
+  const trimmed = value.trim().replace(/,/g, ".");
+  if (!/^(\d+(\.\d*)?|\.\d+)$/.test(trimmed)) return undefined;
+  const parsed = Number(trimmed);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+/**
+ * What is wrong with a numeric field as it is holding it, in the onboarding
+ * rule: the keypad is only a hint — a hardware keyboard or a paste can leave
+ * "qe" in the field — so the field says what is wrong rather than silently
+ * dropping keystrokes, and nothing is said until there is something to say. An
+ * empty field is not an error yet; whether it is *required* is the form's call,
+ * made when it is saved.
+ */
+export function numericFieldError(
+  field: NumericCustomFoodField,
+  value: string
+): string | undefined {
+  if (value.trim() === "") return undefined;
+  const entered = parseDecimal(value);
+  if (entered === undefined) return "Numbers only";
+  const { min, max, unit } = CUSTOM_FOOD_RANGES[field];
+  if (entered < min || entered > max) return `Enter ${min}–${max} ${unit}`;
+  return undefined;
 }
 
 export const EMPTY_CUSTOM_FOOD: CustomFoodForm = {
@@ -55,25 +94,11 @@ export const EMPTY_CUSTOM_FOOD: CustomFoodForm = {
 
 const NAME_MAX = 160;
 const SERVING_LABEL_MAX = 80;
-const SERVING_GRAMS_MAX = 10_000;
-
-/**
- * Macro ceilings mirror the shared `boundedNutrients` contract, so the form
- * never accepts a value the backend would reject.
- */
-const NUTRIENT_MAX = { calories: 5000, proteinG: 500, carbsG: 800, fatG: 500 } as const;
 
 export interface CustomFoodValidation {
   /** Null whenever `errors` is non-empty. */
   payload: UpsertFoodPayload | null;
   errors: Partial<Record<CustomFoodField, string>>;
-}
-
-function parseNumber(value: string): number | null {
-  const trimmed = value.trim();
-  if (trimmed === "") return null;
-  const parsed = Number(trimmed);
-  return Number.isFinite(parsed) ? parsed : null;
 }
 
 /** Blank macros count as zero; a blank calorie field does not. */
@@ -82,17 +107,14 @@ function nutrientValue(
   field: "calories" | "proteinG" | "carbsG" | "fatG",
   required: boolean
 ): { value: number } | { error: string } {
-  const trimmed = value.trim();
-  if (trimmed === "") {
+  if (value.trim() === "") {
     if (required) return { error: "Add the calories per serving." };
     return { value: 0 };
   }
-  const parsed = parseNumber(trimmed);
-  const max = NUTRIENT_MAX[field];
-  if (parsed === null || parsed < 0 || parsed > max) {
-    return { error: `Enter a number between 0 and ${max}.` };
-  }
-  return { value: parsed };
+  // The same message the field already showed while it was being typed.
+  const error = numericFieldError(field, value);
+  if (error) return { error };
+  return { value: parseDecimal(value) as number };
 }
 
 /**
@@ -115,14 +137,9 @@ export function validateCustomFood(form: CustomFoodForm): CustomFoodValidation {
     errors.servingLabel = `Keep the serving under ${SERVING_LABEL_MAX} characters.`;
 
   let servingGrams: number | undefined;
-  if (form.servingGrams.trim() !== "") {
-    const parsed = parseNumber(form.servingGrams);
-    if (parsed === null || parsed <= 0 || parsed > SERVING_GRAMS_MAX) {
-      errors.servingGrams = `Enter a weight between 1 and ${SERVING_GRAMS_MAX} grams.`;
-    } else {
-      servingGrams = parsed;
-    }
-  }
+  const servingGramsError = numericFieldError("servingGrams", form.servingGrams);
+  if (servingGramsError) errors.servingGrams = servingGramsError;
+  else if (form.servingGrams.trim() !== "") servingGrams = parseDecimal(form.servingGrams);
 
   const calories = nutrientValue(form.calories, "calories", true);
   const proteinG = nutrientValue(form.proteinG, "proteinG", false);

@@ -23,6 +23,7 @@ export {
 export {
   usePreferencesStore,
   useBiometricAuthEnabled,
+  useOnboardingDismissedFor,
   usePreferencesHydrated,
   usePreferencesActions,
 } from "./preferences.store";

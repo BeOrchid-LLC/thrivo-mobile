@@ -20,17 +20,12 @@ import type { Mood } from "@/contracts";
 import { useCheckins, useCreateCheckin } from "../hooks/useCheckin";
 import { milestoneFor } from "../utils/milestones";
 import { moodResponse, type MoodTone } from "../utils/mood-response";
+import { MOOD_SCALE, moodOption } from "../utils/mood-scale";
 
-// Order high → low so the row reads like a mood scale. Values match the backend enum.
-const moods: { value: Mood; emoji: string; label: string }[] = [
-  { value: "great", emoji: "😄", label: "Great" },
-  { value: "good", emoji: "🙂", label: "Good" },
-  { value: "ok", emoji: "😐", label: "Okay" },
-  { value: "low", emoji: "😕", label: "Low" },
-  { value: "bad", emoji: "😞", label: "Bad" },
-];
+// The shared scale runs low → high; this screen reads high → low.
+const moods = [...MOOD_SCALE].reverse();
 
-const moodLabel = (mood: Mood): string => moods.find((m) => m.value === mood)?.label ?? mood;
+const moodLabel = (mood: Mood): string => moodOption(mood).label;
 
 /**
  * Surface for the response card, by tone.

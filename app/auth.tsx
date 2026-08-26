@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { router } from "expo-router";
 import { BrandSplash, ErrorState, Screen } from "@/components";
+import { useHasDismissedOnboarding } from "@/hooks";
 import { useAuthStatus, useIsOnboarded, useIsOnboardingSkipped } from "@/stores";
 
 const AUTH_CALLBACK_TIMEOUT_MS = 15_000;
@@ -14,6 +15,7 @@ export default function AuthCallbackScreen() {
   const status = useAuthStatus();
   const isOnboarded = useIsOnboarded();
   const isOnboardingSkipped = useIsOnboardingSkipped();
+  const hasDismissedOnboarding = useHasDismissedOnboarding();
   const [timedOut, setTimedOut] = useState(false);
 
   useEffect(() => {
@@ -24,10 +26,12 @@ export default function AuthCallbackScreen() {
   useEffect(() => {
     if (status === "authenticated") {
       router.replace(
-        isOnboarded || isOnboardingSkipped ? "/(app)/(tabs)/dashboard" : "/(onboarding)/goal"
+        isOnboarded || isOnboardingSkipped || hasDismissedOnboarding
+          ? "/(app)/(tabs)/dashboard"
+          : "/(onboarding)/goal"
       );
     }
-  }, [isOnboarded, isOnboardingSkipped, status]);
+  }, [hasDismissedOnboarding, isOnboarded, isOnboardingSkipped, status]);
 
   if (status === "restore_error" || timedOut) {
     return (

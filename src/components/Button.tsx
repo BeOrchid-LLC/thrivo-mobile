@@ -2,24 +2,27 @@ import { ActivityIndicator, Pressable, View, type PressableProps } from "react-n
 import { colors } from "@/theme";
 import { Text } from "./Text";
 
-type Variant = "primary" | "secondary" | "ghost" | "outline";
+type Variant = "primary" | "secondary" | "ghost" | "outline" | "danger";
 
 // Primary swaps the green for the design-system hover/active shades; secondary and
 // ghost have no green fill so they dim on press; outline is a primary-bordered
 // transparent button with a dark label, the way the V2 frames draw a secondary
-// action. `active:` = pressed, `hover:` = web.
+// action; danger is the destructive twin of secondary — a red tint under a red
+// label. `active:` = pressed, `hover:` = web.
 const variantClass: Record<Variant, string> = {
   primary: "bg-primary hover:bg-primaryHover active:bg-primaryActive",
   secondary: "bg-gray-100 active:opacity-[0.85]",
   ghost: "bg-transparent active:opacity-[0.85]",
   outline: "border border-primary bg-transparent active:opacity-[0.85]",
+  danger: "bg-red-100 active:opacity-[0.85]",
 };
 
-const labelColorFor: Record<Variant, "inverse" | "dark" | "primary"> = {
+const labelColorFor: Record<Variant, "inverse" | "dark" | "primary" | "error"> = {
   primary: "inverse",
   secondary: "dark",
   ghost: "primary",
   outline: "dark",
+  danger: "error",
 };
 
 export interface ButtonProps extends Omit<PressableProps, "children"> {

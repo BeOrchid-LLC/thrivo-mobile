@@ -1,7 +1,11 @@
 import {
+  AGE_RANGE_YEARS,
+  HEIGHT_RANGE_CM,
+  WEIGHT_RANGE_KG,
   isValidAgeYears,
   isValidHeightCm,
   isValidWeightKg,
+  parseDecimal,
   parsePositiveInteger,
 } from "../utils/validation";
 
@@ -35,5 +39,41 @@ describe("onboarding numeric validation (contract-backed)", () => {
     expect(parsePositiveInteger("0.5")).toBeUndefined();
     expect(parsePositiveInteger("")).toBeUndefined();
     expect(parsePositiveInteger("2e3")).toBeUndefined();
+  });
+});
+
+describe("plausibility bounds on top of the contract", () => {
+  it("rejects a typo the contract would accept", () => {
+    // The published schema only asks for a positive number, so this is a valid
+    // payload — it is the UI that has to stop it.
+    expect(isValidWeightKg(12323123)).toBe(false);
+    expect(isValidWeightKg(WEIGHT_RANGE_KG.max + 1)).toBe(false);
+    expect(isValidWeightKg(WEIGHT_RANGE_KG.min - 1)).toBe(false);
+    expect(isValidHeightCm(400)).toBe(false);
+    expect(isValidAgeYears(AGE_RANGE_YEARS.max + 1)).toBe(false);
+  });
+
+  it("accepts both ends of the range", () => {
+    expect(isValidWeightKg(WEIGHT_RANGE_KG.min)).toBe(true);
+    expect(isValidWeightKg(WEIGHT_RANGE_KG.max)).toBe(true);
+    expect(isValidHeightCm(HEIGHT_RANGE_CM.min)).toBe(true);
+    expect(isValidAgeYears(AGE_RANGE_YEARS.max)).toBe(true);
+  });
+});
+
+describe("parseDecimal", () => {
+  it("refuses what parseFloat would salvage", () => {
+    // `Number.parseFloat("123abc")` is 123 — the case a hardware keyboard makes
+    // reachable, and the reason the screens do not use it.
+    expect(parseDecimal("123abc")).toBeUndefined();
+    expect(parseDecimal("qe")).toBeUndefined();
+    expect(parseDecimal("")).toBeUndefined();
+  });
+
+  it("reads a number mid-typing", () => {
+    expect(parseDecimal("70")).toBe(70);
+    expect(parseDecimal("70.")).toBe(70);
+    expect(parseDecimal("70.5")).toBe(70.5);
+    expect(parseDecimal(" 70.5 ")).toBe(70.5);
   });
 });
