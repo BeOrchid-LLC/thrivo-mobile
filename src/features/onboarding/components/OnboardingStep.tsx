@@ -9,7 +9,7 @@ import { ONBOARDING_STEPS, TOTAL_ONBOARDING_STEPS } from "../config";
 
 /**
  * Figma-exact metrics for the onboarding frames (393pt wide). Literals for the
- * same reason the auth shell uses them: the scale has no 20, 25 or 33.
+ * same reason the auth shell uses them: the scale has no 20, 13 or 33.
  */
 const PAGE_PADDING_X = 20;
 const PAGE_PADDING_BOTTOM = 40;
@@ -32,11 +32,6 @@ const SECTION_TITLE = "Get settled in";
 interface OnboardingStepProps {
   /** 1-based step index used for the progress bar. Hidden in settings variant. */
   step: number;
-  /**
-   * The header above the progress bar. Defaults to "Get settled in"; the last
-   * steps' frames swap it (S5 reads "Almost done").
-   */
-  sectionTitle?: string;
   title: string;
   subtitle?: string;
   /** Page header above the question. Defaults to the flow-wide section title. */
@@ -98,7 +93,6 @@ function BackCircle({ step, onPress }: { step: number; onPress?: () => void }) {
  */
 export function OnboardingStep({
   step,
-  sectionTitle = SECTION_TITLE,
   title,
   subtitle,
   sectionTitle = SECTION_TITLE,
@@ -157,15 +151,11 @@ export function OnboardingStep({
     // one set.
     <LinearGradient colors={[colors.light, colors.primarySoft]} style={{ flex: 1 }}>
       <SafeAreaView style={{ flex: 1 }}>
-        <ScrollView
-          style={{ flex: 1 }}
-          contentContainerStyle={{
-            flexGrow: 1,
-            paddingHorizontal: PAGE_PADDING_X,
-            paddingBottom: PAGE_PADDING_BOTTOM,
-          }}
-          keyboardShouldPersistTaps="handled"
-        >
+        {/* Pinned: the section title and back button stay put while the step
+            scrolls under them. The page gradient starts at this token, so the
+            backdrop the content scrolls behind is the same colour as the page
+            it covers. */}
+        <View style={{ paddingHorizontal: PAGE_PADDING_X, backgroundColor: colors.light }}>
           {/* The title centres on the page rather than on the space beside the
               back button, so the button is laid over the row instead of taking
               space in it — and it comes second so it stays on top of the title
@@ -178,9 +168,20 @@ export function OnboardingStep({
               <BackCircle step={step} onPress={onBack} />
             </View>
           </View>
+        </View>
 
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{
+            flexGrow: 1,
+            paddingHorizontal: PAGE_PADDING_X,
+            paddingTop: TITLE_TO_PROGRESS,
+            paddingBottom: PAGE_PADDING_BOTTOM,
+          }}
+          keyboardShouldPersistTaps="handled"
+        >
           <View
-            style={{ marginTop: TITLE_TO_PROGRESS, height: PROGRESS_HEIGHT }}
+            style={{ height: PROGRESS_HEIGHT }}
             className="w-full overflow-hidden rounded-pill bg-progressTrack"
           >
             <View
