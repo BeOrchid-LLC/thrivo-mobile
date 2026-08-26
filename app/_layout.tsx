@@ -48,6 +48,7 @@ import {
 import { colors } from "@/theme";
 import {
   useAuthStatus,
+  useRestoreError,
   useBiometricAuthEnabled,
   useIsBiometricUnlocked,
   useIsOnboarded,
@@ -100,6 +101,7 @@ function RootNavigator({
   neutralBackground: string;
 }) {
   const status = useAuthStatus();
+  const restoreError = useRestoreError();
   const biometricEnabled = useBiometricAuthEnabled();
   const isBiometricUnlocked = useIsBiometricUnlocked();
   const isOnboarded = useIsOnboarded();
@@ -252,7 +254,11 @@ function RootNavigator({
       <Screen>
         <ErrorState
           title="Could not restore your session"
-          message="Check your connection and try again."
+          message={
+            restoreError
+              ? `Check your connection and try again.\n\n${restoreError}`
+              : "Check your connection and try again."
+          }
           retryLabel="Try again"
           onRetry={() => setStatus("loading")}
           // Escape hatch. Some restore failures cannot be retried away — a

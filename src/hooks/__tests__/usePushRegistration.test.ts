@@ -56,6 +56,15 @@ describe("usePushRegistration", () => {
     await waitFor(() => expect(mockSync).toHaveBeenCalledWith(["08:00", "20:00"]));
   });
 
+  it("does not re-register when the hook re-renders without profile changes", async () => {
+    const { rerender } = renderHook(() => usePushRegistration());
+
+    await waitFor(() => expect(mockSync).toHaveBeenCalledTimes(1));
+    rerender({});
+
+    expect(mockSync).toHaveBeenCalledTimes(1);
+  });
+
   it("sends no schedule for a user who has not set one", async () => {
     mockMe.mockReturnValue({ data: { notifyTimes: null } });
 

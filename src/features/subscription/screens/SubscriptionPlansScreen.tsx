@@ -145,7 +145,7 @@ export function SubscriptionPlansScreen() {
   const priceLabel = storeProduct?.priceLabel ?? backendPlan?.priceLabel ?? null;
   const periodLabel = storeProduct?.periodLabel ?? PERIOD[selectedPlan];
   const trialAvailable = billingLive && storeProduct ? storeProduct.hasFreeTrial : !sub?.trialUsed;
-  const canTransact = !billingLive || Boolean(storeProduct);
+  const canTransact = billingLive && Boolean(storeProduct);
   const trial = trialAvailable
     ? trialDates(storeProduct?.trialDays ?? sub?.trialDays ?? FALLBACK_TRIAL_DAYS)
     : null;

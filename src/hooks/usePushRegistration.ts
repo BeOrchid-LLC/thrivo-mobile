@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo } from "react";
 import { AppState, type AppStateStatus } from "react-native";
 import { useMe } from "@/features/profile";
 import { addPushTokenChangeListener, monitoring, syncPushRegistration } from "@/lib";
@@ -31,31 +31,20 @@ export function usePushRegistration(): void {
   // Re-send the schedule alongside the token. `notifyTimes` is optional in the
   // payload, so omitting it risks a backend reading absence as "clear them" —
   // which would silently wipe the user's reminders on every foreground.
-  const notifyTimes = normalizeTimes(me?.notifyTimes);
-  // Avoids re-POSTing an unchanged token on every foreground.
-  const lastRegistered = useRef<string | null>(null);
+  const notifyTimes = useMemo(() => normalizeTimes(me?.notifyTimes), [me?.notifyTimes]);
 
   useEffect(() => {
     if (!isAuthenticated) {
-      // Next user on this device must register their own token.
-      lastRegistered.current = null;
       return undefined;
     }
 
-    let active = true;
-
     const sync = () => {
-      void syncPushRegistration(notifyTimes)
-        .then((token) => {
-          if (!active || !token) return;
-          lastRegistered.current = token;
-        })
-        .catch((error: unknown) => {
-          // A failed registration is not worth surfacing — the user did nothing
-          // wrong and the next foreground retries — but it must not be silent
-          // to us, since the symptom is "reminders stopped" months later.
-          monitoring.captureException(error, { seam: "push-registration" });
-        });
+      void syncPushRegistration(notifyTimes).catch((error: unknown) => {
+        // A failed registration is not worth surfacing — the user did nothing
+        // wrong and the next foreground retries — but it must not be silent
+        // to us, since the symptom is "reminders stopped" months later.
+        monitoring.captureException(error, { seam: "push-registration" });
+      });
     };
 
     sync();
@@ -66,7 +55,6 @@ export function usePushRegistration(): void {
     const tokenRotation = addPushTokenChangeListener(sync);
 
     return () => {
-      active = false;
       appState.remove();
       tokenRotation();
     };

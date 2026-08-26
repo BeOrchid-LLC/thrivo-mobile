@@ -379,6 +379,8 @@ describe("SubscriptionPlansScreen", () => {
 
       expect(screen.getByText("Store billing not configured")).toBeTruthy();
       expect(screen.queryByText("Restore purchases")).toBeNull();
+      expect(screen.queryByText("Start free trial")).toBeNull();
+      expect(screen.queryByText("Subscribe monthly")).toBeNull();
     });
 
     it("still records a backend cancellation as done", () => {
