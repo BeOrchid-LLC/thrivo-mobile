@@ -98,8 +98,8 @@ describe("LogItemSheet", () => {
 
     expect(screen.getByText("165 kcal")).toBeTruthy();
     expect(screen.getByText("Subscribe to see macros")).toBeTruthy();
-    // The gate is a single frosted bar — the whole bar is the control, so there
-    // is no separate "View plans" button to find.
+    // The gate is a centred card; its "View plans" button carries the title in
+    // its label so the control is unambiguous to a screen reader.
     expect(screen.getByLabelText("Subscribe to see macros. View plans")).toBeTruthy();
   });
 

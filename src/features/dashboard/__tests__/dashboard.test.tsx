@@ -206,8 +206,8 @@ describe("Dashboard graceful degradation", () => {
     const screen = renderDashboard();
 
     expect(screen.getByText("Subscribe to see your macros")).toBeTruthy();
-    // The dashboard gate is the banner variant: the whole bar is the control,
-    // so there is no separate "View plans" button to press.
+    // The gate is a centred card; its "View plans" button carries the title in
+    // its label so the control is unambiguous to a screen reader.
     fireEvent.press(screen.getByLabelText("Subscribe to see your macros. View plans"));
     expect(mockPush).toHaveBeenCalledWith("/(app)/subscription");
   });
