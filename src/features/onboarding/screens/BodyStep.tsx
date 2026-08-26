@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { router } from "expo-router";
 import { View } from "react-native";
-import { Button, Input, RadioGroup, Segmented, Text } from "@/components";
+import { Button, Input, SelectInput, SelectSheet, Text } from "@/components";
 import type { Sex, UnitSystem } from "@/contracts";
 import { roundTo } from "@/utils";
 import { type OnboardingDraft, useOnboardingDraftActions, useSessionActions } from "@/stores";
 import { OnboardingStep } from "@/features/onboarding/components/OnboardingStep";
-import { NoteBox } from "@/features/onboarding/components/NoteBox";
+import { UnitChips } from "@/features/onboarding/components/UnitChips";
 import { useSubmitOnboarding } from "@/features/onboarding/hooks/useCompleteOnboarding";
 import { useOnboardingPrefill } from "@/features/onboarding/hooks/useOnboardingPrefill";
 import { isValidAgeYears, isValidHeightCm } from "@/features/onboarding/utils/validation";
@@ -14,6 +14,17 @@ import type { OnboardingStepProps } from "../types";
 
 type HeightUnit = "metric" | "imperial";
 const CM_PER_IN = 2.54;
+
+const HEIGHT_UNITS = [
+  { label: "cm", value: "metric" },
+  { label: "ft. in.", value: "imperial" },
+] as const satisfies readonly { label: string; value: HeightUnit }[];
+
+const SEX_OPTIONS = [
+  { label: "Male", value: "male" },
+  { label: "Female", value: "female" },
+  { label: "Prefer not to say", value: "prefer_not_to_say" },
+] as const satisfies readonly { label: string; value: Sex }[];
 
 const cmToFtIn = (cm: number): { ft: number; inch: number } => {
   const totalIn = Math.round(cm / CM_PER_IN);
@@ -45,6 +56,7 @@ export default function BodyStep({
   const [inch, setInch] = useState(initialFtIn ? String(initialFtIn.inch) : "");
   const [age, setAge] = useState(draft.ageYears ? String(draft.ageYears) : "");
   const [sex, setSex] = useState<Sex | undefined>(draft.sex);
+  const [sexSheetOpen, setSexSheetOpen] = useState(false);
 
   useEffect(() => {
     if (!cm && draft.heightCm && heightUnit === "metric") setCm(String(roundTo(draft.heightCm)));
@@ -113,8 +125,9 @@ export default function BodyStep({
   return (
     <OnboardingStep
       step={3}
-      title="A bit more about your body"
-      subtitle="Used only for your calorie formula."
+      contentGap={22}
+      title="A bit more about you"
+      subtitle="This will help us customize a path for your fitness journey"
       onBack={mode === "revisit" ? onBack : undefined}
       variant={variant}
       footer={
@@ -126,90 +139,93 @@ export default function BodyStep({
             onPress={next}
           />
           <Button
-            label={mode === "revisit" ? "Done later" : "Skip for now"}
-            variant="ghost"
+            label={mode === "revisit" ? "Done later" : "Skip For Now"}
+            variant="outline"
             loading={mode === "initial" && isPending}
             onPress={skip}
           />
         </>
       }
     >
-      <View className="gap-sm">
-        <View className="flex-row items-center justify-between">
-          <Text variant="caption" color="muted" className="uppercase tracking-label">
-            Height
-          </Text>
-          <View className="w-[132px]">
-            <Segmented<HeightUnit>
-              options={[
-                { label: "ft + in", value: "imperial" },
-                { label: "cm", value: "metric" },
-              ]}
-              value={heightUnit}
-              onChange={switchHeightUnit}
-            />
-          </View>
-        </View>
-        {heightUnit === "imperial" ? (
-          <View className="flex-row gap-md">
-            <View className="flex-1">
-              <Input
-                trailingText="ft"
-                placeholder="5"
-                keyboardType="number-pad"
-                value={ft}
-                onChangeText={setFt}
-              />
-            </View>
-            <View className="flex-1">
-              <Input
-                trailingText="in"
-                placeholder="10"
-                keyboardType="number-pad"
-                value={inch}
-                onChangeText={setInch}
-              />
-            </View>
-          </View>
-        ) : (
-          <Input
-            trailingText="cm"
-            placeholder="170"
-            keyboardType="number-pad"
-            value={cm}
-            onChangeText={setCm}
-          />
-        )}
-      </View>
-
-      <Input
-        label="Age"
-        uppercaseLabel
-        trailingText="yrs"
-        placeholder="30"
-        keyboardType="number-pad"
-        value={age}
-        onChangeText={setAge}
-      />
-
-      <View className="gap-sm">
-        <Text variant="caption" color="muted" className="uppercase tracking-label">
-          Sex
+      <View className="gap-xs">
+        <Text variant="caption" color="dark">
+          Height
         </Text>
-        <RadioGroup<Sex>
-          options={[
-            { label: "Male", value: "male" },
-            { label: "Female", value: "female" },
-            { label: "Prefer not to say", value: "prefer_not_to_say" },
-          ]}
-          value={sex}
-          onChange={setSex}
-        />
-        <NoteBox>
-          We ask about biological sex because it affects metabolic rate. &quot;Prefer not to
-          say&quot; uses an averaged BMR.
-        </NoteBox>
+        <View className="flex-row items-center gap-xs">
+          {heightUnit === "imperial" ? (
+            <View className="flex-1 flex-row gap-xs">
+              <View className="flex-1">
+                <Input
+                  variant="onboarding"
+                  accessibilityLabel="Height in feet"
+                  trailingText="ft"
+                  keyboardType="number-pad"
+                  value={ft}
+                  onChangeText={setFt}
+                />
+              </View>
+              <View className="flex-1">
+                <Input
+                  variant="onboarding"
+                  accessibilityLabel="Height in inches"
+                  trailingText="in"
+                  keyboardType="number-pad"
+                  value={inch}
+                  onChangeText={setInch}
+                />
+              </View>
+            </View>
+          ) : (
+            <View className="flex-1">
+              <Input
+                variant="onboarding"
+                accessibilityLabel="Height in centimetres"
+                trailingText="cm"
+                keyboardType="number-pad"
+                value={cm}
+                onChangeText={setCm}
+              />
+            </View>
+          )}
+          <UnitChips
+            options={HEIGHT_UNITS}
+            value={heightUnit}
+            onChange={switchHeightUnit}
+            accessibilityLabel="Height unit"
+          />
+        </View>
+        <Text variant="caption" color="dark">
+          How tall are you?
+        </Text>
       </View>
+
+      {/* The frame sets these two closer together than it sets them from the
+          height group, which carries a hint under its field. */}
+      <View className="gap-lg">
+        <Input
+          variant="onboarding"
+          label="Age"
+          keyboardType="number-pad"
+          value={age}
+          onChangeText={setAge}
+        />
+
+        <SelectInput
+          variant="onboarding"
+          label="Gender"
+          value={SEX_OPTIONS.find((option) => option.value === sex)?.label ?? ""}
+          onPress={() => setSexSheetOpen(true)}
+        />
+      </View>
+
+      <SelectSheet<Sex>
+        title="Gender"
+        options={SEX_OPTIONS}
+        value={sex ?? "prefer_not_to_say"}
+        visible={sexSheetOpen}
+        onChange={setSex}
+        onClose={() => setSexSheetOpen(false)}
+      />
     </OnboardingStep>
   );
 }

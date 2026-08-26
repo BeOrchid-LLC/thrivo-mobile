@@ -5,7 +5,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ChevronLeftIcon, PageHeader, Text } from "@/components";
 import { colors, spacing } from "@/theme";
-import { TOTAL_ONBOARDING_STEPS } from "../config";
+import { ONBOARDING_STEPS, TOTAL_ONBOARDING_STEPS } from "../config";
 
 /**
  * Figma-exact metrics for the onboarding frames (393pt wide). Literals for the
@@ -26,19 +26,28 @@ const CONTENT_GAP = 16;
 const CONTENT_TO_FOOTER = 45;
 const FOOTER_GAP = 24;
 
-/** Header shown above every onboarding step; the question below it is per-step. */
+/** Header shown above most onboarding steps; the question below it is per-step. */
 const SECTION_TITLE = "Get settled in";
 
 interface OnboardingStepProps {
   /** 1-based step index used for the progress bar. Hidden in settings variant. */
   step: number;
+  /**
+   * The header above the progress bar. Defaults to "Get settled in"; the last
+   * steps' frames swap it (S5 reads "Almost done").
+   */
+  sectionTitle?: string;
   title: string;
   subtitle?: string;
+  /** Page header above the question. Defaults to the flow-wide section title. */
+  sectionTitle?: string;
   children: ReactNode;
   /** Action area (Continue / Skip etc.). */
   footer: ReactNode;
   /** Gap between content rows. Defaults to the card spacing the frames use. */
   contentGap?: number;
+  /** Gap between the content and the actions. Frames set this per step. */
+  contentToFooter?: number;
   /** Override the back button behavior (defaults to router.back). */
   onBack?: () => void;
   /**
@@ -49,17 +58,30 @@ interface OnboardingStepProps {
   variant?: "onboarding" | "settings";
 }
 
-/** Circular back affordance from the frames. Hidden when there is nowhere to go. */
-function BackCircle({ onPress }: { onPress?: () => void }) {
-  const canGoBack = onPress !== undefined || router.canGoBack();
-  if (!canGoBack) return <View style={{ width: BACK_SIZE, height: BACK_SIZE }} />;
+/**
+ * Circular back affordance from the frames. The first step has nothing behind
+ * it, so it renders no button at all rather than one that fails.
+ */
+function BackCircle({ step, onPress }: { step: number; onPress?: () => void }) {
+  if (onPress === undefined && step <= 1) return null;
+
+  const goBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    // Reached directly (a deep link, or a redirect that replaced the stack), so
+    // there is no history to pop — step back through the flow instead.
+    const previous = ONBOARDING_STEPS.find((definition) => definition.step === step - 1);
+    if (previous) router.replace(`/(onboarding)/${previous.key}`);
+  };
 
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel="Go back"
       hitSlop={12}
-      onPress={onPress ?? (() => router.back())}
+      onPress={onPress ?? goBack}
       style={{ width: BACK_SIZE, height: BACK_SIZE }}
       className="items-center justify-center rounded-pill border border-hairline active:opacity-[0.6]"
     >
@@ -76,11 +98,14 @@ function BackCircle({ onPress }: { onPress?: () => void }) {
  */
 export function OnboardingStep({
   step,
+  sectionTitle = SECTION_TITLE,
   title,
   subtitle,
+  sectionTitle = SECTION_TITLE,
   children,
   footer,
   contentGap = CONTENT_GAP,
+  contentToFooter = CONTENT_TO_FOOTER,
   onBack,
   variant = "onboarding",
 }: OnboardingStepProps) {
@@ -141,18 +166,17 @@ export function OnboardingStep({
           }}
           keyboardShouldPersistTaps="handled"
         >
-          <View className="flex-row items-center">
-            <BackCircle onPress={onBack} />
-            {/* The title centres on the page, not on the space left of the back
-                button, so it needs to span the row and centre its own text. */}
-            <Text
-              variant="heading2"
-              color="dark"
-              accessibilityRole="header"
-              className="-ml-[24px] flex-1 text-center"
-            >
-              {SECTION_TITLE}
+          {/* The title centres on the page rather than on the space beside the
+              back button, so the button is laid over the row instead of taking
+              space in it — and it comes second so it stays on top of the title
+              and keeps receiving taps. */}
+          <View className="flex-row items-center justify-center">
+            <Text variant="heading2" color="dark" accessibilityRole="header">
+              {sectionTitle}
             </Text>
+            <View className="absolute bottom-0 left-0 top-0 justify-center">
+              <BackCircle step={step} onPress={onBack} />
+            </View>
           </View>
 
           <View
@@ -189,7 +213,7 @@ export function OnboardingStep({
 
           <View style={{ marginTop: SUBTITLE_TO_CONTENT, gap: contentGap }}>{children}</View>
 
-          <View style={{ marginTop: CONTENT_TO_FOOTER, gap: FOOTER_GAP }}>{footer}</View>
+          <View style={{ marginTop: contentToFooter, gap: FOOTER_GAP }}>{footer}</View>
         </ScrollView>
       </SafeAreaView>
     </LinearGradient>

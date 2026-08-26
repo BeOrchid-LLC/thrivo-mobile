@@ -17,6 +17,8 @@ export interface SubscriptionProduct {
   plan: SubscriptionPlan;
   hasFreeTrial: boolean;
   trialLabel: string | null;
+  /** Length of the free trial in days, or null when the offer has none. */
+  trialDays: number | null;
 }
 
 export interface PurchaseResult {
@@ -63,7 +65,16 @@ type FreePhase = {
   amountMicros?: number | string;
   cycles?: number;
   periodUnit?: string;
+  periodNumberOfUnits?: number;
 };
+
+/**
+ * Days per store period unit. Month and year are the store's own nominal
+ * lengths — a trial is offered as "1 month", never as a day count, so the
+ * date the paywall quotes is an estimate for those units and exact for the
+ * day/week trials the app actually configures.
+ */
+const DAYS_PER_UNIT: Record<string, number> = { day: 1, week: 7, month: 30, year: 365 };
 
 function isZeroPrice(value: FreePhase | null): boolean {
   if (!value) return false;
@@ -75,6 +86,15 @@ function trialLabel(value: FreePhase | null): string | null {
   const cycles = value.cycles ?? 1;
   const unit = (value.periodUnit ?? "period").toLowerCase();
   return `${cycles} ${unit}${cycles === 1 ? "" : "s"} free`;
+}
+
+function trialDays(value: FreePhase | null): number | null {
+  if (!value || !isZeroPrice(value)) return null;
+  const perUnit = DAYS_PER_UNIT[(value.periodUnit ?? "").toLowerCase()];
+  if (!perUnit) return null;
+  // iOS states the length in `periodNumberOfUnits`; Android's free phase counts
+  // billing `cycles` of the same unit.
+  return (value.periodNumberOfUnits ?? value.cycles ?? 1) * perUnit;
 }
 
 function androidFreePhase(pkg: PurchasesPackage): FreePhase | null {
@@ -176,6 +196,7 @@ const revenueCatAdapter: SubscriptionAdapter = {
           plan,
           hasFreeTrial: isZeroPrice(freeOffer),
           trialLabel: trialLabel(freeOffer),
+          trialDays: trialDays(freeOffer),
         } satisfies SubscriptionProduct,
       ];
     });

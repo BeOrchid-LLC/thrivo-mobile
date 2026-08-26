@@ -19,6 +19,8 @@ export const colors = {
   progressTrack: "#E0E6EE", // unfilled progress segment (V2 onboarding)
   loggedGreen: "#90CFAE", // "logged" streak-calendar day fill (ProgressScreen)
   loggedGreenBorder: "#64B889", // "logged" streak-calendar day border (ProgressScreen)
+  targetGreen: "#3F8B4A", // deep green — the calorie-target readout (V2 onboarding S5)
+  targetGreenBorder: "#4CC46B", // bright green — the calorie-target card outline (V2 onboarding S5)
   dark: "#1A1A2E", // Figma: Gray 1 (primary text)
   light: "#F4F6F9", // page background / input fields
   accent: "#E7A03C", // Figma: Orange
