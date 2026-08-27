@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { ActivityIndicator, View } from "react-native";
 import { FlashList, type FlashListRef, type ListRenderItem } from "@shopify/flash-list";
 import {
@@ -123,6 +123,7 @@ function getItemType(item: HistoryListItem): string {
 }
 
 export function WaterHistoryScreen({ refreshing, onRefresh }: WaterHistoryScreenProps) {
+  const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
   const [period, setPeriod] = useState<ChartPeriod>("7d");
   const [periodSheetOpen, setPeriodSheetOpen] = useState(false);
   const [sortSheetOpen, setSortSheetOpen] = useState(false);
@@ -241,7 +242,21 @@ export function WaterHistoryScreen({ refreshing, onRefresh }: WaterHistoryScreen
 
   return (
     <View className="flex-1 gap-lg">
-      <PageHeader title="Water history" subtitle="Review your hydration logs over time." />
+      <PageHeader
+        title="Water history"
+        subtitle="Review your hydration logs over time."
+        onBack={() => {
+          if (returnTo === "log") {
+            router.replace("/(app)/(tabs)/log");
+            return;
+          }
+          if (router.canGoBack()) {
+            router.back();
+            return;
+          }
+          router.replace("/(app)/(tabs)/log");
+        }}
+      />
 
       <View className="flex-row gap-sm">
         <View className="flex-1">
@@ -397,7 +412,7 @@ function LockedEarlierHistory({ historyLimitDays }: { historyLimitDays: number }
       <PremiumGate
         title="Subscribe to see older water logs"
         subtitle={`Free history includes the most recent ${historyLimitDays} days.`}
-        onViewPlans={() => router.push("/(app)/settings/subscription")}
+        onViewPlans={() => router.push("/(app)/subscription")}
       >
         <Card className="min-h-[190px] gap-md bg-gray-100">
           {Array.from({ length: 3 }).map((_, index) => (

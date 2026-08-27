@@ -24,7 +24,7 @@ export function FilterChips({ chips }: FilterChipsProps) {
             accessibilityRole="button"
             accessibilityLabel={`Remove filter: ${chip.label}`}
             onPress={chip.onRemove}
-            className="flex-row items-center gap-xs rounded-full bg-primary/10 px-md py-xs"
+            className="min-h-touchTarget flex-row items-center gap-xs rounded-full bg-primary/10 px-md py-xs"
           >
             <Text variant="caption" color="primary" className="font-medium">
               {chip.label}

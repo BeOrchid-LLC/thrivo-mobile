@@ -1,5 +1,13 @@
 export * from "./hooks/useFoodLogging";
+export { CopyLogSheet } from "./components/CopyLogSheet";
+export type { CopyLogSheetProps } from "./components/CopyLogSheet";
 export { EditFoodLogSheet } from "./components/EditFoodLogSheet";
 export type { EditFoodLogSheetProps } from "./components/EditFoodLogSheet";
+export { CreateFoodScreen } from "./screens/CreateFoodScreen";
+export type { CreateFoodScreenProps } from "./screens/CreateFoodScreen";
+export { ScanBarcodeScreen } from "./screens/ScanBarcodeScreen";
+export type { ScanBarcodeScreenProps } from "./screens/ScanBarcodeScreen";
+export { DescribeMealScreen } from "./screens/DescribeMealScreen";
+export type { DescribeMealScreenProps } from "./screens/DescribeMealScreen";
 export { WaterHistoryScreen } from "./screens/WaterHistoryScreen";
 export type { WaterHistoryScreenProps } from "./screens/WaterHistoryScreen";

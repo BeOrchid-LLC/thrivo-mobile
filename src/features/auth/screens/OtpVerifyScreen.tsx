@@ -5,7 +5,7 @@ import { Platform, TextInput, View } from "react-native";
 import { useAuth, useSignIn, useSignUp } from "@clerk/expo";
 import { Button, FormError, PageHeader, Screen, Text } from "@/components";
 import { queueSignup } from "@/lib";
-import { colors } from "@/theme";
+import { colors, inputFont } from "@/theme";
 import { useAuthStatus, useBiometricUnlockActions, useSessionActions } from "@/stores";
 import { logAuthError, useAuthScreenDiagnostics } from "../auth-debug";
 
@@ -200,56 +200,20 @@ export function OtpVerifyScreen() {
   };
 
   return (
-    <Screen scroll backgroundColor={colors.white} style={{ flexGrow: 1 }}>
-      <View className="gap-xl pt-xl">
+    <Screen
+      scroll
+      backgroundColor={colors.white}
+      // The code boxes sit straight under the header; the space the page has
+      // left over falls between them and the pinned actions.
+      style={{ flexGrow: 1 }}
+      header={
         <PageHeader
           title="Enter your code"
           subtitle={`We sent a 6-digit code to ${normalizedEmail}.`}
           onBack={() => router.replace(differentEmailTarget)}
         />
-
-        <View className="gap-md">
-          <View className="flex-row justify-center gap-sm">
-            {boxes.map((digit, index) => (
-              <TextInput
-                key={index}
-                ref={(node) => {
-                  inputs.current[index] = node;
-                }}
-                accessibilityLabel={`Digit ${index + 1}`}
-                autoFocus={index === 0}
-                keyboardType="number-pad"
-                textContentType="oneTimeCode"
-                maxLength={index === 0 ? 6 : 1}
-                value={digit}
-                editable={!isPending}
-                onChangeText={(value) => onChangeAt(index, value)}
-                onKeyPress={({ nativeEvent }) => {
-                  if (nativeEvent.key === "Backspace" && !boxes[index] && index > 0) {
-                    inputs.current[index - 1]?.focus();
-                  }
-                }}
-                className={`h-[54px] w-[46px] rounded-md border bg-white text-center text-otp ${
-                  error ? "border-error" : digit ? "border-primary" : "border-gray-300"
-                }`}
-                style={{
-                  borderCurve: "continuous",
-                  color: colors.dark,
-                  fontVariant: ["tabular-nums"],
-                }}
-              />
-            ))}
-          </View>
-
-          {isPending ? (
-            <Text variant="caption" color="muted" className="text-center">
-              Verifying...
-            </Text>
-          ) : null}
-
-          <FormError message={error} center />
-        </View>
-
+      }
+      footer={
         <View className="gap-sm">
           <Button
             label={countdown > 0 ? `Resend in ${countdown}s` : "Resend code"}
@@ -265,6 +229,49 @@ export function OtpVerifyScreen() {
             onPress={() => router.replace(differentEmailTarget)}
           />
         </View>
+      }
+    >
+      <View className="gap-md">
+        <View className="flex-row justify-center gap-sm">
+          {boxes.map((digit, index) => (
+            <TextInput
+              key={index}
+              ref={(node) => {
+                inputs.current[index] = node;
+              }}
+              accessibilityLabel={`Digit ${index + 1}`}
+              autoFocus={index === 0}
+              keyboardType="number-pad"
+              textContentType="oneTimeCode"
+              maxLength={index === 0 ? 6 : 1}
+              value={digit}
+              editable={!isPending}
+              onChangeText={(value) => onChangeAt(index, value)}
+              onKeyPress={({ nativeEvent }) => {
+                if (nativeEvent.key === "Backspace" && !boxes[index] && index > 0) {
+                  inputs.current[index - 1]?.focus();
+                }
+              }}
+              className={`h-[54px] w-[46px] rounded-md border bg-white text-center ${
+                error ? "border-error" : digit ? "border-primary" : "border-gray-300"
+              }`}
+              style={{
+                ...inputFont("otp"),
+                borderCurve: "continuous",
+                color: colors.dark,
+                fontVariant: ["tabular-nums"],
+              }}
+            />
+          ))}
+        </View>
+
+        {isPending ? (
+          <Text variant="caption" color="muted" className="text-center">
+            Verifying...
+          </Text>
+        ) : null}
+
+        <FormError message={error} center />
       </View>
     </Screen>
   );

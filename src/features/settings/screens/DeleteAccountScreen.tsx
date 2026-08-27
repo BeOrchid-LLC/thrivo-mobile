@@ -4,7 +4,7 @@ import { Linking, TextInput, View, Platform } from "react-native";
 import { Warning } from "phosphor-react-native";
 import { Button, FormError, PageHeader, Screen, Text } from "@/components";
 import { useEntitlement } from "@/hooks";
-import { colors } from "@/theme";
+import { colors, inputFont, rhythm } from "@/theme";
 import { useDeleteAccount } from "../hooks/useDeleteAccount";
 import { useReauthentication } from "../hooks/useReauthentication";
 import { subscription } from "@/lib";
@@ -59,22 +59,63 @@ export function DeleteAccountScreen() {
       onSuccess: () => {
         // The session is gone; send them to the unauthenticated root rather than
         // letting the guard bounce them through a half-torn-down tab layout.
-        router.replace("/(auth)/welcome");
+        router.replace("/(auth)/sign-in");
       },
     });
   };
 
   return (
-    <Screen scroll backgroundColor={colors.white} style={{ gap: 20, paddingBottom: 48 }}>
-      <PageHeader
-        title="Delete account"
-        subtitle={
-          stage === "review"
-            ? "This permanently removes your account and everything in it."
-            : `Enter the 6-digit code we sent to ${reauth.email ?? "your email"}.`
-        }
-      />
-
+    <Screen
+      scroll
+      edges={["top", "left", "right"]}
+      backgroundColor={colors.white}
+      header={
+        <PageHeader
+          title="Delete account"
+          subtitle={
+            stage === "review"
+              ? "This permanently removes your account and everything in it."
+              : `Enter the 6-digit code we sent to ${reauth.email ?? "your email"}.`
+          }
+        />
+      }
+      footer={
+        stage === "review" ? (
+          <View className="gap-md">
+            <Button
+              label="Continue"
+              variant="secondary"
+              loading={reauth.step === "sending"}
+              disabled={isPremium && !billingWarningAcknowledged}
+              className="bg-red-100"
+              onPress={onStartVerification}
+            />
+            <Button label="Keep my account" onPress={() => router.back()} />
+          </View>
+        ) : (
+          <View className="gap-md">
+            <Button
+              label={isDeleting ? "Deleting your account…" : "Delete my account"}
+              variant="secondary"
+              className="bg-red-100"
+              disabled={code.length < 6}
+              loading={reauth.step === "verifying" || isDeleting}
+              onPress={onConfirmDelete}
+            />
+            <Button
+              label="Cancel"
+              disabled={isDeleting}
+              onPress={() => {
+                setCode("");
+                reauth.clearError();
+                setStage("review");
+              }}
+            />
+          </View>
+        )
+      }
+      style={{ gap: rhythm.pageGap, paddingTop: 0, paddingBottom: rhythm.pageBottom }}
+    >
       {stage === "review" ? (
         <>
           <View className="flex-row items-start gap-md rounded-lg border border-red-200 bg-red-50 px-lg py-md">
@@ -135,18 +176,6 @@ export function DeleteAccountScreen() {
           ) : null}
 
           <FormError message={reauth.error} />
-
-          <View className="gap-md">
-            <Button
-              label="Continue"
-              variant="secondary"
-              loading={reauth.step === "sending"}
-              disabled={isPremium && !billingWarningAcknowledged}
-              className="bg-red-100"
-              onPress={onStartVerification}
-            />
-            <Button label="Keep my account" onPress={() => router.back()} />
-          </View>
         </>
       ) : (
         <>
@@ -155,7 +184,8 @@ export function DeleteAccountScreen() {
           <TextInput
             ref={codeInput}
             accessibilityLabel="Verification code"
-            className="min-h-[56px] rounded-md border border-gray-300 px-lg text-center text-2xl tracking-[8px]"
+            className="min-h-[56px] rounded-md border border-gray-300 px-lg text-center tracking-[8px]"
+            style={[inputFont("metric"), { color: colors.dark }]}
             keyboardType="number-pad"
             textContentType="oneTimeCode"
             maxLength={6}
@@ -174,26 +204,6 @@ export function DeleteAccountScreen() {
                 : null)
             }
           />
-
-          <View className="gap-md">
-            <Button
-              label={isDeleting ? "Deleting your account…" : "Delete my account"}
-              variant="secondary"
-              className="bg-red-100"
-              disabled={code.length < 6}
-              loading={reauth.step === "verifying" || isDeleting}
-              onPress={onConfirmDelete}
-            />
-            <Button
-              label="Cancel"
-              disabled={isDeleting}
-              onPress={() => {
-                setCode("");
-                reauth.clearError();
-                setStage("review");
-              }}
-            />
-          </View>
 
           {isDeleting ? (
             <Text color="muted" className="text-center">

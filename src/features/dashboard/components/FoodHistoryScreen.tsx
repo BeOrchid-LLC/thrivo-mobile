@@ -1,6 +1,6 @@
 import { memo, useCallback, useMemo, useRef, useState } from "react";
-import { router } from "expo-router";
-import { Heart } from "phosphor-react-native";
+import { router, useLocalSearchParams } from "expo-router";
+import { CopySimple, Heart } from "phosphor-react-native";
 import { ActivityIndicator, Pressable, View } from "react-native";
 import { FlashList, type FlashListRef, type ListRenderItem } from "@shopify/flash-list";
 import {
@@ -24,10 +24,11 @@ import type {
   MealTime,
 } from "@/contracts";
 import { MEAL_TIME_WINDOWS } from "@/contracts";
-import { EditFoodLogSheet, useFavorites } from "@/features/food-logging";
+import { CopyLogSheet, EditFoodLogSheet, useFavorites } from "@/features/food-logging";
 import { FavoriteButton } from "@/features/food-logging/components/FavoriteButton";
 import { useDebouncedValue } from "@/hooks";
 import { colors } from "@/theme";
+import { isToday } from "@/utils";
 import type { FoodLogHistoryFilters } from "../api/dashboard.api";
 import { useFoodLogHistory } from "../hooks/useDashboard";
 
@@ -125,6 +126,7 @@ function getItemType(item: HistoryListItem): string {
 }
 
 export function FoodHistoryScreen({ refreshing, onRefresh }: FoodHistoryScreenProps) {
+  const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
   useFavorites();
   const [period, setPeriod] = useState<ChartPeriod>("1m");
   const [periodSheetOpen, setPeriodSheetOpen] = useState(false);
@@ -149,6 +151,7 @@ export function FoodHistoryScreen({ refreshing, onRefresh }: FoodHistoryScreenPr
 
   const history = useFoodLogHistory(period, undefined, filters);
   const [editingEntry, setEditingEntry] = useState<FoodLogEntry | null>(null);
+  const [copyingDay, setCopyingDay] = useState<string | null>(null);
 
   const suppressDateHeaders = sort === "highest" || sort === "lowest";
   const listItems = useMemo(
@@ -225,7 +228,15 @@ export function FoodHistoryScreen({ refreshing, onRefresh }: FoodHistoryScreenPr
     if (item.type === "locked") {
       return <LockedEarlierHistory historyLimitDays={item.historyLimitDays} />;
     }
-    if (item.type === "header") return <HistoryDayHeader day={item.day} />;
+    if (item.type === "header") {
+      // Copying today onto today would just duplicate it.
+      return (
+        <HistoryDayHeader
+          day={item.day}
+          onCopy={isToday(item.day) ? undefined : () => setCopyingDay(item.day)}
+        />
+      );
+    }
     if (item.type === "footer-spinner") {
       return (
         <View className="items-center py-md">
@@ -258,7 +269,20 @@ export function FoodHistoryScreen({ refreshing, onRefresh }: FoodHistoryScreenPr
 
   return (
     <View className="flex-1 gap-lg">
-      <PageHeader title="Food history" showBack={false} />
+      <PageHeader
+        title="Food history"
+        onBack={() => {
+          if (returnTo === "log") {
+            router.replace("/(app)/(tabs)/log");
+            return;
+          }
+          if (router.canGoBack()) {
+            router.back();
+            return;
+          }
+          router.replace("/(app)/(tabs)/log");
+        }}
+      />
 
       <SearchBar
         value={searchText}
@@ -286,33 +310,28 @@ export function FoodHistoryScreen({ refreshing, onRefresh }: FoodHistoryScreenPr
         </View>
       </View>
 
-      <View className="flex-row gap-sm">
-        <SelectInput
-          label="Meal time"
-          value={selectedMealTimeLabel ?? "Any time"}
-          onPress={() => setMealTimeSheetOpen(true)}
-        />
+      <View className="flex-row items-end gap-sm">
+        <View className="flex-1">
+          <SelectInput
+            label="Meal time"
+            value={selectedMealTimeLabel ?? "Any time"}
+            onPress={() => setMealTimeSheetOpen(true)}
+          />
+        </View>
         <Pressable
           accessibilityRole="checkbox"
           accessibilityLabel="Favorites only"
           accessibilityState={{ checked: favoritesOnly }}
           onPress={() => handleFilterChange({ favoritesOnly: !favoritesOnly })}
-          className={`min-h-[48px] flex-1 flex-row items-center justify-center rounded-md border px-md ${
+          className={`h-control w-control items-center justify-center rounded-md border ${
             favoritesOnly ? "border-primary bg-primarySoft" : "border-gray-300 bg-white"
           }`}
         >
           <Heart
-            size={16}
+            size={22}
             color={favoritesOnly ? colors.primary : colors.gray[500]}
             weight={favoritesOnly ? "fill" : "regular"}
           />
-          <Text
-            variant="caption"
-            color={favoritesOnly ? "primary" : "muted"}
-            className="ml-xs font-medium"
-          >
-            Favorites
-          </Text>
         </Pressable>
       </View>
 
@@ -366,6 +385,11 @@ export function FoodHistoryScreen({ refreshing, onRefresh }: FoodHistoryScreenPr
         visible={editingEntry !== null}
         onClose={() => setEditingEntry(null)}
       />
+      <CopyLogSheet
+        day={copyingDay}
+        visible={copyingDay !== null}
+        onClose={() => setCopyingDay(null)}
+      />
       <SelectSheet
         title="Select period"
         options={periodOptions}
@@ -398,12 +422,26 @@ export function FoodHistoryScreen({ refreshing, onRefresh }: FoodHistoryScreenPr
 }
 
 /** Sticky — needs its own background so scrolling entries don't show through underneath it. */
-function HistoryDayHeader({ day }: { day: string }) {
+function HistoryDayHeader({ day, onCopy }: { day: string; onCopy?: () => void }) {
   return (
-    <View className="bg-white pb-sm pt-md">
+    <View className="flex-row items-center justify-between bg-white pb-sm pt-md">
       <Text variant="heading3" color="dark">
         {day}
       </Text>
+      {onCopy ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Copy ${day} to today`}
+          onPress={onCopy}
+          hitSlop={8}
+          className="flex-row items-center gap-xs py-xs"
+        >
+          <CopySimple size={18} color={colors.primary} />
+          <Text variant="caption" color="primary" className="font-semibold">
+            Copy
+          </Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -452,7 +490,7 @@ function LockedEarlierHistory({ historyLimitDays }: { historyLimitDays: number }
       <PremiumGate
         title="Subscribe to see your full history"
         subtitle={`Free history includes the most recent ${historyLimitDays} days.`}
-        onViewPlans={() => router.push("/(app)/settings/subscription")}
+        onViewPlans={() => router.push("/(app)/subscription")}
       >
         <Card className="min-h-[190px] gap-md bg-gray-100">
           {Array.from({ length: 3 }).map((_, index) => (

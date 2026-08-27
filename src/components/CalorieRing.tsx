@@ -1,5 +1,6 @@
 import { View } from "react-native";
 import Svg, { Circle } from "react-native-svg";
+import { useCountUp } from "@/hooks/useCountUp";
 import { colors } from "@/theme";
 import { Text } from "./Text";
 
@@ -30,6 +31,10 @@ export function CalorieRing({
   const ratio = target > 0 ? Math.min(consumed / target, 1) : 0;
   const center = size / 2;
   const isEmpty = consumed <= 0 && Boolean(emptyLabel);
+  // The arc and the percentage share one curve, so the number never reads ahead
+  // of the stroke. Three decimals keeps the sweep continuous rather than
+  // stepping through whole percent.
+  const drawnRatio = useCountUp(ratio, { decimals: 3, enabled: !isEmpty });
 
   return (
     <View style={{ width: size, height: size }}>
@@ -51,7 +56,7 @@ export function CalorieRing({
             strokeWidth={strokeWidth}
             fill="none"
             strokeLinecap="round"
-            strokeDasharray={`${circumference * ratio} ${circumference}`}
+            strokeDasharray={`${circumference * drawnRatio} ${circumference}`}
             transform={`rotate(90 ${center} ${center})`}
           />
         ) : null}
@@ -63,10 +68,10 @@ export function CalorieRing({
           </Text>
         ) : (
           <>
-            <Text variant="metric" color="dark">
-              {Math.round(ratio * 100)}%
+            <Text variant="metric" color="dark" accessibilityLabel={`${Math.round(ratio * 100)}%`}>
+              {Math.round(drawnRatio * 100)}%
             </Text>
-            <Text variant="micro" color="mutedText" className="font-semibold">
+            <Text variant="micro" color="subtle" className="font-semibold">
               Used
             </Text>
           </>

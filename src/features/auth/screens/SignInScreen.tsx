@@ -1,18 +1,23 @@
+import { Platform } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { View } from "react-native";
 import { z } from "zod";
 import { useAuth, useSignIn } from "@clerk/expo";
-import { Button, FormError, Input, PageHeader, Screen, Text } from "@/components";
+import { Button, FormError, Input, MailIcon } from "@/components";
 import { emailSchema } from "@/contracts";
-import { useAuthStatus } from "@/stores";
-import { SocialAuthButtons, type SocialAuthProvider } from "../components/SocialAuthButtons";
+import { useAuthStatus, useOnboardingDraft } from "@/stores";
+import appleIcon from "../../../assets/auth-apple.png";
+import googleIcon from "../../../assets/auth-google.png";
+import { AuthDivider } from "../components/AuthDivider";
+import { AuthProviderButton } from "../components/AuthProviderButton";
+import { AuthScreenShell } from "../components/AuthScreenShell";
 import { AuthSwitchLink } from "../components/AuthSwitchLink";
 import { logAuthError, useAuthScreenDiagnostics } from "../auth-debug";
 import { useAppleSignIn, useGoogleSignIn } from "../hooks/useAuth";
 
 type SignInParams = { authError?: string };
+type SocialProvider = "google" | "apple";
 
 const AUTH_ERROR_MESSAGES: Record<string, string> = {
   expired: "This sign-in code has expired. Request a new one below.",
@@ -41,16 +46,17 @@ export function SignInScreen() {
   useAuthScreenDiagnostics("email-sign-in", status, clerk);
   const google = useGoogleSignIn();
   const apple = useAppleSignIn();
-  const loadingProvider: SocialAuthProvider | null = google.isPending
+  // The draft keeps the name from this device's last sign-up, so a returning
+  // user gets greeted by name; a fresh install just gets the plain welcome.
+  const firstName = useOnboardingDraft().firstName?.trim().split(" ")[0];
+  const loadingProvider: SocialProvider | null = google.isPending
     ? "google"
     : apple.isPending
       ? "apple"
       : null;
   const socialError = google.error ?? apple.error;
-  const showSocialAuth = google.isConfigured || apple.isConfigured;
-  const hiddenProviders: SocialAuthProvider[] = (["google", "apple"] as const).filter((provider) =>
-    provider === "google" ? !google.isConfigured : !apple.isConfigured
-  );
+  const showGoogle = google.isConfigured;
+  const showApple = Platform.OS === "ios" && apple.isConfigured;
   const callbackError = authErrorMessage(typeof authError === "string" ? authError : undefined);
 
   const {
@@ -100,71 +106,74 @@ export function SignInScreen() {
     }
   });
 
-  const onProvider = (provider: SocialAuthProvider) => {
-    if (provider === "google") {
-      google.mutate();
-      return;
-    }
-    apple.mutate();
-  };
-
   return (
-    <Screen scroll>
-      <View className="gap-lg pt-xl">
-        <PageHeader
-          title="Sign in to Thrivo"
-          subtitle="Welcome back. We'll email you a secure 6-digit code that expires in 5 minutes."
-        />
+    <AuthScreenShell
+      title="Sign In to Thrivo"
+      subtitle={`Welcome back${firstName ? `, ${firstName}` : ""}! Request your magic link to continue.`}
+      // Narrower than the shell default so the greeting breaks after "your",
+      // the way the Sign In frame does.
+      subtitleWidth={292}
+    >
+      <FormError message={callbackError} center />
 
-        <View className="mt-md gap-lg">
-          <FormError message={callbackError} center />
-
-          <Controller
-            control={control}
-            name="email"
-            render={({ field: { onChange, onBlur, value } }) => (
-              <Input
-                label="Email"
-                placeholder="you@example.com"
-                autoCapitalize="none"
-                keyboardType="email-address"
-                autoComplete="email"
-                value={value}
-                onChangeText={onChange}
-                onBlur={onBlur}
-                error={errors.email?.message}
-              />
-            )}
+      <Controller
+        control={control}
+        name="email"
+        render={({ field: { onChange, onBlur, value } }) => (
+          <Input
+            label="Email"
+            placeholder="you@example.com"
+            leadingIcon={<MailIcon />}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            autoComplete="email"
+            value={value}
+            onChangeText={onChange}
+            onBlur={onBlur}
+            variant="auth"
+            error={errors.email?.message}
           />
+        )}
+      />
 
-          <FormError message={errors.root?.message} />
+      <FormError message={errors.root?.message} />
 
-          <Button label="Send code" loading={isSubmitting} onPress={send} />
+      <Button label="Request Magic Link" loading={isSubmitting} onPress={send} />
 
-          {showSocialAuth ? (
-            <>
-              <Text variant="caption" color="muted" className="my-xs text-center">
-                or continue with
-              </Text>
+      {showGoogle || showApple ? (
+        <>
+          <AuthDivider />
 
-              <SocialAuthButtons
-                onProvider={onProvider}
-                disabled={Boolean(loadingProvider) || isSubmitting}
-                hiddenProviders={hiddenProviders}
-                loadingProvider={loadingProvider}
-              />
-
-              <FormError message={socialError?.message} center />
-            </>
+          {showApple ? (
+            <AuthProviderButton
+              icon={appleIcon}
+              iconSize={24}
+              label="Continue with Apple ID"
+              loading={loadingProvider === "apple"}
+              disabled={Boolean(loadingProvider) || isSubmitting}
+              onPress={() => apple.mutate()}
+            />
           ) : null}
-        </View>
 
-        <AuthSwitchLink
-          prompt="Don't have an account?"
-          actionLabel="Sign up"
-          onPress={() => router.replace("/(auth)/email")}
-        />
-      </View>
-    </Screen>
+          {showGoogle ? (
+            <AuthProviderButton
+              icon={googleIcon}
+              label="Continue with Google"
+              loading={loadingProvider === "google"}
+              disabled={Boolean(loadingProvider) || isSubmitting}
+              onPress={() => google.mutate()}
+            />
+          ) : null}
+
+          <FormError message={socialError?.message} center />
+        </>
+      ) : null}
+
+      <AuthSwitchLink
+        prompt="Don't have an account yet?"
+        actionLabel="Sign Up"
+        onPress={() => router.replace("/(auth)/email")}
+      />
+    </AuthScreenShell>
   );
 }

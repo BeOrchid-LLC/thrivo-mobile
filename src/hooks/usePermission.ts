@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useCameraPermissions } from "expo-camera";
-import * as Notifications from "expo-notifications";
+import { getNotificationPermission, requestNotificationPermission } from "@/lib/notifications";
 
 /**
  * Uniform permission shape so screens can request a capability at point-of-use
@@ -37,7 +37,7 @@ export function useNotificationPermission(): PermissionState {
 
   useEffect(() => {
     let active = true;
-    void Notifications.getPermissionsAsync().then((p) => {
+    void getNotificationPermission().then((p) => {
       if (active) setState({ granted: p.granted, canAskAgain: p.canAskAgain, loading: false });
     });
     return () => {
@@ -46,7 +46,7 @@ export function useNotificationPermission(): PermissionState {
   }, []);
 
   const request = useCallback(async () => {
-    const p = await Notifications.requestPermissionsAsync();
+    const p = await requestNotificationPermission();
     setState({ granted: p.granted, canAskAgain: p.canAskAgain, loading: false });
     return p.granted;
   }, []);

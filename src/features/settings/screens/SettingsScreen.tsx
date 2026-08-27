@@ -5,13 +5,13 @@ import { router } from "expo-router";
 import {
   Bell,
   CaretRight,
+  ChatText,
   CheckCircle,
   Clock,
   FileText,
   FingerprintSimple,
   Ruler,
   ShieldCheck,
-  Ticket,
   Trash,
   X,
 } from "phosphor-react-native";
@@ -19,7 +19,6 @@ import {
   Button,
   PageHeader,
   Screen,
-  SectionError,
   SelectSheet,
   SkeletonText,
   Text,
@@ -32,9 +31,11 @@ import { useLogout } from "@/features/auth/hooks/useAuth";
 import { analytics } from "@/lib";
 import { useMe } from "@/features/profile";
 import { useSubscription } from "@/features/subscription";
+import { CancelSubscriptionDialogs } from "@/features/subscription/components/CancelSubscriptionDialogs";
 import { authenticateBiometric, isBiometricAvailable } from "@/lib/biometric";
 import { useBiometricAuthEnabled, usePreferencesActions } from "@/stores";
-import { colors } from "@/theme";
+import { colors, rhythm } from "@/theme";
+import { formatShortDate } from "@/utils";
 import { getOnboardingProgress } from "@/features/onboarding/utils/progress";
 import { useSettings } from "../hooks/useSettings";
 import { useUpdateSettings } from "../hooks/useUpdateSettings";
@@ -42,13 +43,6 @@ import { useUpdateSettings } from "../hooks/useUpdateSettings";
 function initials(name?: string | null) {
   const parts = (name || "Thrivo User").trim().split(/\s+/);
   return `${parts[0]?.[0] ?? "T"}${parts[1]?.[0] ?? ""}`.toUpperCase();
-}
-
-function shortDate(value?: string | null) {
-  if (!value) return null;
-  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(
-    new Date(value)
-  );
 }
 
 type UnitSystem = "metric" | "imperial";
@@ -75,6 +69,12 @@ function timeToDate(value?: string) {
 function dateToTime(date: Date) {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+/** The daily schedule as one line: "8:00 AM, 12:30 PM". */
+function formatTimes(times?: string[] | null) {
+  if (!times?.length) return "Not set yet";
+  return times.map((time) => formatTime(time)).join(", ");
 }
 
 function formatTime(value?: string) {
@@ -154,10 +154,9 @@ export function SettingsScreen() {
   const [biometricBusy, setBiometricBusy] = useState(false);
 
   // Which reminder-time field the native time picker is currently editing.
-  const [editingTime, setEditingTime] = useState<
-    "dailyFoodLogReminderTime" | "weightCheckReminderTime" | null
-  >(null);
+  const [editingTime, setEditingTime] = useState<"weightCheckReminderTime" | null>(null);
   const [editingSelect, setEditingSelect] = useState<"units" | "hydration" | null>(null);
+  const [confirmCancelOpen, setConfirmCancelOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
@@ -183,7 +182,10 @@ export function SettingsScreen() {
   const user = profile.data;
   const userSettings = settings.data;
   const sub = subscription.data?.subscription;
-  const renewsAt = shortDate(sub?.renewsAt ?? sub?.accessEndsAt);
+  const renewsAt = formatShortDate(sub?.renewsAt ?? sub?.accessEndsAt);
+  // The charge date is the renewal specifically — an access-end date is when
+  // premium stops, which is the opposite of a date money moves on.
+  const nextChargeOn = formatShortDate(sub?.renewsAt);
 
   const onTimePicked = (event: TimePickerEvent, date?: Date) => {
     const field = editingTime;
@@ -211,22 +213,23 @@ export function SettingsScreen() {
   }, [renewsAt, sub]);
   const settingsLoading = settings.isLoading || !userSettings;
 
+  const isPremium = sub?.entitlement === "premium";
+
   return (
     <Screen
       scroll
       edges={["top", "left", "right"]}
       backgroundColor={colors.white}
-      style={{ gap: 26, paddingTop: 32, paddingBottom: 32 }}
+      style={{ gap: rhythm.pageGap, paddingTop: rhythm.pageTop, paddingBottom: rhythm.pageTop }}
+      header={<PageHeader title="Settings" showBack={false} />}
       refreshing={refreshing}
       onRefresh={refresh}
     >
-      <PageHeader title="Settings" showBack={false} />
-
       <Section title="Profile">
         <Row
           iconWide
           icon={
-            <View className="h-[64px] w-[64px] items-center justify-center overflow-hidden rounded-full bg-primarySoft">
+            <View className="h-avatar w-avatar items-center justify-center overflow-hidden rounded-full bg-primarySoft">
               {user?.image ? (
                 <Image
                   accessibilityLabel="Profile photo"
@@ -254,7 +257,7 @@ export function SettingsScreen() {
               <CaretRight size={18} color={colors.gray[500]} />
             </View>
           }
-          onPress={() => router.push("/(app)/settings/personal-info")}
+          onPress={() => router.push("/(app)/personal-info")}
         />
         <Row
           icon={<Ruler size={24} color={colors.dark} />}
@@ -294,7 +297,7 @@ export function SettingsScreen() {
             title="Onboarding"
             subtitle={`${getOnboardingProgress(user!).completedSteps} of ${getOnboardingProgress(user!).totalSteps} complete`}
             action={<CaretRight size={18} color={colors.gray[500]} />}
-            onPress={() => router.push("/(app)/settings/onboarding")}
+            onPress={() => router.push("/(app)/onboarding-setup")}
           />
         )}
         <Row
@@ -302,37 +305,22 @@ export function SettingsScreen() {
           title="Targets and activity"
           subtitle="Activity level and calorie target"
           action={<CaretRight size={18} color={colors.gray[500]} />}
-          onPress={() => router.push("/(app)/settings/edit/target")}
+          onPress={() => router.push("/(app)/settings-edit/target")}
         />
         <Row
           icon={<Clock size={24} color={colors.dark} />}
           title="Meal reminders"
           subtitle="Reminder times and timezone"
           action={<CaretRight size={18} color={colors.gray[500]} />}
-          onPress={() => router.push("/(app)/settings/edit/notifications")}
+          onPress={() => router.push("/(app)/food-log-reminder")}
         />
-        {profile.isError ? (
-          <SectionError
-            title="Could not load profile"
-            message="Profile editing is still available once this refreshes."
-            onRetry={() => void profile.refetch()}
-            className="m-lg"
-          />
-        ) : null}
-        {settings.isError ? (
-          <SectionError
-            title="Could not load settings"
-            message="Try again before changing preferences."
-            onRetry={() => void settings.refetch()}
-            className="m-lg"
-          />
-        ) : null}
       </Section>
 
       <Section title="Notifications">
         <Row
           icon={<Clock size={24} color={colors.dark} />}
           title="Daily food log reminder"
+          subtitle="Push reminders to record what you've eaten"
           action={
             <Switch
               value={Boolean(userSettings?.dailyFoodLogReminderEnabled)}
@@ -346,12 +334,12 @@ export function SettingsScreen() {
         />
         <Row
           icon={<Bell size={22} color={colors.dark} />}
-          title="Reminder time"
+          title="Reminder times"
           subtitle={
-            settingsLoading ? (
-              <SkeletonText size="caption" className="mt-xxs w-1/3" />
+            profile.isLoading ? (
+              <SkeletonText size="caption" className="mt-xxs w-1/2" />
             ) : (
-              formatTime(userSettings.dailyFoodLogReminderTime)
+              formatTimes(user?.notifyTimes)
             )
           }
           action={
@@ -360,7 +348,23 @@ export function SettingsScreen() {
               <CaretRight size={18} color={colors.gray[500]} />
             </View>
           }
-          onPress={settingsLoading ? undefined : () => setEditingTime("dailyFoodLogReminderTime")}
+          onPress={() => router.push("/(app)/food-log-reminder")}
+        />
+        <Row
+          icon={<Bell size={22} color={colors.dark} />}
+          title="Psychology tips"
+          subtitle="Daily tips in push notifications"
+          action={
+            <Switch
+              accessibilityLabel="Psychology tips"
+              value={Boolean(userSettings?.psychologyTipPushEnabled)}
+              disabled={settingsLoading}
+              onValueChange={(psychologyTipPushEnabled) =>
+                updateSettings.mutate({ psychologyTipPushEnabled })
+              }
+              trackColor={{ true: colors.primaryBright, false: colors.gray[300] }}
+            />
+          }
         />
         <Row
           icon={<Bell size={22} color={colors.dark} />}
@@ -447,7 +451,7 @@ export function SettingsScreen() {
 
       <Section title="Subscription">
         <Row
-          icon={<Ticket size={23} color={colors.dark} />}
+          icon={<ChatText size={24} color={colors.dark} />}
           title={subscriptionTitle(sub?.plan)}
           subtitle={
             subscription.isLoading ? (
@@ -457,32 +461,24 @@ export function SettingsScreen() {
             )
           }
           action={
-            <Text color={sub?.entitlement === "premium" ? "success" : "primary"}>
-              {sub?.entitlement === "premium" ? "Active" : "Plans"}
+            <Text color={isPremium ? "successBright" : "primary"} className="font-semibold">
+              {isPremium ? "Active" : "Plans"}
             </Text>
           }
-          onPress={() => router.push("/(app)/settings/subscription")}
+          onPress={() => router.push("/(app)/subscription")}
         />
-        {subscription.isError ? (
-          <SectionError
-            title="Could not load subscription"
-            message="Plans are still available, but current access may be stale."
-            onRetry={() => void subscription.refetch()}
-            className="m-lg"
-          />
-        ) : null}
-        {sub?.entitlement === "premium" && sub.priceLabel && renewsAt ? (
+        {isPremium && sub.priceLabel && nextChargeOn && !sub.cancelAtPeriodEnd ? (
           <View className="px-lg py-lg">
             <View className="flex-row items-center justify-between rounded-md bg-primarySoft px-lg py-md">
               <Text>Next charge</Text>
               <Text className="font-semibold">
-                {sub.priceLabel} on {renewsAt}
+                {sub.priceLabel} on {nextChargeOn}
               </Text>
             </View>
             <Pressable
-              className="mt-lg min-h-[44px] items-center justify-center"
+              className="mt-lg min-h-touchTarget items-center justify-center"
               accessibilityRole="button"
-              onPress={() => router.push("/(app)/settings/subscription")}
+              onPress={() => setConfirmCancelOpen(true)}
             >
               <Text color="error" className="font-semibold">
                 Cancel subscription
@@ -537,7 +533,7 @@ export function SettingsScreen() {
           title="Delete account"
           subtitle="Permanently remove your account and all of your data"
           action={<CaretRight size={18} color={colors.gray[500]} />}
-          onPress={() => router.push("/(app)/settings/delete-account")}
+          onPress={() => router.push("/(app)/(tabs)/settings/delete-account")}
         />
       </Section>
 
@@ -547,6 +543,13 @@ export function SettingsScreen() {
         loading={logout.isPending}
         onPress={() => logout.mutate()}
         className="bg-primarySoft"
+      />
+
+      <CancelSubscriptionDialogs
+        visible={confirmCancelOpen}
+        onClose={() => setConfirmCancelOpen(false)}
+        accessEndsAt={sub?.accessEndsAt}
+        renewsAt={sub?.renewsAt}
       />
 
       {editingTime ? (

@@ -53,7 +53,7 @@ describe("SignInScreen", () => {
     const screen = render(<SignInScreen />);
 
     fireEvent.changeText(screen.getByLabelText("Email"), "ada@example.com");
-    fireEvent.press(screen.getByText("Send code"));
+    fireEvent.press(screen.getByText("Request Magic Link"));
 
     await waitFor(() => {
       expect(mockSignInCreate).toHaveBeenCalledWith({ identifier: "ada@example.com" });
@@ -75,7 +75,7 @@ describe("SignInScreen", () => {
     const screen = render(<SignInScreen />);
 
     fireEvent.changeText(screen.getByLabelText("Email"), "unknown@example.com");
-    fireEvent.press(screen.getByText("Send code"));
+    fireEvent.press(screen.getByText("Request Magic Link"));
 
     await waitFor(() => {
       expect(screen.getByText("No account found with that email.")).toBeTruthy();
@@ -91,13 +91,13 @@ describe("SignInScreen", () => {
 
   it("hides the Apple button when Apple is not configured", () => {
     const screen = render(<SignInScreen />);
-    expect(screen.queryByText("Continue with Apple")).toBeNull();
+    expect(screen.queryByText("Continue with Apple ID")).toBeNull();
   });
 
   it("routes the sign-up link directly to email sign-up", () => {
     const screen = render(<SignInScreen />);
 
-    fireEvent.press(screen.getByText("Sign up"));
+    fireEvent.press(screen.getByText("Sign Up"));
 
     expect(router.replace).toHaveBeenCalledWith("/(auth)/email");
     expect(router.push).not.toHaveBeenCalledWith("/(auth)/welcome");

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { Modal, Pressable, ScrollView, TextInput, View } from "react-native";
-import Svg, { Circle, Line, Path, Polyline } from "react-native-svg";
-import { Lock, TrendDown, Warning } from "phosphor-react-native";
+import { Modal, Pressable, ScrollView, View } from "react-native";
+import Svg, { Circle, G, Line, Path, Polyline, Text as SvgText } from "react-native-svg";
+import { CaretDown, Lock, Warning } from "phosphor-react-native";
 import { router } from "expo-router";
 import { queryClient, queryKeys } from "@/api";
 import {
@@ -11,23 +11,30 @@ import {
   PageHeader,
   Screen,
   SectionError,
-  SelectInput,
   SelectSheet,
   SkeletonBlock,
   SkeletonText,
-  StepperButton,
   Text,
 } from "@/components";
 import { isApiError } from "@/api/errors";
+import { useCountUp } from "@/hooks/useCountUp";
 import { useCurrentDay } from "@/hooks/useCurrentDay";
 import { useEntitlement } from "@/hooks/useEntitlement";
-import { colors } from "@/theme";
-import { formatWeight, localDay, roundTo, weightFromKg, weightToKg, weightUnitFor } from "@/utils";
+import { colors, fontFamilies } from "@/theme";
+import {
+  formatWeight,
+  localDay,
+  roundTo,
+  waterFromMl,
+  waterUnitFor,
+  weightFromKg,
+  weightUnitFor,
+} from "@/utils";
 import type { ChartMetric, ChartPeriod, ChartPoint, ProgressResponse } from "@/contracts";
 import { useSettings } from "@/features/settings";
 import { useFoodLogDay } from "@/features/food-logging";
 import { subscribeTabRootReset } from "@/navigation/tab-root-reset";
-import { useAddWeight, useMetricChart, useProgress, useWeightContext } from "../hooks/useProgress";
+import { useMetricChart, useProgress } from "../hooks/useProgress";
 
 const metricOptions = [
   { label: "Calories", value: "calories" },
@@ -48,31 +55,23 @@ const periodOptions = [
   { label: "All", value: "all", premiumOnly: true },
 ] as const satisfies readonly { label: string; value: ChartPeriod; premiumOnly?: boolean }[];
 
-type ViewMode = "home" | "log-weight";
 type ProgressData = ProgressResponse["progress"];
 
 export function ProgressScreen() {
   const day = useCurrentDay();
-  const [mode, setMode] = useState<ViewMode>("home");
   const [resetVersion, setResetVersion] = useState(0);
 
+  // Re-pressing the Progress tab puts the chart back on its default metric and
+  // period; remounting is what clears that state.
   useEffect(
-    () =>
-      subscribeTabRootReset("metrics", () => {
-        setMode("home");
-        setResetVersion((version) => version + 1);
-      }),
+    () => subscribeTabRootReset("metrics", () => setResetVersion((version) => version + 1)),
     []
   );
 
-  return mode === "log-weight" ? (
-    <LogWeightScreen day={day} onBack={() => setMode("home")} />
-  ) : (
-    <ProgressHome key={resetVersion} day={day} onLogWeight={() => setMode("log-weight")} />
-  );
+  return <ProgressHome key={resetVersion} day={day} />;
 }
 
-function ProgressHome({ day, onLogWeight }: { day: string; onLogWeight: () => void }) {
+function ProgressHome({ day }: { day: string }) {
   const [metric, setMetric] = useState<ChartMetric>("weight");
   const [period, setPeriod] = useState<ChartPeriod>("7d");
   const [metricSelectOpen, setMetricSelectOpen] = useState(false);
@@ -95,6 +94,7 @@ function ProgressHome({ day, onLogWeight }: { day: string; onLogWeight: () => vo
     value: option.value,
     locked: Boolean("premiumOnly" in option && option.premiumOnly && lockPremiumPeriods),
   }));
+  const chartUnitLabel = unitLabelFor(metric, unitSystem);
   const premiumRequired =
     chart.isError && isApiError(chart.error) && chart.error.code === "PREMIUM_REQUIRED";
   const data = progress.data?.progress;
@@ -110,11 +110,11 @@ function ProgressHome({ day, onLogWeight }: { day: string; onLogWeight: () => vo
     <Screen
       scroll
       edges={["top", "left", "right"]}
-      style={{ gap: 24, paddingTop: 32, paddingBottom: 16 }}
+      rhythm="default"
+      header={<PageHeader title="Progress" showBack={false} />}
       refreshing={refreshing}
       onRefresh={refresh}
     >
-      <PageHeader title="Progress" showBack={false} />
       {data ? (
         <SummaryCards data={data} unitSystem={unitSystem} />
       ) : progress.isLoading ? (
@@ -127,24 +127,38 @@ function ProgressHome({ day, onLogWeight }: { day: string; onLogWeight: () => vo
         />
       ) : null}
 
-      <View className="gap-md">
-        <Text variant="heading3" color="dark">
-          {labelForMetric(metric)} over time
-        </Text>
-        <SelectInput
-          label="Metric"
-          value={selectedMetricLabel}
+      <View className="gap-sm">
+        {/* The frame draws the chart controls as the heading and the caption
+            under it, not as two labelled fields — so the metric picker hangs off
+            the heading and the period picker off the caption. */}
+        <Pressable
+          accessibilityRole="button"
           accessibilityLabel="Select progress metric"
+          accessibilityValue={{ text: selectedMetricLabel }}
+          className="flex-row items-center gap-xs self-start"
+          hitSlop={6}
           onPress={() => setMetricSelectOpen(true)}
-        />
-        <SelectInput
-          label="Time period"
-          value={selectedPeriodLabel}
+        >
+          <Text variant="heading3" color="dark">
+            {labelForMetric(metric)} over time
+          </Text>
+          <CaretDown size={14} weight="bold" color={colors.gray[500]} />
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
           accessibilityLabel="Select time period"
+          accessibilityValue={{ text: selectedPeriodLabel }}
+          className="flex-row items-center gap-xs self-start"
+          hitSlop={8}
           onPress={() => setPeriodSelectOpen(true)}
-        />
+        >
+          <Text variant="body-sm" color="muted">
+            {selectedPeriodLabel} : {chartUnitLabel}
+          </Text>
+          <CaretDown size={12} weight="bold" color={colors.gray[500]} />
+        </Pressable>
         {premiumRequired ? (
-          <Card className="gap-sm bg-primarySoft">
+          <Card className="mt-sm gap-sm bg-primarySoft" style={{ borderWidth: 0 }}>
             <View className="flex-row items-center gap-sm">
               <Warning size={20} color={colors.primary} />
               <Text variant="heading3" color="primary">
@@ -153,37 +167,47 @@ function ProgressHome({ day, onLogWeight }: { day: string; onLogWeight: () => vo
             </View>
             <Text color="muted">Upgrade to view activity records beyond the nearest 14 days.</Text>
           </Card>
+        ) : chart.isLoading ? (
+          <ChartSkeleton />
+        ) : chart.isError ? (
+          <SectionError
+            title="Could not load chart"
+            message="Try this metric again."
+            onRetry={() => void chart.refetch()}
+            className="border-0 p-0"
+          />
         ) : (
-          <Card className="gap-sm">
-            {chart.isLoading ? (
-              <ChartSkeleton />
-            ) : chart.isError ? (
-              <SectionError
-                title="Could not load chart"
-                message="Try this metric again."
-                onRetry={() => void chart.refetch()}
-                className="border-0 p-0"
-              />
-            ) : (
-              <MetricChart
-                points={chart.data?.chart.points ?? []}
-                metric={chart.data?.chart.metric ?? metric}
-                unit={chart.data?.chart.unit}
-              />
-            )}
-          </Card>
+          <MetricChart
+            // Remounting on metric/period change replays the draw-on for
+            // the new series; without it the line would just swap in place.
+            key={`${metric}-${period}`}
+            points={chart.data?.chart.points ?? []}
+            metric={chart.data?.chart.metric ?? metric}
+            unitSystem={unitSystem}
+            unitLabel={chartUnitLabel}
+            axisLabel={axisLabelFor(period)}
+          />
         )}
         {data ? (
-          <View className="flex-row justify-between">
-            <Text color="muted">
-              {data.projection.projectedMonth
-                ? `At this rate, goal by ${data.projection.projectedMonth}`
-                : "Log more weights to project your goal"}
+          <View className="mt-xs flex-row items-center justify-between gap-md">
+            <Text variant="body-sm" color="muted" className="flex-1">
+              {data.projection.projectedMonth ? (
+                <>
+                  At this rate, goal by{" "}
+                  <Text variant="body-sm" color="primary">
+                    {data.projection.projectedMonth}
+                  </Text>
+                </>
+              ) : (
+                "Log more weights to project your goal"
+              )}
             </Text>
-            <Text color="muted">
+            <Text variant="body-sm" color="muted" className="shrink-0">
               {data.projection.weeklyRateKg === null
                 ? "Not enough data"
-                : `${formatWeight(data.projection.weeklyRateKg, unitSystem, { signed: true })} / week`}
+                : `~ ${formatWeight(data.projection.weeklyRateKg, unitSystem, {
+                    absolute: true,
+                  })} / week`}
             </Text>
           </View>
         ) : (
@@ -191,7 +215,11 @@ function ProgressHome({ day, onLogWeight }: { day: string; onLogWeight: () => vo
         )}
       </View>
 
-      <Button label="Log this week’s weight" onPress={onLogWeight} />
+      <Button
+        label="Log this week’s weight"
+        className="rounded-pill"
+        onPress={() => router.push("/(app)/log-weight")}
+      />
       {data ? (
         <StreakCalendar
           days={data.calendar.days}
@@ -204,8 +232,11 @@ function ProgressHome({ day, onLogWeight }: { day: string; onLogWeight: () => vo
       )}
       <Button
         label="Log something you ate"
-        variant="secondary"
-        onPress={() => router.push("/(app)/log")}
+        // The frame draws this one as a soft-green pill rather than the grey
+        // secondary: a green label on the primary tint.
+        variant="ghost"
+        className="bg-primarySoft"
+        onPress={() => router.push("/(app)/(tabs)/log")}
       />
       <SelectSheet
         title="Metric"
@@ -229,7 +260,7 @@ function ProgressHome({ day, onLogWeight }: { day: string; onLogWeight: () => vo
         onClose={() => setPremiumModalOpen(false)}
         onSubscribe={() => {
           setPremiumModalOpen(false);
-          router.push("/(app)/settings/subscription");
+          router.push("/(app)/subscription");
         }}
       />
       <CalendarDayLogSheet
@@ -254,7 +285,7 @@ function PremiumPeriodModal({
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View className="flex-1 items-center justify-center bg-black/30 px-xl">
         <View className="w-full gap-lg rounded-lg bg-white p-xl">
-          <View className="h-[48px] w-[48px] items-center justify-center self-center rounded-full bg-primarySoft">
+          <View className="h-badge w-badge items-center justify-center self-center rounded-full bg-primarySoft">
             <Warning size={26} color={colors.primary} />
           </View>
           <Text variant="body-lg" className="text-center font-semibold">
@@ -313,7 +344,7 @@ function CalendarDayLogSheet({
         />
       ) : detail?.isLocked ? (
         <View className="items-center gap-md py-md">
-          <View className="h-[52px] w-[52px] items-center justify-center rounded-full bg-gray-100">
+          <View className="h-badgeLg w-badgeLg items-center justify-center rounded-full bg-gray-100">
             <Lock size={26} color={colors.gray[500]} />
           </View>
           <Text variant="heading3" color="dark" className="text-center">
@@ -326,7 +357,7 @@ function CalendarDayLogSheet({
             label="View plans"
             onPress={() => {
               onClose();
-              router.push("/(app)/settings/subscription");
+              router.push("/(app)/subscription");
             }}
           />
         </View>
@@ -378,99 +409,6 @@ function CalendarDayLogSheet({
   );
 }
 
-function LogWeightScreen({ day, onBack }: { day: string; onBack: () => void }) {
-  const context = useWeightContext(day);
-  const addWeight = useAddWeight(day);
-  const settings = useSettings();
-  const unitSystem = settings.data?.unitSystem ?? "metric";
-  const weightUnit = weightUnitFor(unitSystem);
-  const currentWeight = context.data?.context.currentWeightKg
-    ? roundTo(weightFromKg(context.data.context.currentWeightKg, unitSystem), 1)
-    : unitSystem === "imperial"
-      ? 178
-      : 80.7;
-  const [weight, setWeight] = useState(String(currentWeight));
-  const numberValue = Number.parseFloat(weight);
-
-  const save = () => {
-    if (!Number.isFinite(numberValue) || numberValue <= 0) return;
-    addWeight.mutate(
-      { day, weightKg: roundTo(weightToKg(numberValue, unitSystem), 1) },
-      { onSuccess: onBack }
-    );
-  };
-
-  return (
-    <Screen scroll style={{ gap: 24 }}>
-      <PageHeader title="Log weight" subtitle="What does the scale say today?" onBack={onBack} />
-
-      <View className="gap-sm">
-        <Text variant="body" color="dark">
-          Today’s weight
-        </Text>
-        <View className="flex-row items-center gap-md">
-          <StepperButton
-            label="-"
-            onPress={() => setWeight(String(roundTo(Math.max(numberValue - 0.5, 1), 1)))}
-          />
-          <TextInput
-            value={weight}
-            onChangeText={setWeight}
-            keyboardType="decimal-pad"
-            className="min-h-[48px] flex-1 rounded-md bg-gray-100 px-lg text-center font-semibold text-body"
-            style={{ color: colors.dark }}
-          />
-          <Text color="primary">{weightUnit}</Text>
-          <StepperButton
-            label="+"
-            onPress={() => setWeight(String(roundTo(numberValue + 0.5, 1)))}
-          />
-        </View>
-        <Text color="muted">Tap the number to type the exact weight</Text>
-      </View>
-
-      <Card className="gap-md bg-gray-100">
-        <ComparisonRow
-          label="Yesterday"
-          detail={yesterdayLabel(day)}
-          value={formatWeight(context.data?.context.yesterdayWeightKg, unitSystem, {
-            absolute: true,
-          })}
-        />
-        <Divider />
-        <ComparisonRow
-          label="7-day average"
-          detail="Last 7 days"
-          value={formatWeight(context.data?.context.sevenDayAverageKg, unitSystem, {
-            absolute: true,
-          })}
-        />
-        <Divider />
-        <ComparisonRow
-          label="Goal weight"
-          value={formatWeight(context.data?.context.targetWeightKg, unitSystem, {
-            absolute: true,
-          })}
-          primary
-        />
-      </Card>
-
-      <View className="min-h-[44px] flex-row items-center justify-center gap-sm rounded-md bg-primarySoft">
-        <TrendDown size={20} color={colors.primary} />
-        <Text variant="body" color="primary" className="font-semibold">
-          {context.data?.context.projection.weeklyRateKg === null
-            ? "Start tracking"
-            : `${formatWeight(context.data?.context.projection.weeklyRateKg, unitSystem, {
-                signed: true,
-              })}  ${statusLabel(context.data?.context.projection.status)}`}
-        </Text>
-      </View>
-
-      <Button label="Save weight" loading={addWeight.isPending} onPress={save} />
-    </Screen>
-  );
-}
-
 function SummaryCards({
   data,
   unitSystem,
@@ -486,8 +424,18 @@ function SummaryCards({
         detail={
           data.summary.goalGapKg === null
             ? "Set a target to track progress"
-            : `${formatWeight(data.summary.goalGapKg, unitSystem, { absolute: true })} toward goal`
+            : // The frame reads "-7 lbs toward goal" — progress already made —
+              // but the summary only carries the remaining gap, so state that.
+              `${formatWeight(data.summary.goalGapKg, unitSystem, { absolute: true })} toward goal`
         }
+        tone="green"
+      />
+      <StatCard
+        label="Logging streak"
+        value={`${data.summary.currentStreakDays} ${
+          data.summary.currentStreakDays === 1 ? "day" : "days"
+        }`}
+        detail={`Personal best: ${data.summary.longestStreakDays}`}
         tone="green"
       />
       <StatCard
@@ -514,7 +462,7 @@ function SummarySkeleton() {
       {Array.from({ length: 4 }).map((_, index) => (
         <View
           key={index}
-          className="min-h-[96px] flex-1 basis-[46%] gap-sm rounded-md bg-gray-100 p-md"
+          className="min-h-[96px] flex-1 basis-[46%] justify-center gap-sm rounded-md bg-gray-100 p-md"
         >
           <SkeletonText size="caption" className="w-1/2" />
           <SkeletonText size="heading" className="w-2/3" />
@@ -527,9 +475,9 @@ function SummarySkeleton() {
 
 function ChartSkeleton() {
   return (
-    <View className="h-[180px] justify-between">
+    <View className="h-[200px] justify-between py-sm">
       <SkeletonText size="caption" className="w-1/6" />
-      <SkeletonBlock className="h-[96px] rounded-md" />
+      <SkeletonBlock className="h-[110px] rounded-md" />
       <View className="flex-row justify-between">
         <SkeletonText size="caption" className="w-1/5" />
         <SkeletonText size="caption" className="w-1/5" />
@@ -541,74 +489,226 @@ function ChartSkeleton() {
 
 function CalendarSkeleton() {
   return (
-    <Card className="gap-md bg-gray-100">
+    <Card className="gap-md bg-light" style={{ borderWidth: 0 }}>
       <View className="flex-row justify-between">
         <SkeletonText size="heading" className="w-1/3" />
         <SkeletonText className="w-1/4" />
       </View>
-      <View className="flex-row flex-wrap gap-xs">
-        {Array.from({ length: 35 }).map((_, index) => (
-          <SkeletonBlock key={index} className="h-[40px] w-[40px]" />
+      <View className="gap-xs">
+        {Array.from({ length: 5 }).map((_, row) => (
+          <View key={row} className="flex-row gap-xs">
+            {Array.from({ length: 7 }).map((__, cell) => (
+              <SkeletonBlock key={cell} className="h-[40px] flex-1 rounded-chip" />
+            ))}
+          </View>
         ))}
       </View>
     </Card>
   );
 }
 
+/**
+ * Plot box inside the 340x200 viewBox. The left gutter holds the value ticks and
+ * the band under `CHART_BOTTOM` holds the date labels + the axis caption, so the
+ * chart carries its own axes rather than relying on a surrounding card.
+ */
+const CHART_LEFT = 46;
+const CHART_RIGHT = 332;
+const CHART_TOP = 30;
+const CHART_BOTTOM = 150;
+
 function MetricChart({
   points,
   metric,
-  unit,
+  unitSystem,
+  unitLabel,
+  axisLabel,
 }: {
   points: ChartPoint[];
   metric: ChartMetric;
-  unit?: "kcal" | "ml" | "kg" | "g";
+  unitSystem: "metric" | "imperial";
+  unitLabel: string;
+  axisLabel: string;
 }) {
-  const valid = points.filter((point) => point.value !== null) as {
-    date: string;
-    value: number;
-  }[];
-  const path = useMemo(() => chartPolyline(valid), [valid]);
-  if (valid.length === 0) return <Text color="muted">No chart data yet.</Text>;
-  const latest = valid[valid.length - 1];
+  // The API answers in canonical units (kg, ml); the axis is labelled in the
+  // user's, so convert before anything is measured or scaled.
+  const series = useMemo(
+    () =>
+      points
+        .filter((point): point is { date: string; value: number } => point.value !== null)
+        .map((point) => ({
+          date: point.date,
+          value: displayValue(point.value, metric, unitSystem),
+        })),
+    [points, metric, unitSystem]
+  );
+  const geometry = useMemo(() => chartGeometry(series), [series]);
+  // 0 -> 1 sweep that draws the trend line left to right. `strokeDasharray` is
+  // set to the full polyline length and the offset walks it back to zero, so the
+  // stroke appears to be drawn rather than faded in.
+  const drawn = useCountUp(1, { decimals: 4 });
+  if (series.length === 0) return <Text color="muted">No chart data yet.</Text>;
+
+  const first = geometry.dots[0];
+  const last = geometry.dots[geometry.dots.length - 1];
+  const dateTickIndexes = axisTickIndexes(series.length);
 
   return (
-    <View className="gap-sm">
-      <Text variant="caption" color="muted">
-        {latest
-          ? `${labelForMetric(metric)} trend, latest ${formatChartValue(latest.value, metric, unit)}`
-          : `${labelForMetric(metric)} trend`}
-      </Text>
-      <Svg width="100%" height={180} viewBox="0 0 320 180">
-        <Line x1="0" y1="150" x2="320" y2="150" stroke={colors.gray[300]} strokeWidth="1" />
-        <Line x1="0" y1="95" x2="320" y2="95" stroke={colors.gray[200]} strokeWidth="1" />
-        <Line x1="0" y1="40" x2="320" y2="40" stroke={colors.gray[200]} strokeWidth="1" />
-        <Path d={`${path.area} Z`} fill={colors.primarySoft} />
-        <Polyline points={path.line} fill="none" stroke={colors.primary} strokeWidth="3" />
-        {path.dots.map((dot) => (
-          <Circle key={`${dot.x}-${dot.y}`} cx={dot.x} cy={dot.y} r="4" fill={colors.primary} />
-        ))}
-      </Svg>
-    </View>
+    <Svg
+      width="100%"
+      height={200}
+      viewBox="0 0 340 200"
+      accessibilityLabel={`${labelForMetric(metric)} over time, in ${unitLabel}`}
+    >
+      <SvgText
+        x={26}
+        y={14}
+        fill={colors.gray[500]}
+        fontSize={11}
+        fontFamily={fontFamilies.regular}
+      >
+        {unitLabel}
+      </SvgText>
+      {geometry.ticks.map((tick) => (
+        <G key={tick.value}>
+          <SvgText
+            x={34}
+            y={tick.y + 4}
+            fill={colors.gray[500]}
+            fontSize={11}
+            fontFamily={fontFamilies.regular}
+            textAnchor="end"
+          >
+            {formatAxisValue(tick.value, metric)}
+          </SvgText>
+          <Line
+            x1={CHART_LEFT - 8}
+            y1={tick.y}
+            x2={CHART_LEFT - 3}
+            y2={tick.y}
+            stroke={colors.gray[400]}
+            strokeWidth="1"
+          />
+        </G>
+      ))}
+      <Line
+        x1={CHART_LEFT}
+        y1={CHART_BOTTOM}
+        x2={CHART_RIGHT}
+        y2={CHART_BOTTOM}
+        stroke={colors.gray[300]}
+        strokeWidth="1"
+      />
+      {/* The fill trails the stroke slightly, so the line leads the shape. */}
+      <Path d={`${geometry.area} Z`} fill={colors.primarySoft} opacity={drawn * drawn} />
+      <Polyline
+        points={geometry.line}
+        fill="none"
+        stroke={colors.primary}
+        strokeWidth="2.5"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+        strokeDasharray={geometry.length}
+        strokeDashoffset={geometry.length * (1 - drawn)}
+      />
+      {/* Only the endpoints are marked, the way the frame draws them. */}
+      {first ? <Circle cx={first.x} cy={first.y} r="5" fill={colors.primary} /> : null}
+      {last && geometry.dots.length > 1 ? (
+        <Circle cx={last.x} cy={last.y} r="5" fill={colors.primary} opacity={drawn >= 1 ? 1 : 0} />
+      ) : null}
+      {dateTickIndexes.map((index) => (
+        <SvgText
+          key={series[index]?.date ?? index}
+          x={geometry.dots[index]?.x ?? CHART_LEFT}
+          y={CHART_BOTTOM + 18}
+          fill={colors.gray[500]}
+          fontSize={11}
+          fontFamily={fontFamilies.regular}
+          textAnchor="middle"
+        >
+          {formatAxisDate(series[index]?.date ?? "")}
+        </SvgText>
+      ))}
+      <SvgText
+        x={CHART_RIGHT}
+        y={CHART_BOTTOM + 38}
+        fill={colors.gray[500]}
+        fontSize={11}
+        fontFamily={fontFamilies.regular}
+        textAnchor="end"
+      >
+        {axisLabel}
+      </SvgText>
+    </Svg>
   );
 }
 
-function chartPolyline(points: { value: number }[]) {
+function chartGeometry(points: { value: number }[]) {
   const values = points.map((point) => point.value);
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const spread = Math.max(max - min, 1);
+  const { lo, hi } = niceDomain(Math.min(...values), Math.max(...values));
+  const spread = Math.max(hi - lo, 1);
+  const yFor = (value: number) =>
+    roundTo(CHART_BOTTOM - ((value - lo) / spread) * (CHART_BOTTOM - CHART_TOP), 1);
   const dots = points.map((point, index) => {
-    const x = points.length === 1 ? 160 : (index / (points.length - 1)) * 300 + 10;
-    const y = 150 - ((point.value - min) / spread) * 110;
-    return { x: roundTo(x, 1), y: roundTo(y, 1) };
+    const x =
+      points.length === 1
+        ? (CHART_LEFT + CHART_RIGHT) / 2
+        : CHART_LEFT + (index / (points.length - 1)) * (CHART_RIGHT - CHART_LEFT);
+    return { x: roundTo(x, 1), y: yFor(point.value) };
   });
   const line = dots.map((dot) => `${dot.x},${dot.y}`).join(" ");
-  const area = `M ${dots[0]?.x ?? 0} 150 ${dots.map((dot) => `L ${dot.x} ${dot.y}`).join(" ")} L ${
-    dots[dots.length - 1]?.x ?? 320
-  } 150`;
-  return { line, area, dots };
+  // Cumulative polyline length, used to drive the draw-on: `length` seeds the
+  // dash pattern the offset walks back to zero.
+  const length = dots
+    .slice(1)
+    .reduce(
+      (total, dot, index) => total + Math.hypot(dot.x - dots[index].x, dot.y - dots[index].y),
+      0
+    );
+  const area = `M ${dots[0]?.x ?? CHART_LEFT} ${CHART_BOTTOM} ${dots
+    .map((dot) => `L ${dot.x} ${dot.y}`)
+    .join(" ")} L ${dots[dots.length - 1]?.x ?? CHART_RIGHT} ${CHART_BOTTOM}`;
+  const ticks = [hi, (hi + lo) / 2, lo].map((value) => ({ value, y: yFor(value) }));
+  return { line, area, dots, length, ticks };
 }
+
+/**
+ * Round the value axis out to a readable step so the three tick labels land on
+ * whole numbers. Deliberately *not* zero-based: a weight series spanning 155-178
+ * would be a flat line against a 0 baseline, which is the one thing this chart
+ * exists to show.
+ */
+function niceDomain(min: number, max: number) {
+  const rawSpread = Math.max(max - min, Math.abs(max) * 0.02, 0.5);
+  const step = niceStep(rawSpread / 2);
+  return {
+    lo: Math.floor((min - rawSpread * 0.15) / step) * step,
+    hi: Math.ceil((max + rawSpread * 0.15) / step) * step,
+  };
+}
+
+function niceStep(rough: number) {
+  const magnitude = 10 ** Math.floor(Math.log10(Math.max(rough, Number.EPSILON)));
+  const normalized = rough / magnitude;
+  const step = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
+  return step * magnitude;
+}
+
+/** Up to four evenly spaced points get a date label; more would collide. */
+function axisTickIndexes(count: number) {
+  if (count <= 1) return count === 1 ? [0] : [];
+  const wanted = Math.min(4, count);
+  const step = (count - 1) / (wanted - 1);
+  return Array.from(new Set(Array.from({ length: wanted }, (_, i) => Math.round(i * step))));
+}
+
+type CalendarDay = {
+  day: string;
+  dayOfMonth: number;
+  logged: boolean;
+  today: boolean;
+  inMonth: boolean;
+};
 
 function StreakCalendar({
   days,
@@ -616,33 +716,53 @@ function StreakCalendar({
   longestStreakDays,
   onSelectDay,
 }: {
-  days: { day: string; dayOfMonth: number; logged: boolean; today: boolean; inMonth: boolean }[];
+  days: CalendarDay[];
   currentStreakDays: number;
   longestStreakDays: number;
   onSelectDay: (day: string) => void;
 }) {
   const rows = chunk(days, 7);
+  // The frame separates a day that has already passed with nothing logged
+  // (filled grey) from one still to come (white). The array is chronological, so
+  // today's position splits the two.
+  const todayIndex = days.findIndex((day) => day.today);
 
   return (
-    <Card className="gap-md rounded-[16px] border-0 bg-gray-100 px-lg py-lg">
-      <View className="flex-row justify-between">
-        <Text color="dark" className="font-semibold">
+    <Card className="gap-md bg-light px-lg py-lg" style={{ borderWidth: 0 }}>
+      <View className="flex-row items-center justify-between">
+        <Text variant="body" color="dark" className="font-semibold">
           Current streak: {currentStreakDays}
         </Text>
-        <Text color="muted">Personal best: {longestStreakDays}</Text>
+        <Text variant="body-sm" color="muted">
+          Personal best: {longestStreakDays}
+        </Text>
       </View>
-      <View className="flex-row justify-between">
+      <View className="flex-row gap-xs">
         {["S", "M", "T", "W", "T", "F", "S"].map((day, index) => (
-          <Text key={`${day}-${index}`} color="muted" className="w-[36px] text-center">
+          <Text
+            key={`${day}-${index}`}
+            variant="body-sm"
+            color="muted"
+            className="flex-1 text-center"
+          >
             {day}
           </Text>
         ))}
       </View>
       <View className="gap-xs">
         {rows.map((row, rowIndex) => (
-          <View key={`week-${rowIndex}`} className="flex-row justify-between">
-            {row.map((day) => (
-              <CalendarDayCell key={day.day} day={day} onPress={() => onSelectDay(day.day)} />
+          <View key={`week-${rowIndex}`} className="flex-row gap-xs">
+            {row.map((day, cellIndex) => (
+              <CalendarDayCell
+                key={day.day}
+                day={day}
+                past={todayIndex >= 0 && rowIndex * 7 + cellIndex < todayIndex}
+                onPress={() => onSelectDay(day.day)}
+              />
+            ))}
+            {/* Keeps a short final week aligned to the same seven columns. */}
+            {Array.from({ length: 7 - row.length }).map((_, index) => (
+              <View key={`filler-${index}`} className="flex-1" />
             ))}
           </View>
         ))}
@@ -658,28 +778,38 @@ function StreakCalendar({
 
 function CalendarDayCell({
   day,
+  past,
   onPress,
 }: {
-  day: { day: string; dayOfMonth: number; logged: boolean; today: boolean; inMonth: boolean };
+  day: CalendarDay;
+  past: boolean;
   onPress: () => void;
 }) {
   const stateClass = day.today
     ? "border-primary bg-primary"
     : day.logged
       ? "border-loggedGreenBorder bg-loggedGreen"
-      : "border-gray-200 bg-white";
-  const textColor = day.today ? "inverse" : day.logged ? "primary" : "muted";
+      : past
+        ? "border-gray-200 bg-gray-200"
+        : "border-gray-200 bg-white";
+  const textColor = day.today || day.logged ? "inverse" : "muted";
+  // Nothing was logged on this day, so the sheet would open empty — keep the
+  // cell inert instead of showing a dead-end bottom sheet.
+  const disabled = !day.logged;
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`View logs for ${day.day}`}
+      accessibilityLabel={disabled ? `No logs for ${day.day}` : `View logs for ${day.day}`}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
       onPress={onPress}
-      className={`h-[36px] w-[36px] items-center justify-center rounded-md border ${stateClass} ${
-        day.inMonth ? "" : "opacity-60"
-      }`}
+      // The cell fills its column so the grid matches the frame; hitSlop lifts
+      // the touch target to >=44pt (WCAG 2.2 AA), matching BackButton's approach.
+      hitSlop={4}
+      className={`h-[40px] flex-1 items-center justify-center rounded-chip border ${stateClass}`}
     >
-      <Text color={textColor} className={day.today ? "font-semibold" : undefined}>
+      <Text variant="label" color={textColor} className={day.today ? "font-semibold" : undefined}>
         {day.dayOfMonth}
       </Text>
     </Pressable>
@@ -699,15 +829,19 @@ function StatCard({
 }) {
   return (
     <View
-      className={`min-h-[96px] flex-1 basis-[46%] rounded-md p-md ${tone ? "bg-primarySoft" : "bg-gray-100"}`}
+      className={`min-h-[96px] flex-1 basis-[46%] justify-center rounded-md p-md ${
+        tone ? "bg-primarySoft" : "bg-gray-100"
+      }`}
     >
-      <Text variant="caption" color="dark">
+      <Text variant="label" color="dark">
         {label}
       </Text>
-      <Text variant="heading2" color="dark">
+      <Text variant="metric" color="dark">
         {value}
       </Text>
-      <Text color="muted">{detail}</Text>
+      <Text variant="micro" color="muted">
+        {detail}
+      </Text>
     </View>
   );
 }
@@ -725,41 +859,13 @@ function MiniTotal({ label, value }: { label: string; value: string }) {
   );
 }
 
-function ComparisonRow({
-  label,
-  detail,
-  value,
-  primary,
-}: {
-  label: string;
-  detail?: string;
-  value: string;
-  primary?: boolean;
-}) {
-  return (
-    <View className="flex-row justify-between gap-md">
-      <View>
-        <Text variant="body" color="dark">
-          {label}
-        </Text>
-        {detail ? <Text color="muted">{detail}</Text> : null}
-      </View>
-      <Text variant="body" color={primary ? "primary" : "dark"}>
-        {value}
-      </Text>
-    </View>
-  );
-}
-
-function Divider() {
-  return <View className="h-px bg-gray-200" />;
-}
-
 function Legend({ color, label }: { color: string; label: string }) {
   return (
     <View className="flex-row items-center gap-xs">
-      <View className={`h-[18px] w-[18px] rounded-sm border border-gray-200 ${color}`} />
-      <Text color="muted">{label}</Text>
+      <View className={`h-[16px] w-[16px] rounded-sm border border-gray-200 ${color}`} />
+      <Text variant="body-sm" color="muted">
+        {label}
+      </Text>
     </View>
   );
 }
@@ -781,9 +887,39 @@ function labelForMetric(metric: ChartMetric) {
   return "Weight";
 }
 
-function formatChartValue(value: number, metric: ChartMetric, unit?: "kcal" | "ml" | "kg" | "g") {
-  const rounded = metric === "weight" ? roundTo(value, 1) : Math.round(value);
-  return `${rounded.toLocaleString()} ${unit ?? (metric === "calories" ? "kcal" : metric === "water" ? "ml" : metric === "weight" ? "kg" : "g")}`;
+/** Canonical API value (kg / ml) -> the unit the user reads the app in. */
+function displayValue(value: number, metric: ChartMetric, unitSystem: "metric" | "imperial") {
+  if (metric === "weight") return weightFromKg(value, unitSystem);
+  if (metric === "water") return waterFromMl(value, unitSystem);
+  return value;
+}
+
+function unitLabelFor(metric: ChartMetric, unitSystem: "metric" | "imperial") {
+  if (metric === "weight") return weightUnitFor(unitSystem);
+  if (metric === "water") return waterUnitFor(unitSystem);
+  if (metric === "calories") return "kcal";
+  return "g";
+}
+
+/** The time unit the x axis is read in, captioned bottom-right of the chart. */
+function axisLabelFor(period: ChartPeriod) {
+  if (period === "7d" || period === "14d") return "days";
+  if (period === "1m" || period === "1q") return "weeks";
+  return "months";
+}
+
+function formatAxisValue(value: number, metric: ChartMetric) {
+  const decimals = metric === "weight" && Math.abs(value) < 100 ? 1 : 0;
+  return roundTo(value, decimals).toLocaleString();
+}
+
+function formatAxisDate(day: string) {
+  if (!day) return "";
+  return new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${day}T00:00:00.000Z`));
 }
 
 function formatDayTitle(day: string) {
@@ -798,20 +934,5 @@ function formatDayTitle(day: string) {
 function formatEntryTime(value: string) {
   return new Intl.DateTimeFormat([], { hour: "numeric", minute: "2-digit" }).format(
     new Date(value)
-  );
-}
-
-function statusLabel(status: string | undefined) {
-  if (status === "on_track") return "On track";
-  if (status === "maintaining") return "Maintaining";
-  if (status === "off_track") return "Off track";
-  return "Keep logging";
-}
-
-function yesterdayLabel(day: string) {
-  const date = new Date(`${day}T00:00:00.000Z`);
-  date.setUTCDate(date.getUTCDate() - 1);
-  return new Intl.DateTimeFormat("en", { month: "short", day: "numeric", timeZone: "UTC" }).format(
-    date
   );
 }

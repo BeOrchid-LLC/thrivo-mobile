@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useClerk } from "@clerk/expo";
 import { callApi, clearPersistedQueryCache } from "@/api";
 import { analytics, clearUserScopedStorage, monitoring } from "@/lib";
-import { useBiometricUnlockActions, resetUserStores, useSessionActions } from "@/stores";
+import { resetUserScopedStores, useBiometricUnlockActions, useSessionActions } from "@/stores";
 
 /**
  * Permanently deletes the signed-in user's account.
@@ -61,7 +61,7 @@ export function useDeleteAccount() {
       // Only clear local state once the server confirmed deletion.
       clearSession();
       setBiometricUnlocked(false);
-      resetUserStores?.();
+      resetUserScopedStores();
       queryClient.clear();
       analytics?.reset?.();
       monitoring.setUser(null);

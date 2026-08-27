@@ -11,6 +11,14 @@ export type AuthStatus = "loading" | "authenticated" | "unauthenticated" | "rest
 
 interface SessionState {
   status: AuthStatus;
+  /**
+   * Why session restore failed, in the form `CODE: message`. Shown on the
+   * restore-error screen: that screen is retryable and otherwise says nothing
+   * about the cause, which makes a restore failure on a real device impossible
+   * to diagnose without a debugger attached. Null unless status is
+   * `restore_error`.
+   */
+  restoreError: string | null;
   userId: string | null;
   accountStatus: AccountStatus | null;
   isOnboarded: boolean;
@@ -34,6 +42,8 @@ interface SessionState {
     /** Optimistically mark onboarding as skipped (used by every skip path). */
     setIsOnboardingSkipped: (value: boolean) => void;
     setStatus: (status: AuthStatus) => void;
+    /** Park on the restore-error screen, recording why. */
+    setRestoreError: (detail: string) => void;
     /** Clear on sign-out / 401. */
     clearSession: () => void;
   };
@@ -41,6 +51,7 @@ interface SessionState {
 
 const initialState = {
   status: "loading" as AuthStatus,
+  restoreError: null,
   userId: null,
   accountStatus: null,
   isOnboarded: false,
@@ -53,6 +64,7 @@ export const useSessionStore = create<SessionState>((set) => ({
     setSession: ({ userId, accountStatus, isOnboarded, isOnboardingSkipped }) =>
       set({
         status: "authenticated",
+        restoreError: null,
         userId,
         accountStatus,
         isOnboarded,
@@ -62,10 +74,13 @@ export const useSessionStore = create<SessionState>((set) => ({
       set({ accountStatus, isOnboarded, isOnboardingSkipped }),
     setIsOnboarded: (isOnboarded) => set({ isOnboarded }),
     setIsOnboardingSkipped: (isOnboardingSkipped) => set({ isOnboardingSkipped }),
-    setStatus: (status) => set({ status }),
+    setStatus: (status) =>
+      set(status === "restore_error" ? { status } : { status, restoreError: null }),
+    setRestoreError: (detail) => set({ status: "restore_error", restoreError: detail }),
     clearSession: () =>
       set({
         status: "unauthenticated",
+        restoreError: null,
         userId: null,
         accountStatus: null,
         isOnboarded: false,
@@ -76,7 +91,9 @@ export const useSessionStore = create<SessionState>((set) => ({
 
 // Selector hooks — components subscribe to the narrowest slice they need.
 export const useAuthStatus = () => useSessionStore((s) => s.status);
+export const useRestoreError = () => useSessionStore((s) => s.restoreError);
 export const useIsAuthenticated = () => useSessionStore((s) => s.status === "authenticated");
+export const useUserId = () => useSessionStore((s) => s.userId);
 export const useAccountStatus = () => useSessionStore((s) => s.accountStatus);
 export const useIsOnboarded = () => useSessionStore((s) => s.isOnboarded);
 export const useIsOnboardingSkipped = () => useSessionStore((s) => s.isOnboardingSkipped);

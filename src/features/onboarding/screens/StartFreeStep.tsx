@@ -1,24 +1,68 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { router } from "expo-router";
 import { View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { Button, CheckIcon, Text } from "@/components";
-import { colors } from "@/theme";
+import { SealCheck } from "phosphor-react-native";
+import { Button, Text } from "@/components";
+import { colors, spacing } from "@/theme";
+import { addDays, localDay } from "@/utils";
 import { OnboardingStep } from "@/features/onboarding/components/OnboardingStep";
-import { NoteBox } from "@/features/onboarding/components/NoteBox";
+import { TOTAL_ONBOARDING_STEPS } from "@/features/onboarding/config";
 import { useSubmitOnboarding } from "@/features/onboarding/hooks/useCompleteOnboarding";
 import { useOnboardingPrefill } from "@/features/onboarding/hooks/useOnboardingPrefill";
-import { productForPlan, useOfferings, usePurchaseSubscription } from "@/features/subscription";
+import {
+  productForPlan,
+  useOfferings,
+  useOfferingsDiagnostics,
+  usePurchaseSubscription,
+} from "@/features/subscription";
 import { useOnboardingDraftActions, useSessionActions } from "@/stores";
-import { isBillingConfigured } from "@/lib";
+import { isBillingConfigured, type SubscriptionProduct } from "@/lib";
 import type { OnboardingStepProps } from "../types";
 
+/** The frame's four value props, in its order. */
 const TRIAL_FEATURES = [
-  "Food, water, calories, and weight history beyond 14 days",
-  "Longer trend charts across progress metrics",
-  "Full food log history for reviewing patterns",
-  "Premium insights as they become available",
+  "Barcode food scanner - 5M+ items",
+  "Daily calorie + macro dashboard",
+  "Nudges + check-ins",
+  "No ads, no fake coaches, no upsells",
 ];
+
+/**
+ * Figma "Onboarding S6" metrics the shared step chrome does not carry, measured
+ * off the frame. The panel sets more air above and below its content than
+ * beside it, and the ledger sits further from the headline than the scale's 24.
+ */
+const CARD_PADDING_X = spacing.xl;
+const CARD_PADDING_Y = 28;
+const HEADLINE_TO_LEDGER = 28;
+const FEATURE_ICON = 24;
+/** The frame sets the panel and the feature list a little apart. */
+const CONTENT_GAP = 21;
+
+const formatDay = (day: string, withYear: boolean): string => {
+  const [year, month, date] = day.split("-").map(Number);
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    ...(withYear ? { year: "numeric" } : {}),
+  }).format(new Date(year, month - 1, date));
+};
+
+/**
+ * The dates the frame quotes, derived from the store's own trial length so the
+ * paywall and the purchase sheet can never disagree. `null` whenever the offer
+ * carries no trial (or the store has not answered yet).
+ */
+function trialDates(product: SubscriptionProduct | undefined) {
+  if (!product?.hasFreeTrial || !product.trialDays) return null;
+  const endsOn = addDays(localDay(), product.trialDays);
+  return {
+    days: product.trialDays,
+    endsLong: formatDay(endsOn, true),
+    endsShort: formatDay(endsOn, false),
+  };
+}
 
 export default function StartFreeStep({
   mode = "initial",
@@ -30,24 +74,15 @@ export default function StartFreeStep({
 }: OnboardingStepProps) {
   useOnboardingPrefill();
   const offerings = useOfferings();
+  useOfferingsDiagnostics(offerings);
   const purchase = usePurchaseSubscription();
   const { setFields } = useOnboardingDraftActions();
-  const { submit, isPending } = useSubmitOnboarding();
   const { setIsOnboardingSkipped } = useSessionActions();
+  const { submit, isPending } = useSubmitOnboarding();
   const [error, setError] = useState<string | null>(null);
   const product = productForPlan(offerings.data, "monthly");
-
-  const continueWithoutPreview = () => {
-    const fields = { onboardingStep: 6 as const };
-    setFields(fields);
-    if (mode === "revisit") {
-      void onNext?.(fields);
-      return;
-    }
-    setIsOnboardingSkipped(true);
-    router.replace("/(app)/dashboard");
-    void submit("skip", { silent: true, onboardingStep: 6 });
-  };
+  const trial = trialDates(product);
+  const price = product?.priceLabel;
 
   const startTrial = async () => {
     setError(null);
@@ -59,99 +94,142 @@ export default function StartFreeStep({
         isTrial: product.hasFreeTrial,
       });
       if (!result.confirmed) throw new Error("Activation delayed");
-      await submit("skip", { silent: false, onboardingStep: 6 });
-      if (mode === "revisit") await onNext?.({ onboardingStep: 6 });
+      setFields({ onboardingStep: 5 });
+      await submit("skip", { silent: false, onboardingStep: 5 });
+      if (mode === "revisit") await onNext?.({ onboardingStep: 5 });
       else router.push("/(onboarding)/notifications");
     } catch {
-      setError("We couldn't start your premium preview. Please try again.");
+      setError("We couldn't start your free trial. Please try again.");
     }
+  };
+
+  /**
+   * The paywall is not a gate: a user who declines the trial goes straight to
+   * the dashboard, the same way every other step's skip does. The flag keeps
+   * the root guard from bouncing them back into onboarding, and the profile
+   * write is fire-and-forget so the hand-off is instant.
+   */
+  const skip = () => {
+    if (mode === "revisit") {
+      onDone?.();
+      return;
+    }
+    setFields({ onboardingStep: 5 });
+    setIsOnboardingSkipped(true);
+    router.replace("/(app)/(tabs)/dashboard");
+    void submit("skip", { silent: true, onboardingStep: 5 });
   };
 
   return (
     <OnboardingStep
-      step={6}
-      title="Start your premium preview"
-      subtitle="Choose the store offer shown below. Pricing and any introductory period come from your app store."
+      // S6 is the frame's closing screen, so it titles the page "Almost done"
+      // and draws the track full.
+      step={TOTAL_ONBOARDING_STEPS}
+      sectionTitle="Almost done"
+      title="Start your free trial"
+      subtitle="Everything Thrivo offers, unlocked. No hidden fees."
+      // S6 states its subtitle in the body colour rather than the grey the
+      // question steps use.
+      subtitleColor="dark"
+      contentGap={CONTENT_GAP}
       onBack={mode === "revisit" ? onBack : undefined}
       variant={variant}
       footer={
         <>
           <Button
-            label={product?.hasFreeTrial ? "Use store offer" : "Subscribe with store"}
+            label={
+              trial ? "Start free trial - $0 today" : price ? `Subscribe - ${price}` : "Subscribe"
+            }
             loading={isPending || isSaving || purchase.isPending || offerings.isLoading}
             onPress={() => void startTrial()}
           />
-          <Text variant="caption" color="muted" className="text-center font-regular">
-            {product?.hasFreeTrial ? `${product.trialLabel}. ` : ""}You can manage access in
-            Settings.
+          <Text variant="caption" color="subtle" className="text-center">
+            {trial
+              ? `A card is required to start your trial. You won’t be charged until ${trial.endsLong}. Cancel anytime before then.`
+              : "A card is required. You can cancel anytime in Settings."}
           </Text>
-          <Button
-            label={mode === "revisit" ? "Continue without premium" : "Skip for now"}
-            variant="ghost"
-            disabled={isPending || isSaving}
-            onPress={continueWithoutPreview}
-          />
           {error ? (
             <Text variant="caption" color="error" className="text-center" selectable>
               {error}
             </Text>
           ) : null}
+          <Button
+            label={mode === "revisit" ? "Continue without premium" : "Skip for now"}
+            variant={mode === "revisit" ? "ghost" : "outline"}
+            disabled={isPending || isSaving}
+            onPress={skip}
+          />
         </>
       }
     >
-      <View className="overflow-hidden rounded-[20px] border-[1.333px] border-primary">
+      <View className="overflow-hidden rounded-group border-[1.5px] border-targetGreen">
+        {/* Straight down, dark to the brand green — the frame's panel shows no
+            horizontal shift at any height. */}
         <LinearGradient
-          colors={[colors.dark, colors.gradientMid, colors.primaryBright]}
+          colors={[colors.dark, colors.primary]}
           start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={{ padding: 24 }}
+          end={{ x: 0, y: 1 }}
+          style={{ paddingHorizontal: CARD_PADDING_X, paddingVertical: CARD_PADDING_Y }}
         >
           <View className="flex-row items-end">
-            <Text variant="hero" color="light" className="font-bold">
-              {product?.priceLabel ?? "Store price unavailable"}
+            <Text variant="heading2" color="inverse" className="font-bold">
+              {price ?? "—"}
             </Text>
-            <Text variant="body" color="light70" className="mb-[3px] ml-xs">
-              / {product?.periodLabel ?? "period"}
+            <Text variant="body" color="inverse" className="ml-sm">
+              / {product?.periodLabel ?? "month"}
             </Text>
           </View>
-          <Text variant="body" color="accent" className="mt-xs font-bold">
-            {product?.trialLabel ?? "Standard store pricing"}
+          <Text variant="body" color="accent" className="mt-md font-bold">
+            {trial
+              ? `${trial.days}-day free trial`
+              : product
+                ? "Cancel anytime"
+                : "Store offer unavailable"}
           </Text>
-          <View className="mt-md gap-sm">
-            <PriceRow label="Plan price" value={product?.priceLabel ?? "Unavailable"} />
-            {product?.hasFreeTrial ? (
-              <PriceRow label="Introductory offer" value={product.trialLabel ?? "Free"} accent />
-            ) : null}
+          <View style={{ marginTop: HEADLINE_TO_LEDGER }} className="gap-md">
+            {trial ? (
+              <>
+                <PriceRow label="Trial ends" value={trial.endsLong} />
+                <PriceRow
+                  label="First charge"
+                  value={price ? `${price} on ${trial.endsShort}` : trial.endsShort}
+                />
+                <PriceRow label="Cancel before then" value="Pay nothing" accent />
+              </>
+            ) : (
+              <>
+                <PriceRow label="Plan price" value={price ?? "Unavailable"} />
+                <PriceRow label="First charge" value="Today" />
+                <PriceRow label="Cancel anytime" value="In Settings" accent />
+              </>
+            )}
           </View>
         </LinearGradient>
       </View>
-      <NoteBox title="How to manage access">Settings → Subscription</NoteBox>
-      <View className="gap-md">
+
+      {/* The frame centres the list as a block, with the rows left-aligned to
+          the longest one rather than each row centred on its own. */}
+      <View className="max-w-full gap-lg self-center">
         {TRIAL_FEATURES.map((feature) => (
           <View key={feature} className="flex-row items-center gap-sm">
-            <View className="h-[22px] w-[22px] items-center justify-center rounded-pill bg-primaryBright/[0.08]">
-              <CheckIcon size={12} color={colors.primary} />
-            </View>
-            <Text variant="body" color="dark" className="flex-1">
+            <SealCheck size={FEATURE_ICON} color={colors.primary} />
+            <Text variant="body" color="dark" className="shrink">
               {feature}
             </Text>
           </View>
         ))}
       </View>
-      <Text variant="caption" color="muted" className="font-regular">
-        Billing and eligibility are determined by the store at checkout.
-      </Text>
     </OnboardingStep>
   );
 }
 
 function PriceRow({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
-    <View className="flex-row justify-between">
-      <Text variant="label" color="light70">
+    <View className="flex-row items-center justify-between gap-md">
+      <Text variant="label" color="light" className="font-medium">
         {label}
       </Text>
-      <Text variant="label" color={accent ? "accent" : "light"} className="font-semibold">
+      <Text variant="label" color={accent ? "accent" : "inverse"} className="shrink font-semibold">
         {value}
       </Text>
     </View>

@@ -6,6 +6,7 @@ import {
   CaloriesSummarySection,
   DashboardHeader,
   MacrosSection,
+  MoodCheckinSection,
   StreakSection,
   TodayMealLogSection,
   WaterSection,
@@ -30,12 +31,13 @@ export default function Dashboard() {
     <Screen
       scroll
       edges={["top", "left", "right"]}
-      style={{ paddingTop: 32, paddingBottom: 16 }}
+      rhythm="default"
+      header={<DashboardHeader />}
       refreshing={refreshing}
       onRefresh={refresh}
     >
       <View className="gap-lg">
-        <DashboardHeader />
+        <MoodCheckinSection />
         <CaloriesSummarySection />
         <MacrosSection />
         <StreakSection />

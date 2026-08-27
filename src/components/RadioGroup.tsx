@@ -20,7 +20,7 @@ export interface RadioGroupProps<T extends string> {
  */
 export function RadioGroup<T extends string>({ options, value, onChange }: RadioGroupProps<T>) {
   return (
-    <View className="overflow-hidden rounded-[14px] border-[1.333px] border-gray-300 bg-white">
+    <View className="overflow-hidden rounded-group border-[1.333px] border-gray-300 bg-white">
       {options.map((opt, i) => {
         const active = opt.value === value;
         const divider = i < options.length - 1 ? "border-b-[0.667px] border-gray-100" : "";
@@ -30,7 +30,7 @@ export function RadioGroup<T extends string>({ options, value, onChange }: Radio
             accessibilityRole="radio"
             accessibilityState={{ selected: active }}
             onPress={() => onChange(opt.value)}
-            className={`min-h-[52px] flex-row items-center gap-[14px] px-lg ${
+            className={`min-h-controlLg flex-row items-center gap-[14px] px-lg ${
               active ? "bg-primaryBright/20" : ""
             } ${divider}`}
           >

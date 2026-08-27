@@ -11,28 +11,35 @@ export interface StartTrialVariables {
  * Starts the card-required trial. On the stores a trial is not a separate
  * transaction — it is the same subscription product bought with its
  * introductory offer attached, so this runs the identical purchase flow and
- * differs only in which event it reports and which endpoint it mirrors to.
+ * differs only in which event it reports.
  *
  * Trial eligibility is decided by the store, not by us: a user who already
  * consumed the intro offer is simply charged full price, which is why the
  * backend's `trialUsed` flag must never be treated as authoritative for billing.
+ *
+ * Returns a *new* object rather than reassigning `mutate` on the one
+ * `usePurchaseSubscription` returned. Overwriting in place made the wrapper its
+ * own target — `purchase.mutate` resolved to the replacement — so `mutate`
+ * recursed instead of purchasing and no trial ever started.
  */
 export function useStartTrial() {
   const purchase = usePurchaseSubscription();
-  const mutation = purchase as any as typeof purchase & {
-    mutate: (variables: StartTrialVariables, options?: unknown) => void;
-    mutateAsync: (variables: StartTrialVariables) => ReturnType<typeof purchase.mutateAsync>;
+
+  return {
+    ...purchase,
+    mutate: (
+      variables: StartTrialVariables,
+      options?: Parameters<typeof purchase.mutate>[1]
+    ): void =>
+      purchase.mutate(
+        { plan: variables.plan, packageId: variables.productId, isTrial: true },
+        options
+      ),
+    mutateAsync: (variables: StartTrialVariables) =>
+      purchase.mutateAsync({
+        plan: variables.plan,
+        packageId: variables.productId,
+        isTrial: true,
+      }),
   };
-  mutation.mutate = (variables, options) =>
-    purchase.mutate(
-      { plan: (variables as any).plan, packageId: (variables as any).productId, isTrial: true },
-      options as never
-    );
-  mutation.mutateAsync = (variables) =>
-    purchase.mutateAsync({
-      plan: (variables as any).plan,
-      packageId: (variables as any).productId,
-      isTrial: true,
-    });
-  return mutation;
 }

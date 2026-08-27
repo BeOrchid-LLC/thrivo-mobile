@@ -10,9 +10,19 @@ export interface AuthSwitchLinkProps {
 /** Shared footer link for switching between sign-up and sign-in flows. */
 export function AuthSwitchLink({ prompt, actionLabel, onPress }: AuthSwitchLinkProps) {
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} className="mt-sm items-center">
-      <Text variant="caption" color="muted">
-        {prompt} <Text color="primary">{actionLabel}</Text>
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      className="min-h-touchTarget items-center justify-center"
+      // Pull up by the leading the 48pt touch target adds above the label, so
+      // the text lands on the Figma baseline rather than the hit area doing.
+      style={{ marginTop: -9 }}
+    >
+      <Text variant="body" color="dark" className="text-center">
+        {prompt}{" "}
+        <Text variant="body" color="accent" className="font-semibold">
+          {actionLabel}
+        </Text>
       </Text>
     </Pressable>
   );

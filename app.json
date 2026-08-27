@@ -18,12 +18,7 @@
     "splash": {
       "image": "./src/assets/splash-new.png",
       "resizeMode": "contain",
-      "backgroundColor": "#F4F6F9",
-      "dark": {
-        "image": "./src/assets/splash-new.png",
-        "resizeMode": "contain",
-        "backgroundColor": "#E8F7EE"
-      }
+      "backgroundColor": "#F4F6F9"
     },
     "ios": {
       "supportsTablet": true,
@@ -33,12 +28,7 @@
       "splash": {
         "image": "./src/assets/splash-new.png",
         "resizeMode": "contain",
-        "backgroundColor": "#F4F6F9",
-        "dark": {
-          "image": "./src/assets/splash-new.png",
-          "resizeMode": "contain",
-          "backgroundColor": "#E8F7EE"
-        }
+        "backgroundColor": "#F4F6F9"
       }
     },
     "android": {
@@ -79,12 +69,7 @@
       "splash": {
         "image": "./src/assets/splash-new.png",
         "resizeMode": "contain",
-        "backgroundColor": "#F4F6F9",
-        "dark": {
-          "image": "./src/assets/splash-new.png",
-          "resizeMode": "contain",
-          "backgroundColor": "#E8F7EE"
-        }
+        "backgroundColor": "#F4F6F9"
       }
     },
     "web": {

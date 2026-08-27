@@ -226,7 +226,7 @@ export function EditFoodLogSheet({ entry, visible, onClose }: EditFoodLogSheetPr
             <PremiumGate
               title="Subscribe to see macros"
               subtitle="Protein, carbs, and fat unlock with Premium."
-              onViewPlans={() => router.push("/(app)/settings/subscription")}
+              onViewPlans={() => router.push("/(app)/subscription")}
             >
               {macros}
             </PremiumGate>
@@ -248,7 +248,7 @@ export function EditFoodLogSheet({ entry, visible, onClose }: EditFoodLogSheetPr
             accessibilityLabel="Delete entry"
             onPress={confirmDelete}
             disabled={deleteLog.isPending || updateLog.isPending}
-            className="items-center py-sm"
+            className="min-h-touchTarget items-center justify-center"
           >
             <Text variant="body" color="error" className="font-semibold">
               {deleteLog.isPending ? "Deleting..." : "Delete entry"}
@@ -270,7 +270,7 @@ export function EditFoodLogSheet({ entry, visible, onClose }: EditFoodLogSheetPr
             <PremiumGate
               title="Subscribe to see macros"
               subtitle="Protein, carbs, and fat unlock with Premium."
-              onViewPlans={() => router.push("/(app)/settings/subscription")}
+              onViewPlans={() => router.push("/(app)/subscription")}
             >
               {macros}
             </PremiumGate>

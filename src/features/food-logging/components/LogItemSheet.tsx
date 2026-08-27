@@ -198,7 +198,7 @@ export function LogItemSheet({ item, day, visible, onClose }: LogItemSheetProps)
         <PremiumGate
           title="Subscribe to see macros"
           subtitle="Protein, carbs, and fat unlock with Premium."
-          onViewPlans={() => router.push("/(app)/settings/subscription")}
+          onViewPlans={() => router.push("/(app)/subscription")}
         >
           {macros}
         </PremiumGate>
@@ -210,7 +210,7 @@ export function LogItemSheet({ item, day, visible, onClose }: LogItemSheetProps)
         accessibilityRole="button"
         accessibilityLabel={favoriteChecked ? "Remove favorite" : "Add favorite"}
         onPress={() => setFavoriteChecked((v) => !v)}
-        className="flex-row items-center gap-sm"
+        className="min-h-touchTarget flex-row items-center gap-sm"
       >
         <Heart size={22} color={colors.primary} weight={favoriteChecked ? "fill" : "regular"} />
         <Text variant="body" color="dark">

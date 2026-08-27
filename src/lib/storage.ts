@@ -41,6 +41,11 @@ export const storageKeys = {
  *
  * `deviceHasOpened` is deliberately excluded — it records that *this handset* has
  * run the app before, which stays true no matter who is signed in.
+ *
+ * The last three are Zustand stores that persist themselves under their own
+ * keys — favourited foods, the first name and goal in the onboarding draft, the
+ * biometric preference. Nothing else in the app touches them, which is exactly
+ * why they were missed until now.
  */
 const USER_SCOPED_KEYS: string[] = [
   storageKeys.notifyAt,
@@ -61,5 +66,9 @@ const USER_SCOPED_KEYS: string[] = [
  * in next, writing one person's food into another person's log.
  */
 export async function clearUserScopedStorage(): Promise<void> {
-  await AsyncStorage.multiRemove(USER_SCOPED_KEYS);
+  // The offline barcode queue is namespaced per user, so match on the prefix
+  // rather than a fixed key — otherwise the deleted account's queue survives.
+  const all = await AsyncStorage.getAllKeys();
+  const queues = all.filter((key) => key.startsWith(storageKeys.offlineBarcodeScans));
+  await AsyncStorage.multiRemove([...USER_SCOPED_KEYS, ...queues]);
 }

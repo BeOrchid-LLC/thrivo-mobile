@@ -215,7 +215,9 @@ describe("EditFoodLogSheet", () => {
 
     expect(screen.getByText("120 kcal")).toBeTruthy();
     expect(screen.getByText("Subscribe to see macros")).toBeTruthy();
-    expect(screen.getByText("View plans")).toBeTruthy();
+    // The gate is a centred card; its "View plans" button carries the title in
+    // its label so the control is unambiguous to a screen reader.
+    expect(screen.getByLabelText("Subscribe to see macros. View plans")).toBeTruthy();
   });
 
   it("shows ungated macro cards for premium users", () => {

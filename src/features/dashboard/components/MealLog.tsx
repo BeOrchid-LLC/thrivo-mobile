@@ -1,10 +1,11 @@
 import { Pressable, View } from "react-native";
-import { PlusCircle } from "phosphor-react-native";
+import { CaretRight, PlusCircle } from "phosphor-react-native";
 import { Text } from "@/components";
 import { colors } from "@/theme";
-import type { FoodLogEntry } from "@/contracts";
+import type { FoodLogEntry, MealTime } from "@/contracts";
 import { useFavorites } from "@/features/food-logging";
 import { FavoriteButton } from "@/features/food-logging/components/FavoriteButton";
+import { groupEntriesByMealTime } from "@/features/food-logging/utils/copyLog";
 
 interface MealLogProps {
   entries: FoodLogEntry[];
@@ -13,47 +14,70 @@ interface MealLogProps {
   onEntryPress: (entry: FoodLogEntry) => void;
 }
 
-function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+/**
+ * The meal-time buckets are named by their window in the history filter
+ * ("Morning · 4:00 AM – 10:59 AM"); on the dashboard the same buckets are named
+ * by the meal they hold, which is how the Figma frames label them.
+ */
+const MEAL_TIME_TITLE: Record<MealTime, string> = {
+  morning: "Breakfast",
+  afternoon: "Lunch",
+  evening: "Dinner",
+  night: "Late snack",
+};
+
+/** The serving as the Figma rows write it — "Greek yoghurt, 150g". */
+function servingSuffix(entry: FoodLogEntry): string {
+  if (!entry.servingUnit) return "";
+  return `, ${entry.servings}${entry.servingUnit}`;
 }
 
-/** Today's logged foods in reverse consumed-time order. Tap a row to edit it. */
+/** Today's logged foods, grouped by meal. Tap a row to edit it. */
 export function MealLog({ entries, onLogFood, onViewAll, onEntryPress }: MealLogProps) {
   useFavorites();
-  const totalCalories = entries.reduce((sum, entry) => sum + entry.nutrients.calories, 0);
+  const groups = groupEntriesByMealTime(entries);
 
   return (
-    <View className="gap-lg">
-      <View className="flex-row items-center justify-between border-b border-gray-200 pb-sm">
-        <Text variant="body" color="dark" className="font-semibold">
-          Today{" "}
-          <Text variant="body" color="muted" className="font-regular">
-            {totalCalories} kcal
-          </Text>
-        </Text>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Log food"
-          onPress={onLogFood}
-          className="flex-row items-center gap-xs"
-        >
-          <PlusCircle size={18} color={colors.primary} weight="regular" />
-          <Text variant="caption" color="primary" className="font-semibold">
-            Add
-          </Text>
-        </Pressable>
-      </View>
-      {entries.map((entry) => (
-        <MealLogRow key={entry.id} entry={entry} onPress={() => onEntryPress(entry)} />
-      ))}
+    <View className="gap-xl">
+      {groups.map((group) => {
+        const title = MEAL_TIME_TITLE[group.mealTime];
+        return (
+          <View key={group.mealTime} className="gap-sm">
+            <View className="mb-xs flex-row items-center justify-between border-b border-gray-200 pb-sm">
+              <Text variant="body" color="dark" className="font-semibold">
+                {title}{" "}
+                <Text variant="body" color="muted" className="font-regular">
+                  {group.calories} kcal
+                </Text>
+              </Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`View all ${title.toLowerCase()} logs`}
+                onPress={onViewAll}
+                className="flex-row items-center gap-xs"
+                hitSlop={12}
+              >
+                <Text variant="body" color="muted">
+                  View
+                </Text>
+                <CaretRight size={14} color={colors.gray[500]} />
+              </Pressable>
+            </View>
+            {group.entries.map((entry) => (
+              <MealLogRow key={entry.id} entry={entry} onPress={() => onEntryPress(entry)} />
+            ))}
+          </View>
+        );
+      })}
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="View all food logs"
-        onPress={onViewAll}
-        className="items-center py-md"
+        accessibilityLabel="Log food"
+        onPress={onLogFood}
+        className="min-h-touchTarget flex-row items-center justify-center gap-sm"
       >
+        <PlusCircle size={20} color={colors.primary} weight="regular" />
         <Text variant="body" color="primary" className="font-semibold">
-          View all logs
+          Log food
         </Text>
       </Pressable>
     </View>
@@ -68,16 +92,10 @@ function MealLogRow({ entry, onPress }: { entry: FoodLogEntry; onPress: () => vo
       onPress={onPress}
       className="flex-row items-center justify-between gap-md"
     >
-      <View className="flex-1">
-        <Text variant="body" color="dark">
-          {entry.name}
-        </Text>
-        <Text variant="caption" color="muted">
-          {entry.servings}
-          {entry.servingUnit ? ` ${entry.servingUnit}` : " serving"} ·{" "}
-          {formatTime(entry.consumedAt)}
-        </Text>
-      </View>
+      <Text variant="body" color="dark" className="flex-1">
+        {entry.name}
+        {servingSuffix(entry)}
+      </Text>
       <View className="flex-row items-center gap-md">
         <Text variant="body" color="dark">
           {entry.nutrients.calories} kcal

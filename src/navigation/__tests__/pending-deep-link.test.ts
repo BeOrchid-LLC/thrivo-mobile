@@ -2,10 +2,10 @@ import { parseAppDeepLink } from "../pending-deep-link";
 
 describe("parseAppDeepLink", () => {
   it.each([
-    ["https://thrivo.fit/dashboard", "/(app)/dashboard"],
-    ["https://thrivo.fit/metrics", "/(app)/metrics"],
-    ["thrivo://log", "/(app)/log"],
-    ["thrivo://settings/subscription", "/(app)/settings/subscription"],
+    ["https://thrivo.fit/dashboard", "/(app)/(tabs)/dashboard"],
+    ["https://thrivo.fit/metrics", "/(app)/(tabs)/metrics"],
+    ["thrivo://log", "/(app)/(tabs)/log"],
+    ["thrivo://settings/subscription", "/(app)/subscription"],
   ])("allows the known destination %s", (url, expected) => {
     expect(parseAppDeepLink(url)).toBe(expected);
   });

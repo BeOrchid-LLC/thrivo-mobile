@@ -9,7 +9,7 @@ export interface PageHeaderProps {
   subtitle?: string;
   /** Show the back arrow beside the title. Defaults to true. */
   showBack?: boolean;
-  /** Override the back behavior (defaults to router.back(), falling back to the auth welcome screen when there's no history). */
+  /** Override the back behavior (defaults to router.back(), falling back to the sign-in screen when there's no history). */
   onBack?: () => void;
 }
 
@@ -27,7 +27,7 @@ export function PageHeader({ title, subtitle, showBack = true, onBack }: PageHea
     if (router.canGoBack()) {
       router.back();
     } else {
-      router.replace("/(auth)/welcome");
+      router.replace("/(auth)/sign-in");
     }
   };
 

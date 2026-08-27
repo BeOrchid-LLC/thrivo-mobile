@@ -5,6 +5,7 @@ import { FoodHistoryScreen } from "../components/FoodHistoryScreen";
 
 const mockUseFoodLogHistory = jest.fn();
 const mockEditFoodLogSheet = jest.fn((_props: unknown) => null);
+const mockCopyLogSheet = jest.fn((_props: unknown) => null);
 const mockUseFavorites = jest.fn();
 const mockUseToggleFavorite = jest.fn();
 
@@ -17,6 +18,7 @@ jest.mock("@/features/food-logging/hooks/useFoodLogging", () => ({
 }));
 
 jest.mock("@/features/food-logging", () => ({
+  CopyLogSheet: (props: unknown) => mockCopyLogSheet(props),
   EditFoodLogSheet: (props: unknown) => mockEditFoodLogSheet(props),
   useFavorites: () => mockUseFavorites(),
   useToggleFavorite: () => mockUseToggleFavorite(),

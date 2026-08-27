@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import { StyleSheet, View } from "react-native";
 import { ForkKnife } from "phosphor-react-native";
 import {
+  AnimatedNumber,
   Button,
   Card,
   CalorieRing,
@@ -12,11 +13,17 @@ import {
   SkeletonText,
   Text,
 } from "@/components";
-import type { FoodLogEntry } from "@/contracts";
+import type { FoodLogEntry, Mood } from "@/contracts";
+// Deep import, not the `@/features/checkin` barrel — that barrel re-exports
+// `CheckinScreen`, which imports back from `@/features/dashboard`, so the barrel
+// route is a require cycle that leaves this module's own exports undefined.
+import { useCheckins, useCreateCheckin } from "@/features/checkin/hooks/useCheckin";
 import { EditFoodLogSheet } from "@/features/food-logging";
 import { deriveMacroTargets } from "@/features/onboarding/utils/tdee";
 import { colors } from "@/theme";
+import { useCurrentDay } from "@/hooks/useCurrentDay";
 import { MacroBars } from "./MacroBars";
+import { MoodCheckinRow, MoodCheckinSummary } from "./MoodCheckinRow";
 import { MealLog } from "./MealLog";
 import { StreakBanner } from "./StreakBanner";
 import { WaterTracker } from "./WaterTracker";
@@ -33,8 +40,9 @@ const GLASS_ML = 250;
 const DEFAULT_TARGET_CALORIES = 1800;
 const ZERO_MACROS = { proteinG: 0, carbsG: 0, fatG: 0 };
 
-const goToLog = () => router.push("/(app)/log");
+const goToLog = () => router.push("/(app)/(tabs)/log");
 const goToHistory = () => router.push("/(app)/history");
+const goToCheckin = () => router.push("/(app)/checkin");
 
 const styles = StyleSheet.create({
   macroCardShadow: {
@@ -45,6 +53,53 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
 });
+
+export function MoodCheckinSection() {
+  const day = useCurrentDay();
+  const checkins = useCheckins();
+  const create = useCreateCheckin();
+
+  // All three sources are filtered by `day` for the same reason the check-in
+  // screen does it: `useCurrentDay` rolls over at midnight, and the mutation
+  // result still holds yesterday's check-in until it is refetched.
+  const submitted = create.data?.checkin;
+  // The tapped mood, shown from the tap rather than from the response. A
+  // round-trip is long enough that waiting for it leaves the row sitting there
+  // looking like the tap missed. It is dropped again if the write fails, which
+  // is the only case where the row has anything left to say.
+  const optimistic =
+    create.variables?.day === day && !create.isError ? create.variables.mood : null;
+  const todaysMood =
+    optimistic ??
+    (submitted?.day === day ? submitted.mood : null) ??
+    (checkins.data ?? []).find((checkin) => checkin.day === day)?.mood ??
+    null;
+
+  if (todaysMood) {
+    return <MoodCheckinSummary mood={todaysMood} onPress={goToCheckin} />;
+  }
+
+  if (checkins.isLoading) {
+    return (
+      <View accessibilityRole="progressbar" accessibilityLabel="Loading today's check-in">
+        <SkeletonText className="w-1/2" />
+      </View>
+    );
+  }
+
+  // A failed history fetch is not a reason to hide the prompt — the worst case
+  // is offering a check-in that is already recorded, which the screen reconciles.
+  return (
+    <View className="gap-xs">
+      <MoodCheckinRow onSelect={(mood: Mood) => create.mutate({ mood, day })} />
+      {create.isError ? (
+        <Text variant="micro" color="error">
+          {create.error?.message ?? "Could not save that"} — tap a face to try again.
+        </Text>
+      ) : null}
+    </View>
+  );
+}
 
 export function CaloriesSummarySection() {
   const calories = useDashboardCalories();
@@ -87,19 +142,23 @@ export function CaloriesSummarySection() {
       />
       <View className="flex-1 gap-xs">
         <View className="flex-row items-baseline gap-xs">
-          <Text variant="heading1" color="dark">
-            {consumedCalories.toLocaleString()}
-          </Text>
-          <Text variant="body-lg" color="mutedText" className="mb-2 font-normal">
+          <AnimatedNumber variant="heading1" color="dark" value={consumedCalories} />
+          <Text variant="body-lg" color="subtle" className="mb-2 font-normal">
             kcal
           </Text>
         </View>
-        <Text variant="body" color="muted">
-          of {targetCalories.toLocaleString()} daily target
-        </Text>
-        <Text variant="body" color="primary">
-          {remainingCalories.toLocaleString()} remaining
-        </Text>
+        <AnimatedNumber
+          variant="body"
+          color="muted"
+          value={targetCalories}
+          format={(n) => `of ${n.toLocaleString()} daily target`}
+        />
+        <AnimatedNumber
+          variant="body"
+          color="primary"
+          value={remainingCalories}
+          format={(n) => `${n.toLocaleString()} remaining`}
+        />
       </View>
     </Card>
   );
@@ -115,14 +174,12 @@ export function MacrosSection() {
         accessibilityLabel="Loading macros"
         style={styles.macroCardShadow}
       >
-        <View className="gap-md">
+        <View className="gap-lg">
           {["protein", "carbs", "fat"].map((label) => (
-            <View key={label} className="gap-xs">
-              <View className="flex-row justify-between">
-                <SkeletonText className="w-1/4" />
-                <SkeletonText size="caption" className="w-1/5" />
-              </View>
-              <SkeletonBlock className="h-[8px] rounded-pill" />
+            <View key={label} className="flex-row items-center gap-md">
+              <SkeletonText className="w-labelColumn" />
+              <SkeletonBlock className="h-[8px] flex-1 rounded-pill" />
+              <SkeletonText className="w-readoutColumn" />
             </View>
           ))}
         </View>
@@ -135,7 +192,7 @@ export function MacrosSection() {
       <PremiumGate
         title="Subscribe to see your macros"
         subtitle="Unlock your full nutrition progress."
-        onViewPlans={() => router.push("/(app)/settings/subscription")}
+        onViewPlans={() => router.push("/(app)/subscription")}
       >
         <MacroCard consumed={ZERO_MACROS} target={deriveMacroTargets(DEFAULT_TARGET_CALORIES)} />
       </PremiumGate>
@@ -163,7 +220,7 @@ function MacroCard({
   target: { proteinG: number; carbsG: number; fatG: number };
 }) {
   return (
-    <Card className="border-2 border-gray-2" style={styles.macroCardShadow}>
+    <Card className="border-2 border-light" style={styles.macroCardShadow}>
       <MacroBars consumed={consumed} target={target} />
     </Card>
   );
@@ -209,12 +266,12 @@ export function WaterSection() {
       <View
         accessibilityRole="progressbar"
         accessibilityLabel="Loading water tracker"
-        className="gap-sm rounded-[16px] bg-gray-2 px-lg py-md"
+        className="gap-sm rounded-lg bg-light px-lg py-md"
       >
         <View className="flex-row items-center">
-          <SkeletonBlock className="h-[22px] w-[22px] rounded-pill" />
+          <SkeletonBlock className="h-iconSm w-iconSm rounded-pill" />
           <SkeletonText className="ml-sm flex-1" />
-          <SkeletonBlock className="h-[24px] w-[24px] rounded-pill" />
+          <SkeletonBlock className="h-icon w-icon rounded-pill" />
         </View>
         <View className="flex-row items-center">
           <SkeletonText className="flex-1" />
@@ -259,12 +316,12 @@ export function TodayMealLogSection() {
   if (foodLog.isLoading) {
     return (
       <Card accessibilityRole="progressbar" accessibilityLabel="Loading today's meal log">
-        <View className="gap-md">
+        <View className="gap-xl">
           {["Breakfast", "Lunch"].map((meal) => (
             <View key={meal} className="gap-sm">
-              <View className="flex-row justify-between border-b border-gray-200 pb-sm">
+              <View className="mb-xs flex-row justify-between border-b border-gray-200 pb-sm">
                 <SkeletonText className="w-1/3" />
-                <SkeletonText size="caption" className="w-1/5" />
+                <SkeletonText className="w-1/5" />
               </View>
               <View className="flex-row justify-between">
                 <SkeletonText className="w-1/2" />
@@ -304,14 +361,12 @@ export function TodayMealLogSection() {
       />
     </>
   ) : (
-    <View className="items-center gap-md rounded-[16px] bg-primaryBright/10 px-8 py-6">
-      <View className="h-[52px] w-[52px] items-center justify-center rounded-pill bg-primarySoft">
-        <ForkKnife size={28} color={colors.primary} weight="regular" />
-      </View>
+    <View className="items-center gap-md rounded-lg bg-primaryBright/10 px-xl py-xl">
+      <ForkKnife size={32} color={colors.primary} weight="regular" />
       <Text variant="heading3" color="dark" className="text-center">
         Nothing logged yet
       </Text>
-      <Text variant="body" color="mutedText" className="text-center">
+      <Text variant="body" color="subtle" className="text-center">
         Scan a barcode, search the database or describe what you ate to get started.
       </Text>
       <Button label="Log first meal" onPress={() => goToLog()} />

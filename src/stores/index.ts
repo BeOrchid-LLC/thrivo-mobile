@@ -1,8 +1,14 @@
+import { useFavoritesStore } from "./favorites.store";
+import { useOnboardingDraftStore } from "./onboarding-draft.store";
+import { usePreferencesStore } from "./preferences.store";
+
 export {
   useSessionStore,
   useAccountStatus,
   useAuthStatus,
+  useRestoreError,
   useIsAuthenticated,
+  useUserId,
   useIsOnboarded,
   useIsOnboardingSkipped,
   useSessionActions,
@@ -18,6 +24,7 @@ export {
 export {
   usePreferencesStore,
   useBiometricAuthEnabled,
+  useOnboardingDismissedFor,
   usePreferencesHydrated,
   usePreferencesActions,
 } from "./preferences.store";
@@ -34,10 +41,17 @@ export {
   useFavoritesActions,
 } from "./favorites.store";
 
-import { useFavoritesStore } from "./favorites.store";
-import { useOnboardingDraftStore } from "./onboarding-draft.store";
-import { usePreferencesStore } from "./preferences.store";
-export function resetUserStores(): void {
+/**
+ * Wipes every persisted store that belongs to the signed-in user.
+ *
+ * Deleting the AsyncStorage keys alone is not enough: the stores are still
+ * hydrated in memory, and the next state change would write the previous user's
+ * data straight back. Called on sign-out and on account deletion.
+ *
+ * Goes through each store's own `reset` action rather than `setState`, so a
+ * store that gains another user-scoped field only has to update its own reset.
+ */
+export function resetUserScopedStores(): void {
   useFavoritesStore.getState().actions.reset();
   useOnboardingDraftStore.getState().actions.reset();
   usePreferencesStore.getState().actions.reset();

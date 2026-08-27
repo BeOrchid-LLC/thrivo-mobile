@@ -1,7 +1,13 @@
-import { setTokenGetter, setUnauthenticatedHandler } from "@/api";
-import { useSessionStore } from "@/stores";
+import {
+  clearPersistedQueryCache,
+  queryClient,
+  setTokenGetter,
+  setUnauthenticatedHandler,
+} from "@/api";
+import { resetUserScopedStores, useBiometricUnlockStore, useSessionStore } from "@/stores";
 import { analytics } from "./analytics";
 import { monitoring } from "./monitoring";
+import { clearUserScopedStorage } from "./storage";
 import { subscription } from "./subscription";
 
 let wired = false;
@@ -24,6 +30,12 @@ export function wireApiSeams(): void {
   setUnauthenticatedHandler(() => {
     void clerkSignOutFn?.();
     useSessionStore.getState().actions.clearSession();
+    useBiometricUnlockStore.getState().actions.setBiometricUnlocked(false);
+    resetUserScopedStores();
+    // Clear memory synchronously: a forced sign-out can happen while requests
+    // are in flight, and stale queries or paused offline mutations must not be
+    // available to whichever user signs in next.
+    queryClient.clear();
     analytics.reset();
     monitoring.setUser(null);
     // Drop the store identity too, or the next user on this device inherits the
@@ -31,6 +43,16 @@ export function wireApiSeams(): void {
     void subscription.logOut().catch((error: unknown) => {
       monitoring.captureException(error, { seam: "billing-logout" });
     });
+    // The persisted cache and user-scoped storage are asynchronous, but both
+    // must be removed before the next session can restore them.
+    void Promise.all([
+      clearPersistedQueryCache().catch((error: unknown) => {
+        monitoring.captureException(error, { seam: "clear-query-cache-on-signout" });
+      }),
+      clearUserScopedStorage().catch((error: unknown) => {
+        monitoring.captureException(error, { seam: "clear-user-storage-on-signout" });
+      }),
+    ]);
   });
 }
 

@@ -22,7 +22,7 @@ export function WaterTracker({
   const filled = Math.min(glasses, targetGlasses);
   return (
     <View
-      className={`gap-lg rounded-[16px] ${glasses > 0 ? "bg-primaryTint" : "bg-gray-2"} px-lg py-[20px]`}
+      className={`gap-lg rounded-lg ${glasses > 0 ? "bg-primaryTint" : "bg-light"} px-lg py-[20px]`}
     >
       <View className="flex-row items-center">
         <PintGlassIcon size={22} color={colors.primary} weight="regular" />

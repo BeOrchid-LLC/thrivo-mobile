@@ -1,6 +1,6 @@
 import "../global.css";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Platform, useColorScheme, View } from "react-native";
+import { Platform, View } from "react-native";
 import * as Linking from "expo-linking";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Stack, useRouter, useSegments } from "expo-router";
@@ -30,7 +30,15 @@ import {
   clerkTokenCache,
 } from "@/lib";
 import { env } from "@/config/env";
-import { useBillingSync, useSessionInit, useSessionRefresh } from "@/hooks";
+import {
+  useBillingSync,
+  useHasDismissedOnboarding,
+  usePushRegistration,
+  useSessionInit,
+  useSessionRefresh,
+  useTimezoneSync,
+} from "@/hooks";
+import { popOnlyScreenListeners, popOnlyScreenOptions } from "@/navigation/pop-animation";
 import { resolveRootRedirect } from "@/navigation/root-redirect";
 import {
   consumePendingDeepLink,
@@ -40,12 +48,15 @@ import {
 import { colors } from "@/theme";
 import {
   useAuthStatus,
+  useRestoreError,
   useBiometricAuthEnabled,
   useIsBiometricUnlocked,
   useIsOnboarded,
   useIsOnboardingSkipped,
+  usePreferencesActions,
   usePreferencesHydrated,
   useSessionActions,
+  useUserId,
 } from "@/stores";
 
 wireApiSeams();
@@ -56,6 +67,7 @@ void SplashScreen.preventAutoHideAsync();
 const FONT_GATE_TIMEOUT_MS = 3000;
 const PREFERENCE_GATE_TIMEOUT_MS = 1000;
 const NATIVE_SPLASH_EXIT_SETTLE_MS = 250;
+const SPLASH_HANDOFF_TIMEOUT_MS = 2000;
 
 function bootLog(message: string): void {
   if (__DEV__) console.info(`[boot] ${message}`);
@@ -89,10 +101,14 @@ function RootNavigator({
   neutralBackground: string;
 }) {
   const status = useAuthStatus();
+  const restoreError = useRestoreError();
   const biometricEnabled = useBiometricAuthEnabled();
   const isBiometricUnlocked = useIsBiometricUnlocked();
   const isOnboarded = useIsOnboarded();
   const isOnboardingSkipped = useIsOnboardingSkipped();
+  const hasDismissedOnboarding = useHasDismissedOnboarding();
+  const userId = useUserId();
+  const { markOnboardingDismissed } = usePreferencesActions();
   const preferencesHydrated = usePreferencesHydrated();
   const [preferenceTimeoutReached, setPreferenceTimeoutReached] = useState(false);
   const [pendingLinkVersion, setPendingLinkVersion] = useState(0);
@@ -105,6 +121,8 @@ function RootNavigator({
   useSessionInit();
   useSessionRefresh();
   useBillingSync();
+  useTimezoneSync();
+  usePushRegistration();
 
   useEffect(() => {
     const capture = async (url: string | null) => {
@@ -134,12 +152,12 @@ function RootNavigator({
   useEffect(() => {
     const screenRoutes: Record<string, string> = {
       checkin: "/(app)/checkin",
-      dashboard: "/(app)/dashboard",
-      log: "/(app)/log",
+      dashboard: "/(app)/(tabs)/dashboard",
+      log: "/(app)/(tabs)/log",
     };
     return addNotificationResponseListener((data) => {
       const key = typeof data.screen === "string" ? data.screen : "";
-      const target = screenRoutes[key] ?? "/(app)/dashboard";
+      const target = screenRoutes[key] ?? "/(app)/(tabs)/dashboard";
       router.push(target as Parameters<typeof router.push>[0]);
     });
   }, [router]);
@@ -155,7 +173,7 @@ function RootNavigator({
       !ready ||
       !nativeSplashReleased ||
       status !== "authenticated" ||
-      (!isOnboarded && !isOnboardingSkipped) ||
+      (!isOnboarded && !isOnboardingSkipped && !hasDismissedOnboarding) ||
       isBiometricLocked
     ) {
       return;
@@ -169,10 +187,23 @@ function RootNavigator({
     status,
     isOnboarded,
     isOnboardingSkipped,
+    hasDismissedOnboarding,
     isBiometricLocked,
     pendingLinkVersion,
     router,
   ]);
+
+  /**
+   * Onboarding is a one-time gate. The moment someone is through to `(app)` —
+   * having finished it, skipped it, or arrived already onboarded — record it so
+   * no later launch can route them back into the flow. Settings is the way back
+   * in from here.
+   */
+  useEffect(() => {
+    if (status !== "authenticated" || !userId || isBiometricLocked) return;
+    if (segments[0] !== "(app)") return;
+    markOnboardingDismissed(userId);
+  }, [status, userId, isBiometricLocked, segments, markOnboardingDismissed]);
 
   useEffect(() => {
     if (!ready || !nativeSplashReleased || redirecting.current) return;
@@ -184,10 +215,11 @@ function RootNavigator({
       isOnboarded,
       isOnboardingSkipped,
       isBiometricLocked,
+      hasDismissedOnboarding,
     });
 
     bootLog(
-      `guard group=${group ?? "/"} status=${status} onboarded=${isOnboarded} skipped=${isOnboardingSkipped} biometricLocked=${isBiometricLocked} target=${target ?? "none"}`
+      `guard group=${group ?? "/"} status=${status} onboarded=${isOnboarded} skipped=${isOnboardingSkipped} dismissed=${hasDismissedOnboarding} biometricLocked=${isBiometricLocked} target=${target ?? "none"}`
     );
 
     if (target) {
@@ -203,6 +235,7 @@ function RootNavigator({
     status,
     isOnboarded,
     isOnboardingSkipped,
+    hasDismissedOnboarding,
     isBiometricLocked,
     segments,
     router,
@@ -221,7 +254,11 @@ function RootNavigator({
       <Screen>
         <ErrorState
           title="Could not restore your session"
-          message="Check your connection and try again."
+          message={
+            restoreError
+              ? `Check your connection and try again.\n\n${restoreError}`
+              : "Check your connection and try again."
+          }
           retryLabel="Try again"
           onRetry={() => setStatus("loading")}
           // Escape hatch. Some restore failures cannot be retried away — a
@@ -238,11 +275,10 @@ function RootNavigator({
     );
   }
 
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return <Stack screenOptions={popOnlyScreenOptions} screenListeners={popOnlyScreenListeners} />;
 }
 
 function RootLayout() {
-  const colorScheme = useColorScheme();
   const [fontsLoaded, fontError] = useFonts({
     Inter_400Regular,
     Inter_500Medium,
@@ -300,7 +336,29 @@ function RootLayout() {
       });
   }, []);
 
-  const neutralBackground = colorScheme === "dark" ? colors.primarySoft : colors.light;
+  // The handoff hangs on two things outside our control: `onLayout` firing at
+  // all, and `hideAsync()` settling. Neither is guaranteed on every device, and
+  // if either stalls, `nativeSplashReleased` stays false and RootNavigator is
+  // pinned on the blank neutral frame forever — a boot that never finishes, with
+  // no error to show for it. Same watchdog shape as the font/preference gates.
+  useEffect(() => {
+    if (nativeSplashReleased) return undefined;
+
+    const timeout = setTimeout(() => {
+      bootLog("splash handoff timed out; releasing without onLayout");
+      splashHandoffStarted.current = true;
+      void SplashScreen.hideAsync().catch(() => undefined);
+      setNativeSplashReleased(true);
+    }, SPLASH_HANDOFF_TIMEOUT_MS);
+
+    return () => clearTimeout(timeout);
+  }, [nativeSplashReleased]);
+
+  // `app.json` sets userInterfaceStyle: "light", so iOS reports Light regardless
+  // of the system setting and the dark branch this used to have was unreachable.
+  // Reintroduce a scheme check only alongside a real dark palette — `src/theme`
+  // has one palette today and Tailwind has no darkMode configured.
+  const neutralBackground = colors.light;
 
   return (
     <ClerkProvider publishableKey={env.clerkPublishableKey} tokenCache={clerkTokenCache}>

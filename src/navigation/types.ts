@@ -33,10 +33,22 @@ export type AppTabParamList = {
 /** Non-tab routes reachable within (app) by push (hidden from the tab bar). */
 export type AppStackParamList = {
   foods: undefined;
-  "settings/onboarding": undefined;
-  "settings/edit/[step]": { step: string };
-  "settings/personal-info": undefined;
-  "settings/subscription": undefined;
+  /** Pushed over the tab bar, so it lives beside the tabs rather than in them. */
+  "personal-info": undefined;
+  /** Same — the reminder schedule is a full-page task, not a tab. */
+  "food-log-reminder": undefined;
+  /** Same — the settings-chrome onboarding checklist. */
+  "onboarding-setup": undefined;
+  /** Same — a single onboarding step re-opened from Settings. */
+  "settings-edit/[step]": { step: string };
+  /** Same — the paywall covers the tab bar so nothing competes with the price. */
+  subscription: undefined;
+  /** Same — a full-page form; a tab bar under it competes with Save. */
+  "create-food": undefined;
+  /** Same — the camera frame owns the page while a scan is in progress. */
+  "scan-barcode": undefined;
+  /** Same — a form whose actions are pinned where the tab bar would sit. */
+  "describe-meal": undefined;
 };
 
 export type RootStackParamList = {

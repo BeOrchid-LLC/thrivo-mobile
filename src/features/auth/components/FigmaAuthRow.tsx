@@ -39,7 +39,7 @@ export function FigmaAuthRow({
       disabled={isDisabled}
       // Figma-exact dimensions/border for the auth row; arbitrary values keep
       // them in the className system. borderCurve is iOS-only and has no class.
-      className={`h-[60px] w-full max-w-[342px] items-center justify-center rounded-[16px] border-[1.333px] border-hairline bg-white active:opacity-[0.86] ${
+      className={`h-[60px] w-full max-w-[342px] items-center justify-center rounded-lg border-[1.333px] border-hairline bg-white active:opacity-[0.86] ${
         isDisabled ? "opacity-50" : ""
       }`}
       style={[{ borderCurve: "continuous" }, style]}

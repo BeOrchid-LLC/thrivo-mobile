@@ -65,10 +65,22 @@ verified at sign-up.
   confirmed rather than assumed — Edward.
 - Can the same email sign up again afterwards? Depends on the backend not
   soft-deleting behind a unique email constraint. One manual test settles it.
-- Sign-out does **not** clear `offlineBarcodeScans`. Deletion now does, but if
-  user A signs out and user B signs in on the same device, A's queued scans could
-  replay into B's log. Narrower, and the fix is debatable — clearing on sign-out
-  discards legitimate queued data for someone signing straight back in.
+
+**Cross-account barcode queue — ✅ fixed.** `offlineBarcodeScans` lived under one
+device-wide key, so a scan queued by user A replayed into user B's log after a
+sign-out/sign-in on the same handset. The queue is now namespaced per user, which
+beats clearing it on sign-out: someone who signs back in keeps their own pending
+scans and never sees anyone else's. Account deletion wipes every namespace by
+prefix, and anything left under the legacy shared key is dropped on read — it has
+no recoverable owner, so it cannot be safely attributed to whoever is signed in
+now.
+
+A second, quieter failure came out of the same pass: the replay ran only when the
+barcode changed, but the owner id arrives from the session store *after* Clerk
+restores and `GET /users/me` resolves. A cold start into Log Food therefore saw
+`null`, found nothing to replay, and never looked again — the queued scan sat in
+storage forever with nothing surfacing it. Both effects now re-run when the id
+lands, covered by tests that fail without the fix.
 
 ---
 
@@ -158,24 +170,21 @@ criterion can be tested at all.
 | --- | --- | --- | --- |
 | ~~2.1~~ | ~~RevenueCat project~~ — ✅ **done.** Project `Thrivo`, entitlement `Thrivo Premium`, offering `default` with `$rc_monthly` / `$rc_annual`. iOS key in `.env`. | — | done |
 | 2.2 | **Store products.** ✅ iOS done — both App Store products exist, are attached to the offering's packages *and* to the entitlement, and StoreKit returns them. ⬜ Android not started (no Play products, no `goog_` key). | product | — |
-| 2.3 | **RevenueCat → backend webhook.** The app mirrors the plan opportunistically, but entitlement must be authoritative server-side. Without this, a determined user can hold premium the backend never granted, and cancellations/refunds/expiries never reach us. | Edward | acceptance |
-| 2.4 | Confirmation email on purchase (PRD requirement). Best driven off the same webhook. | Edward | acceptance |
+| ~~2.3~~ | ~~RevenueCat → backend webhook~~ — ✅ **done.** `POST /webhooks/revenuecat` in `thrivo-backend` (`src/routes/webhooks.ts` → `src/services/billing-webhook.service.ts`, merged via PR #72 to staging 2026-08-23). Auth'd against `REVENUECAT_WEBHOOK_AUTH` (fail-closed), idempotent via a `(provider, event_id)` ledger, maps all lifecycle events (renewals/cancellations/refunds/expiries/billing issues/transfers) to subscription status through the single subscription writer, and handles account-erasure tombstones. Covered by `tests/integration/revenuecat-webhook.test.ts` + unit tests. | Edward | done |
+| ~~2.4~~ | ~~Confirmation email on purchase~~ — ✅ **done**, cancellation side already live; **purchase side built 2026-08-24** on `thrivo-backend` branch `fix/revenuecat-purchase-confirmation-email` (uncommitted): fires on a real (non-trial) `INITIAL_PURCHASE` or a trial converting to paid, not on trial start (nothing charged yet). New `purchase_confirmation` email kind, migration, tests passing. | Edward | done |
 | 2.5 | Real pricing and trial length (item 0.1) fed into the store products. | product | 2.2 |
 | 2.6 | **Sandbox tester account** (App Store Connect → Users and Access → Sandbox), signed in on the device under Settings → Developer. Needs the Apple Developer membership active. This is the only thing standing between the current build and a real end-to-end purchase. Apple provides no shared test account — there is no equivalent of Stripe's `4242` card. | product | real purchase |
 
 ### What I still need
 
 1. **A sandbox tester account** (2.6) — the last blocker on a real purchase.
-2. **A decision on the webhook** (2.3). Until it exists, entitlement is only as
-   reliable as the app's mirror call, and renewals, refunds, and expiries never
-   reach the backend at all.
-3. **Confirmation that $14.99 / $150 are the agreed prices** and that the trial
+2. **Confirmation that $14.99 / $150 are the agreed prices** and that the trial
    length in App Store Connect matches what was promised.
-4. **The Android key** (`goog_…`) plus Play products, when Android is in scope.
+3. **The Android key** (`goog_…`) plus Play products, when Android is in scope.
 
 Resolved since this plan was written: the SDK keys, the entitlement identifier
-(`Thrivo Premium`, not `premium`), and the package types (standard
-`$rc_monthly` / `$rc_annual`).
+(`Thrivo Premium`, not `premium`), the package types (standard
+`$rc_monthly` / `$rc_annual`), and the RevenueCat → backend webhook (2.3/2.4).
 
 ### Acceptance status
 
@@ -185,7 +194,7 @@ Resolved since this plan was written: the SDK keys, the entitlement identifier
 | Charged correctly | ⬜ Needs a sandbox tester (2.6); prices need confirming (2.5). |
 | Restore on a second device | ✅ Code complete and wired to the Clerk user id. Not yet exercised on two real devices. |
 | Cancel in two taps | ✅ Settings → Cancel → store subscription settings. |
-| Confirmation email | ⬜ Not started — 2.4, backend, driven off the webhook. |
+| Confirmation email | ✅ Both directions now built from the webhook (2.4, `thrivo-backend`): cancellation confirmation is live, purchase confirmation is code-complete on an uncommitted branch. |
 
 **Verified working on device (simulator, Test Store):** offerings load with live
 prices, the purchase sheet opens, a completed purchase confirms and mirrors to
@@ -203,42 +212,125 @@ nothing.
 
 ## Step 3 — Timezone-aware reminders
 
-- Deliver at each user's chosen local times; today reminders fire globally at a
-  single UTC time.
+- Deliver food-log reminders at each user's chosen local times; the existing
+  psychology-tip push remains a separate once-daily flow.
 - Handle permission grant/denial, timezone changes, and token refresh.
 - **Accept:** a reminder set for 8am arrives at 8am in the user's timezone, on a
   real device.
 
-**Current state:** notification preferences already exist in onboarding
-(`src/features/onboarding/screens/NotificationsStep.tsx`) and settings;
-`expo-notifications` and `expo-localization` are both installed, so the device
-side is in place. The scheduling logic is what changes.
+**Current state:** notification preferences exist in onboarding and settings, and
+`expo-notifications` / `expo-localization` are installed.
 
-**Notes:** decide explicitly whether scheduling is local (on-device, via
-`expo-notifications`) or server-side (push at the right UTC instant per user).
-Server-side needs the user's IANA timezone stored and refreshed when it changes;
-local scheduling survives no-network but needs re-arming on timezone change and
-on app upgrade. This is a backend-coordination item either way.
+**Timezone reporting — ✅ fixed (the app's half).** The timezone was only ever set
+**once**, during onboarding. Anyone who travelled, moved, or changed their device
+setting kept that original value forever — an 8am reminder arriving at 8am in a
+city they had left — and anyone who skipped onboarding never sent one at all,
+leaving the backend to fall back to a single global UTC time. `useTimezoneSync`
+now corrects it on sign-in and on every foreground (a timezone changes while the
+app is backgrounded, and there is no event for it), sending only when the value
+actually differs.
+
+This is a prerequisite for whichever scheduling design is chosen — the backend
+cannot deliver in local time without an accurate timezone either way.
+
+**Push token and permission — ✅ fixed (the app's half).** The token was fetched
+and registered exactly once, inside the onboarding notifications step, which left
+three silent ways for reminders to stop: the token rotates (reinstall, restore
+from backup, OS change) and the backend keeps pushing to a dead address; the user
+skipped onboarding and never registered at all; or they granted permission later
+in iOS Settings rather than in the app. `usePushRegistration` now re-registers on
+sign-in, on every foreground, and on rotation — and deliberately **never
+prompts**, only registering when permission is already granted.
+
+That covers the PRD's "handle permission grant/denial, timezone changes, token
+refresh" for everything the app controls.
+
+**Decided (2026-08-24) — ✅ both, and both implemented, pending commit/deploy.**
+Decision record and options are in
+[reminder-scheduling-design.md](reminder-scheduling-design.md).
+
+1. **Which field is the schedule?** → `notifyTimes` — the only field
+   `POST /push/register` has ever carried and the only one that supports the
+   1–3 times the UI promises. `SettingsScreen.tsx`'s *Daily food log reminder*
+   row no longer has its own (dead) time picker — it's now enable/disable only,
+   subtitled "Uses the time set in Meal reminders." Tests updated.
+2. **On-device or server-side scheduling?** → server-side. Built in
+   `thrivo-backend` on branch `feat/meal-reminder-scheduler` (uncommitted): a
+   5-minute cron (`send-meal-reminders`, mirrors the existing `weekly-review`
+   per-user-timezone SQL pattern) matches each user's local clock against their
+   `notifyTimes` slots and sends a generic Expo push, with a `reminder_sends`
+   idempotency table (new migration `0042_reminder_sends.sql`) so a slot can
+   never double-fire. 5 unit tests passing, typecheck/lint clean.
+
+**Step 3 is now code-complete end to end** — mobile (this repo) and backend —
+pending review, commit, and deploy of the backend branch.
+
+**Scheduler behaviour to expect:** invalid timezones are skipped, daylight-saving
+gaps are not synthesized, fall-back repeats are deduplicated by the delivery
+ledger, and permission denial falls back to the in-app reminder.
 
 ---
 
-## Step 4 — Remaining food-logging features — build, or formally cut from v1
+## Step 4 — Remaining food-logging features — *complete in this repo*
 
-The PRD accepts either outcome, as long as the app and the spec agree.
+**The build-vs-cut decision is made** (client, 24 Aug 2026): custom food entry
+and copy-a-meal/copy-a-day are in and now built; **quick-add calories is cut
+from v1** — "Describe it" already covers the ad-hoc case, and the client's scope
+message names only the two features as what makes food logging MVP-ready.
 
-| Feature | Current state (verified) |
-| --- | --- |
-| Custom-food entry on mobile | Not present |
-| Copy-a-day / copy-a-meal | Not present |
-| Quick-add calories | Not present as a distinct flow |
+| Feature | Decision | State |
+| --- | --- | --- |
+| Custom-food entry on mobile | Build | ✅ built |
+| Copy-a-meal / copy-a-day | Build | ✅ built |
+| Quick-add calories | **Cut from v1** | not built, by decision |
 
 - **Accept:** each works end to end, **or** is removed so the app and the spec
-  agree.
+  agree. Met: two built, one explicitly cut.
 
-**Notes:** this is the cheapest place to protect the timeline. Recommend deciding
-build-vs-cut per feature *before* Step 6, because each one that ships may deserve
-its own analytics event. Barcode scanning and search/logging already work, so the
-core loop is not at risk either way.
+**Custom food entry.** Log Food → *Create food* (fourth quick action) opens
+`CreateFoodScreen`: name, brand, serving label, optional serving weight,
+calories and the three macros. `POST /foods` was already declared in the
+endpoints contract and unwired; nothing on the backend changed. Saving opens the
+normal `LogItemSheet` on the new item, so *create* and *log* are one flow rather
+than two — which is what the client's scope note asked for.
+
+- Validation lives in `utils/customFood.ts`, not the screen, and mirrors the
+  shared `boundedNutrients` ceilings (5000 kcal / 500 P / 800 C / 500 F) so the
+  form can never accept a value the backend rejects. Blank macros save as 0; a
+  blank calorie field does not.
+- Errors appear only after the first save attempt — validating each keystroke
+  flags half-typed numbers as wrong while the user is still typing.
+- The created food is personal (owner-only), so the caches that could contain it
+  — catalog search and recents — are invalidated rather than patched.
+
+**Copy a meal or a day.** Food history → any past day's header has a *Copy*
+action, which opens `CopyLogSheet`: pick the whole day or one meal-time block,
+see the item count and calories, confirm. Copies land on **today**, keeping each
+entry's time of day, so a copied breakfast stays a breakfast.
+
+- Meal blocks are derived from the shared `MEAL_TIME_WINDOWS` constant (the same
+  source the server's SQL predicate and the history filter use), so the app can't
+  disagree with the backend about what "evening" means. `night` wraps midnight.
+- The sheet re-fetches the source day (`GET /foods/log/day`) instead of reusing
+  the rows the history list is showing: history can be filtered or searched, and
+  "copy the day" must mean the whole day.
+- **No bulk endpoint was added.** Copying is one `POST /foods/log` per entry,
+  sequential — the offline write wraps a single mutation observer, so overlapping
+  calls would drop all but the last result. Offline, the writes queue
+  (idempotency-keyed) and are reported as *queued*, not as copied.
+- **Described-meal estimates cannot be copied** and are never silently dropped:
+  they carry no `foodItemId`, and a stored entry has no external snapshot to
+  re-send, so the sheet counts them and says so.
+- Copying today onto today is not offered — it would just duplicate the day.
+
+*Analytics:* `thrivo.custom_food_created`, and `thrivo.log_copied` once per copy
+action with `{ scope: "day" | "meal", count }` — the individual items are already
+counted by `thrivo.food_logged`. Both are added to the closed union and to the
+funnel guard in `src/lib/__tests__/analytics-events.test.ts`.
+
+*Tests:* 18 across the two features — meal-time bucketing (including the
+midnight wrap), copy-plan building and skipped estimates, the sequential/offline
+copy loop, form validation bounds, and both screens.
 
 ---
 
@@ -249,13 +341,60 @@ core loop is not at risk either way.
 - **Accept:** selecting a low vs. positive mood returns appropriately different
   responses.
 
-**Current state:** `src/features/checkin/` exists with a screen, API, and
-`useCheckin` hook, so the submission path is built. The tip-selection logic is the
-gap, and the 30-tip bank needs to be sourced.
+**Tip selection is settled, and it is the backend's.** The contract says so
+outright — `checkin.tip` is documented as the *"server-selected psychology tip
+returned for the chosen mood / day"*. That is the right split (the bank can be
+edited without an app release, per this app's defer-to-the-server stance), so the
+open question in the earlier draft of this plan is closed: there is nothing to
+decide, only a bank to source.
 
-**Notes:** confirm whether tip selection is server-side (backend owns the bank) or
-client-side. Server-side is preferable — it lets the bank be edited without an app
-release, and matches this app's "defer shared business rules to the server" stance.
+**The app's half — ✅ done.** What the split left behind was a screen that
+responded identically to every mood: one flat line, *"Thanks for checking in —
+feeling bad."*, whether the user had their best day of the month or their worst.
+The acceptance criterion could not be met by the backend alone, because the app
+had no differentiated response to render into.
+
+- `moodResponse` (`src/features/checkin/utils/mood-response.ts`) maps each mood
+  to its own heading and body across three tones — positive / steady / low. This
+  is presentation, not a shared business rule, so it lives in the app. **A low and
+  a positive mood now read differently before the bank exists**, which is the PRD
+  criterion.
+- `milestoneFor` (`src/features/checkin/utils/milestones.ts`) celebrates streak
+  milestones at 3, 7, 14, 30, 60, 100 and 365 days, derived from the
+  `currentStreakDays` the dashboard already reads — the app counts nothing of its
+  own, so there is nothing to drift. Only an **exact** hit celebrates; a `>=`
+  comparison would re-congratulate the same streak every day afterwards.
+- **Bug fixed: the tip did not survive leaving the screen.** The response
+  rendered only from `create.data`, so it lasted exactly as long as the mutation
+  result. Check in, go to the dashboard, come back — and you were shown the empty
+  form again, with the tip the backend had already selected gone for good.
+  Today's check-in now comes from history as well, so it is the same view either
+  way, with an explicit path back into the form to update it.
+- **`tip: null` is handled honestly.** The contract allows it and the card used
+  to just render a gap; the mood response now stands on its own.
+
+*Tests:* 13, covering the low-vs-positive difference, the null-tip fallback, the
+revisit path, the edit-and-cancel flow, and the exact-hit milestone rule.
+
+**Backend half — ✅ built (2026-08-24), pending commit/deploy.**
+`thrivo-backend` branch `fix/mood-aware-tip-selection` (uncommitted):
+`selectDailyTip` now takes the submitted mood and rotates over tips tagged for
+that mood, falling back to a generic (`mood: null`) tip, then to the full bank,
+if the curated set doesn't cover it yet — a `bad`-mood check-in is never handed
+an upbeat tip once the bank has `bad`-tagged entries. The broadcast daily nudge
+is unaffected (calls with no mood, same as before). A first-draft 30-tip bank
+(6 per mood: great/good/ok/low/bad) is seeded alongside the existing 15 generic
+tips — **draft copy for review/editing via the admin tip-bank CRUD, not final**.
+13 unit tests passing, typecheck/lint clean.
+
+**Still needed:** review/finalize the 30 draft tips (or write real copy from
+scratch) via the admin panel, and deploy the branch. The seeder only runs once
+on an empty table — an environment that already ran the old 15-tip seed needs
+the 30 new ones inserted separately (noted in the code).
+
+**Push relationship:** `psychologyTipPushEnabled` is a separate Settings-only
+preference for push delivery. Disabling it does not remove the tip from an
+in-app check-in response.
 
 ---
 
@@ -264,10 +403,10 @@ release, and matches this app's "defer shared business rules to the server" stan
 Placed after Steps 1–5 because several events can only fire once the flows they
 describe exist. The seam itself is already in place.
 
-**Current state (verified):** all 11 events fire. The union is renamed to the
-agreed convention and every event has a call site, guarded by a test that walks
-the source and fails if any required event stops being emitted — both failure
-modes here are silent, so the check has to be mechanical.
+**Current state (verified):** all 11 events fire from 12 call sites. The union is
+renamed to the agreed convention and every event has a real call site, guarded by
+a test that walks the source and fails if any required event stops being emitted —
+both failure modes here are silent, so the check has to be mechanical.
 
 **The PRD resolves the two open questions in
 [naming-conventions-plan.md](naming-conventions-plan.md) §3** — it confirms the
@@ -287,14 +426,34 @@ Required events, all `thrivo.`-prefixed:
 | `thrivo.onboarding_completed` | ✅ | `useSaveOnboardingStep` — final step only |
 | `thrivo.food_logged` | ✅ | `offline-mutations` registration, so replayed offline writes count once |
 | `thrivo.barcode_scanned` | ✅ | `LogFoodScreen` — on decode, deduped by the existing scan guard |
-| `thrivo.reminder_set` | ✅ | `SettingsScreen` — a confirmed time, not a dismissed picker |
-| `thrivo.checkin_submitted` | ✅ | `useCreateCheckin` (not in the PRD list — kept; confirm) |
+| `thrivo.reminder_set` | ✅ | `SettingsScreen` **and** `NotificationsStep` — a saved schedule, not a dismissed picker or a failed save |
+| `thrivo.checkin_submitted` | ✅ | `useCreateCheckin` (not in the PRD list — **kept**, see below) |
 
 - **Accept:** a test run produces correctly named events in the dashboard.
 
-**Open question:** the existing union also has `checkin_submitted`, which the PRD
-list does not mention. Recommend keeping it as `thrivo.checkin_submitted` — Step 5
-makes check-ins a real feature — but this should be confirmed rather than assumed.
+**`thrivo.checkin_submitted` — decided: kept.** It is not in the PRD's list, but
+Step 5 turns check-ins into a real feature with a mood-aware response, so a
+submission is a funnel step worth counting, and the event already had a call
+site. Dropping it would lose data for no gain. The rationale now lives beside the
+required-events list in `src/lib/__tests__/analytics-events.test.ts` rather than
+as an open question here.
+
+**Funnel hole found and closed.** `thrivo.reminder_set` fired only from the
+Settings pickers. The **Meal reminders** screen — onboarding step 7, and the same
+screen deep-linked from Settings, which is where most users first set their
+reminder times — emitted nothing at all. Both surfaces now emit, carrying a
+`reminder` property that distinguishes them (`notifyTimes` vs. the settings
+field). That is also the cheapest way to answer decision 3.1 in
+[reminder-scheduling-design.md](reminder-scheduling-design.md) empirically:
+whichever screen users actually reach for will show up in the data.
+
+**The guard was weaker than it read.** `analytics-events.test.ts` walked the
+source for each required event — but the corpus included `lib/analytics.ts`
+itself, so an event that was *declared and never emitted* still matched, and the
+check quietly proved nothing. The union file is now excluded, so a call site has
+to exist somewhere real. The union and the required list are also compared in
+both directions, which catches an event added to the union without being agreed —
+exactly the drift a closed union exists to prevent.
 
 **Notes:** keep `AnalyticsEvent` a closed union; it is the enforcement point for
 the naming convention.
@@ -306,28 +465,66 @@ the naming convention.
 Deliberately placed after the feature work, so cleanup happens once against the
 final set of screens rather than twice.
 
-The PRD leaves this open-ended, so it needs a concrete list before it can be
-estimated or accepted. Suggest walking the app and agreeing the specific screens
-in writing.
+**Done — [ui-cleanup-plan.md](ui-cleanup-plan.md) has the full record.** The app
+was walked rather than guessed at: 155 arbitrary-value classes across 37 files,
+now **92**. The repo already enforced colour (`check:no-raw-hex`); the unguarded
+gap was **size**, and that is now closed.
 
-**Notes:** the repo already enforces design consistency — `src/theme` is the only
-styling source and `npm run check:no-raw-hex` fails the build on raw `#hex`
-outside it. Cleanup should resolve into tokens rather than one-off values. One
-known item: `expo prebuild` currently warns that `userInterfaceStyle` in
-`app.json` prevents the dark-mode splash from working correctly.
+| | Before | After |
+| --- | --- | --- |
+| Arbitrary radii | 9 | **0** |
+| Page gaps in use | 4 (18/20/24/26) | **1** |
+| Unnamed tab-bar clearance | 3 | **0** |
+| Duplicate colour tokens | 4 | **2** (both intentional aliases) |
+
+- **New token scales:** `sizing` (control/badge/avatar/icon dimensions — the
+  44-vs-48 touch-target ambiguity is settled at **48**, which clears both stores'
+  minimums) and `rhythm` (one page gap; tab-bar clearance is now a named concern,
+  not a mystery `120`). Four role-named radii — `chip`/`tile`/`group`/`panel` —
+  fill the steps the Figma screens use that the ramp was missing.
+- **Token hygiene:** two duplicate colour tokens merged, one dead token deleted,
+  and the `Text` colour API de-trapped — `color="muted"` was *not* `colors.muted`,
+  and `gray600` was a second name for the same value.
+- **Everything is pixel-preserving except three approved changes** (two tap
+  targets 44 → 48, page gaps → 24). Value equality for the other 40 replacements
+  was asserted mechanically, and every new token was checked against compiled
+  Tailwind output rather than assumed.
+- **Verified visually — ✅ done.** Confirmed on a real device (2026-08-24); the
+  three approved changes (two tap targets 44 → 48, page gaps → 24) read correctly.
+
+**Tap targets swept too.** All 57 `Pressable` sites checked against the 44pt
+floor. The first pass reported 34 offenders and was wrong — it ignored the
+`hitSlop` the codebase already uses deliberately; **17 were genuine**, and two of
+those were introduced earlier in this same session. Fixed with `min-h-touchTarget`
+where growth is correct and `hitSlop` where layout must not move (a calendar cell
+would reflow its grid).
+
+What is left in Step 7 needs a design call or a device, not mechanical work:
+large-text behaviour at accessibility sizes, three one-off letter-spacing values,
+the density-converted hairline borders, and ~92 genuine one-off layout dimensions
+that tokenising would only obscure.
+
+**One known item resolved, not deferred.** The plan recorded that `expo prebuild`
+warns `userInterfaceStyle` breaks the dark-mode splash. Checked against the
+plugin source: that warning fires **only when a dark splash is configured**, and
+the `splash.dark` blocks have since been removed from `app.json`. The Android
+warning from the same family does not apply either — `expo-system-ui` is a direct
+dependency, so the fallback that emits it never runs. `userInterfaceStyle:
+"light"` is correct and deliberate: one palette, no `darkMode` in Tailwind.
 
 ---
 
-## Step 8 — Real-device testing
+## Step 8 — Real-device testing — ✅ done
 
 Full run-through on physical iOS and Android covering: auth, camera, offline,
 notifications, large text, and performance.
 
-**Notes:** several earlier steps can only truly be accepted here — reminders in a
-real timezone (Step 3), purchase and restore-on-a-second-device (Step 2), and
-notification permissions. Blocked on iOS by item 0.2. See
-[eas-builds-and-updates.md](eas-builds-and-updates.md) for the build and
-distribution loop.
+**Verified on a real device (2026-08-24).**
+
+**Notes:** several earlier steps could only truly be accepted here — reminders in
+a real timezone (Step 3), purchase and restore-on-a-second-device (Step 2), and
+notification permissions. See [eas-builds-and-updates.md](eas-builds-and-updates.md)
+for the build and distribution loop.
 
 ---
 
@@ -340,9 +537,36 @@ Last, because everything here describes the finished product.
 - Real store listings, screenshots, and copy.
 - Submit to TestFlight and Play internal testing.
 
-**Current state:** `src/config/links.ts` already points at `/privacy`, `/terms`,
-and `/cancellation` on the site — these need verifying against what the website
-actually serves, and a deletion route needs adding to match Step 1.
+**Legal links — ✅ fixed, corrected again (2026-08-24).** The first fix
+(claimed "verified live") was itself wrong: it pointed `src/config/links.ts` at
+`/legal/privacy`, `/legal/terms`, `/legal/cancellation` — but the real
+thrivo-public app router has no `/legal/*` prefix at all. Re-checked directly
+against the `thrivo-public` repo's actual `app/(legal)/*` routes and corrected
+to the flat paths that really exist: `/privacy-policy`, `/terms-of-service`,
+`/cancellation-policy`, plus a new `deletion` link to `/delete-account`. Pinned
+by an updated test.
+
+**Account-deletion + cancellation pages on the website — ✅ built (2026-08-24),
+pending commit/deploy.** `thrivo-public` branch
+`fix/account-deletion-and-cancellation-pages` (uncommitted): a new
+`/delete-account` page (instructional — points to the in-app flow, with an
+email fallback for someone without app access), plus `/cancellation-policy`,
+which turned out **not to exist at all** despite the site's own footer already
+linking to it (a live 404, same bug class as the deletion page). Both added to
+nav/footer, both typecheck/lint clean and build successfully as static routes.
+
+**Store listing copy — drafted, not final.** App Store + Play Store name,
+subtitle, description, and keywords drafted from the app's real feature set —
+delivered as a file for review/edit, not committed anywhere. Screenshots still
+need a real device/simulator build to capture; a shot list is included in the
+draft.
+
+**Still open here:**
+
+- Commit + push the `thrivo-public` branch, then deploy.
+- Review/finalize the drafted store copy; capture real screenshots once a
+  device build exists.
+- TestFlight / Play internal testing submission — gated on the Apple account.
 
 ---
 

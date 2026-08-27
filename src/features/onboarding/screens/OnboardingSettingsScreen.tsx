@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Pressable, View } from "react-native";
 import { router } from "expo-router";
 import { CaretRight, CheckCircle, Lock } from "phosphor-react-native";
-import { Button, PageHeader, Screen, SkeletonText, Text } from "@/components";
+import { Button, ErrorDialog, PageHeader, Screen, SkeletonText, Text } from "@/components";
 import { useMe } from "@/features/profile";
 import { useSettings } from "@/features/settings/hooks/useSettings";
 import { useOnboardingPrefill } from "@/features/onboarding/hooks/useOnboardingPrefill";
@@ -22,7 +22,7 @@ export function OnboardingSettingsScreen() {
 
   if (profile.isLoading || settings.isLoading || !profile.data) {
     return (
-      <Screen backgroundColor="white" style={{ gap: 20, paddingTop: 32 }}>
+      <Screen backgroundColor="white" rhythm="default">
         <PageHeader title="Onboarding setup" />
         <SkeletonText size="heading" />
         <SkeletonText size="body" className="w-2/3" />
@@ -33,7 +33,7 @@ export function OnboardingSettingsScreen() {
   const progress = getOnboardingProgress(profile.data);
   if (progress.status === "complete") {
     return (
-      <Screen backgroundColor="white" style={{ gap: 20, paddingTop: 32 }}>
+      <Screen backgroundColor="white" rhythm="default">
         <PageHeader title="Onboarding complete" onBack={() => router.back()} />
         <View className="items-center gap-md py-2xl">
           <CheckCircle size={64} weight="fill" color={colors.successBright} />
@@ -52,15 +52,11 @@ export function OnboardingSettingsScreen() {
     const StepScreen = STEP_SCREENS[activeStep];
     return (
       <View className="flex-1">
-        {saveError ? (
-          <Pressable
-            accessibilityRole="alert"
-            onPress={() => setSaveError(null)}
-            className="bg-red-50 px-lg py-sm"
-          >
-            <Text color="error">{saveError}</Text>
-          </Pressable>
-        ) : null}
+        <ErrorDialog
+          message={saveError}
+          title="Could not save this step"
+          onDismiss={() => setSaveError(null)}
+        />
         <StepScreen
           mode="revisit"
           isSaving={saveStep.isPending}
@@ -72,7 +68,7 @@ export function OnboardingSettingsScreen() {
               await saveStep.save(fields, activeStep, activeStep === TOTAL_ONBOARDING_STEPS);
               setActiveStep(activeStep === TOTAL_ONBOARDING_STEPS ? null : activeStep + 1);
             } catch {
-              setSaveError("Could not save this step. Check your connection and try again.");
+              setSaveError("Check your connection and try again.");
             }
           }}
         />
@@ -82,13 +78,27 @@ export function OnboardingSettingsScreen() {
 
   const firstIncomplete = progress.firstIncompleteStep ?? 1;
   return (
-    <Screen scroll backgroundColor="white" style={{ gap: 20, paddingTop: 32, paddingBottom: 40 }}>
-      <PageHeader
-        title="Onboarding setup"
-        subtitle={`${progress.completedSteps} of ${TOTAL_ONBOARDING_STEPS} complete`}
-        onBack={() => router.back()}
-      />
-
+    <Screen
+      scroll
+      backgroundColor="white"
+      rhythm="form"
+      header={
+        <PageHeader
+          title="Onboarding setup"
+          subtitle={`${progress.completedSteps} of ${TOTAL_ONBOARDING_STEPS} complete`}
+          onBack={() => router.back()}
+        />
+      }
+      footer={
+        <Button
+          label="Continue setup"
+          onPress={() => setActiveStep(firstIncomplete)}
+          disabled={!firstIncomplete}
+        />
+      }
+      style={{ paddingTop: 0, paddingBottom: 16 }}
+    >
+      {/* Header and primary action are sticky; only the step list scrolls. */}
       <View className="gap-sm">
         {ONBOARDING_STEPS.map((step) => {
           const complete = progress.completed[step.key] === true;
@@ -125,12 +135,6 @@ export function OnboardingSettingsScreen() {
           );
         })}
       </View>
-
-      <Button
-        label="Continue setup"
-        onPress={() => setActiveStep(firstIncomplete)}
-        disabled={!firstIncomplete}
-      />
     </Screen>
   );
 }
