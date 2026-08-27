@@ -109,7 +109,7 @@ describe("DeleteAccountScreen", () => {
     expect(mockVerifyCode).toHaveBeenCalledWith("123456");
 
     mockDeleteMutate.mock.calls[0][1].onSuccess();
-    expect(router.replace).toHaveBeenCalledWith("/(auth)/welcome");
+    expect(router.replace).toHaveBeenCalledWith("/(auth)/sign-in");
   });
 
   it("does not delete when the verification code is rejected", async () => {

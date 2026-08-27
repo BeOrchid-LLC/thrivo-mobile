@@ -147,10 +147,6 @@ export function PersonalInfoScreen() {
   return (
     <Screen
       scroll
-      // Inside the tab navigator, which already clears the home indicator.
-      // Including the bottom edge here would stack that inset on top of the
-      // footer's 16 and push the primary button ~50px off the tab bar.
-      edges={["top", "left", "right"]}
       backgroundColor={colors.white}
       header={
         <PageHeader title="Personal information" subtitle="Edit your details and save changes" />
@@ -195,10 +191,19 @@ export function PersonalInfoScreen() {
         </Pressable>
       </View>
 
-      <Input label="Full name" value={fullName} onChangeText={setFullName} />
-      <Input label="Email" value={user?.email ?? ""} editable={false} />
+      <Input variant="settings" label="Full name" value={fullName} onChangeText={setFullName} />
+      {/* Read-only — the address is owned by the sign-in identity. Muted copy
+          says so on sight, the way the frame states it. */}
+      <Input
+        variant="settings"
+        label="Email"
+        value={user?.email ?? ""}
+        editable={false}
+        style={{ color: colors.muted }}
+      />
 
       <SelectInput
+        variant="settings"
         accessibilityRole="button"
         accessibilityLabel="Select goal"
         onPress={() => setEditingSelect("goal")}
@@ -207,6 +212,7 @@ export function PersonalInfoScreen() {
       />
 
       <Input
+        variant="settings"
         label="Current weight"
         value={currentWeight}
         onChangeText={setCurrentWeight}
@@ -214,6 +220,7 @@ export function PersonalInfoScreen() {
         trailingText={weightUnit}
       />
       <Input
+        variant="settings"
         label="Target weight"
         value={targetWeight}
         onChangeText={setTargetWeight}
@@ -221,6 +228,7 @@ export function PersonalInfoScreen() {
         trailingText={weightUnit}
       />
       <Input
+        variant="settings"
         label="Age"
         value={age}
         onChangeText={setAge}
@@ -229,6 +237,7 @@ export function PersonalInfoScreen() {
       />
 
       <Input
+        variant="settings"
         label="Height"
         value={height}
         onChangeText={setHeight}
@@ -237,6 +246,7 @@ export function PersonalInfoScreen() {
       />
 
       <SelectInput
+        variant="settings"
         accessibilityRole="button"
         accessibilityLabel="Select sex"
         onPress={() => setEditingSelect("sex")}

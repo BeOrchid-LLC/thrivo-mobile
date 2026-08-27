@@ -226,7 +226,7 @@ export function EditFoodLogSheet({ entry, visible, onClose }: EditFoodLogSheetPr
             <PremiumGate
               title="Subscribe to see macros"
               subtitle="Protein, carbs, and fat unlock with Premium."
-              onViewPlans={() => router.push("/settings/subscription")}
+              onViewPlans={() => router.push("/(app)/subscription")}
             >
               {macros}
             </PremiumGate>
@@ -270,7 +270,7 @@ export function EditFoodLogSheet({ entry, visible, onClose }: EditFoodLogSheetPr
             <PremiumGate
               title="Subscribe to see macros"
               subtitle="Protein, carbs, and fat unlock with Premium."
-              onViewPlans={() => router.push("/settings/subscription")}
+              onViewPlans={() => router.push("/(app)/subscription")}
             >
               {macros}
             </PremiumGate>

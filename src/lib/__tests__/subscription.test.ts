@@ -15,13 +15,14 @@ const mockPurchases = Purchases as unknown as {
   purchasePackage: jest.Mock;
   restorePurchases: jest.Mock;
   getCustomerInfo: jest.Mock;
+  setLogHandler: jest.Mock;
 };
 
 function pkg(identifier: string, packageType: string) {
   return {
     identifier,
     packageType,
-    product: { identifier, priceString: "$14.99", introPrice: null },
+    product: { identifier, price: 14.99, priceString: "$14.99", introPrice: null },
   };
 }
 
@@ -53,6 +54,23 @@ describe("subscription billing seam", () => {
 
   afterAll(() => {
     process.env = { ...original };
+  });
+
+  it("keeps SDK logs off console.error, so a cancelled sheet is not a red screen", async () => {
+    // The SDK's own handler logs its ERROR level through console.error, which
+    // LogBox turns into a full-screen error for something as ordinary as
+    // dismissing the purchase sheet. We must claim the handler before configure.
+    const consoleError = jest.spyOn(console, "error").mockImplementation(() => {});
+    jest.spyOn(console, "log").mockImplementation(() => {});
+
+    await loadConfigured();
+
+    expect(mockPurchases.setLogHandler).toHaveBeenCalled();
+    const [handler] = mockPurchases.setLogHandler.mock.calls[0];
+    handler("ERROR", "\u{1F34E}\u203C\uFE0F Purchase was cancelled.");
+    expect(consoleError).not.toHaveBeenCalled();
+
+    jest.restoreAllMocks();
   });
 
   it("maps monthly and annual store packages onto our plan enum", async () => {

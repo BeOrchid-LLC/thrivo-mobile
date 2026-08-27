@@ -9,10 +9,6 @@ export interface OnboardingProgress {
   completed: Record<OnboardingStepKey, boolean>;
 }
 
-function hasText(value: string | null | undefined): boolean {
-  return Boolean(value?.trim());
-}
-
 function hasWeightData(user: User): boolean {
   return user.weightKg !== null && (user.goal === "maintain" || user.targetWeightKg !== null);
 }
@@ -23,8 +19,6 @@ function hasTargetData(user: User): boolean {
 
 function stepHasData(user: User, key: OnboardingStepKey): boolean {
   switch (key) {
-    case "name":
-      return hasText(user.name);
     case "goal":
       return user.goal !== null;
     case "weight":
@@ -34,7 +28,7 @@ function stepHasData(user: User, key: OnboardingStepKey): boolean {
     case "target":
       return hasTargetData(user);
     case "start-free":
-      return user.onboardingStep >= 6;
+      return user.onboardingStep >= 5;
     case "notifications":
       return user.notifyTimes !== null && user.timezone !== null;
   }

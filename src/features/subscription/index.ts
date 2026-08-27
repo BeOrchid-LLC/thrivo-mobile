@@ -5,6 +5,10 @@ export {
   purchaseSubscription,
   startTrial,
 } from "./api/subscription.api";
+export {
+  CancelSubscriptionDialogs,
+  type CancelSubscriptionDialogsProps,
+} from "./components/CancelSubscriptionDialogs";
 export { useCancelSubscription } from "./hooks/useCancelSubscription";
 export { useOfferings, useOfferingsDiagnostics, productForPlan } from "./hooks/useOfferings";
 export { usePurchaseSubscription, type PurchaseVariables } from "./hooks/usePurchaseSubscription";

@@ -32,6 +32,7 @@ import {
 import { env } from "@/config/env";
 import {
   useBillingSync,
+  useHasDismissedOnboarding,
   usePushRegistration,
   useSessionInit,
   useSessionRefresh,
@@ -47,12 +48,15 @@ import {
 import { colors } from "@/theme";
 import {
   useAuthStatus,
+  useRestoreError,
   useBiometricAuthEnabled,
   useIsBiometricUnlocked,
   useIsOnboarded,
   useIsOnboardingSkipped,
+  usePreferencesActions,
   usePreferencesHydrated,
   useSessionActions,
+  useUserId,
 } from "@/stores";
 
 wireApiSeams();
@@ -97,10 +101,14 @@ function RootNavigator({
   neutralBackground: string;
 }) {
   const status = useAuthStatus();
+  const restoreError = useRestoreError();
   const biometricEnabled = useBiometricAuthEnabled();
   const isBiometricUnlocked = useIsBiometricUnlocked();
   const isOnboarded = useIsOnboarded();
   const isOnboardingSkipped = useIsOnboardingSkipped();
+  const hasDismissedOnboarding = useHasDismissedOnboarding();
+  const userId = useUserId();
+  const { markOnboardingDismissed } = usePreferencesActions();
   const preferencesHydrated = usePreferencesHydrated();
   const [preferenceTimeoutReached, setPreferenceTimeoutReached] = useState(false);
   const [pendingLinkVersion, setPendingLinkVersion] = useState(0);
@@ -165,7 +173,7 @@ function RootNavigator({
       !ready ||
       !nativeSplashReleased ||
       status !== "authenticated" ||
-      (!isOnboarded && !isOnboardingSkipped) ||
+      (!isOnboarded && !isOnboardingSkipped && !hasDismissedOnboarding) ||
       isBiometricLocked
     ) {
       return;
@@ -179,10 +187,23 @@ function RootNavigator({
     status,
     isOnboarded,
     isOnboardingSkipped,
+    hasDismissedOnboarding,
     isBiometricLocked,
     pendingLinkVersion,
     router,
   ]);
+
+  /**
+   * Onboarding is a one-time gate. The moment someone is through to `(app)` —
+   * having finished it, skipped it, or arrived already onboarded — record it so
+   * no later launch can route them back into the flow. Settings is the way back
+   * in from here.
+   */
+  useEffect(() => {
+    if (status !== "authenticated" || !userId || isBiometricLocked) return;
+    if (segments[0] !== "(app)") return;
+    markOnboardingDismissed(userId);
+  }, [status, userId, isBiometricLocked, segments, markOnboardingDismissed]);
 
   useEffect(() => {
     if (!ready || !nativeSplashReleased || redirecting.current) return;
@@ -194,10 +215,11 @@ function RootNavigator({
       isOnboarded,
       isOnboardingSkipped,
       isBiometricLocked,
+      hasDismissedOnboarding,
     });
 
     bootLog(
-      `guard group=${group ?? "/"} status=${status} onboarded=${isOnboarded} skipped=${isOnboardingSkipped} biometricLocked=${isBiometricLocked} target=${target ?? "none"}`
+      `guard group=${group ?? "/"} status=${status} onboarded=${isOnboarded} skipped=${isOnboardingSkipped} dismissed=${hasDismissedOnboarding} biometricLocked=${isBiometricLocked} target=${target ?? "none"}`
     );
 
     if (target) {
@@ -213,6 +235,7 @@ function RootNavigator({
     status,
     isOnboarded,
     isOnboardingSkipped,
+    hasDismissedOnboarding,
     isBiometricLocked,
     segments,
     router,
@@ -231,7 +254,11 @@ function RootNavigator({
       <Screen>
         <ErrorState
           title="Could not restore your session"
-          message="Check your connection and try again."
+          message={
+            restoreError
+              ? `Check your connection and try again.\n\n${restoreError}`
+              : "Check your connection and try again."
+          }
           retryLabel="Try again"
           onRetry={() => setStatus("loading")}
           // Escape hatch. Some restore failures cannot be retried away — a

@@ -5,7 +5,7 @@ describe("parseAppDeepLink", () => {
     ["https://thrivo.fit/dashboard", "/(app)/(tabs)/dashboard"],
     ["https://thrivo.fit/metrics", "/(app)/(tabs)/metrics"],
     ["thrivo://log", "/(app)/(tabs)/log"],
-    ["thrivo://settings/subscription", "/settings/subscription"],
+    ["thrivo://settings/subscription", "/(app)/subscription"],
   ])("allows the known destination %s", (url, expected) => {
     expect(parseAppDeepLink(url)).toBe(expected);
   });

@@ -1,19 +1,13 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { router } from "expo-router";
-import { Pressable, TextInput, View } from "react-native";
+import { Pressable, View } from "react-native";
 import {
-  CameraView,
-  useCameraPermissions,
-  type BarcodeScanningResult,
-  type BarcodeType,
-} from "expo-camera";
-import {
-  Barcode,
-  CaretRight,
+  ChatText,
   Heart,
   MagnifyingGlass,
   NotePencil,
-  TextAlignLeft,
+  PlusCircle,
+  Scan,
   Warning,
   XCircle,
 } from "phosphor-react-native";
@@ -27,44 +21,28 @@ import {
   Segmented,
   SkeletonBlock,
   SkeletonText,
-  StepperButton,
   Text,
   useToast,
 } from "@/components";
 import { queryClient, queryKeys } from "@/api";
 import { useCurrentDay } from "@/hooks/useCurrentDay";
-import {
-  analytics,
-  isNetworkReachable,
-  queueBarcodeScan,
-  readQueuedBarcodeScans,
-  removeQueuedBarcodeScan,
-} from "@/lib";
-import { useUserId } from "@/stores";
-import { colors, rhythm } from "@/theme";
 import { useSettings } from "@/features/settings";
+import { colors } from "@/theme";
 import { subscribeTabRootReset } from "@/navigation/tab-root-reset";
-import { formatWater, isToday, roundTo, waterFromMl, waterUnitFor } from "@/utils";
-import type { FoodItem, FoodLogEntry, PortionMeasure, WaterEntry } from "@/contracts";
-import { CreateFoodScreen } from "./CreateFoodScreen";
+import { addDays, formatWater, isToday, roundTo, waterFromMl, waterUnitFor } from "@/utils";
+import type { FoodItem, FoodLogEntry, WaterEntry } from "@/contracts";
 import { EditFoodLogSheet } from "../components/EditFoodLogSheet";
-import { FavoriteButton } from "../components/FavoriteButton";
 import { FoodResultRow } from "../components/FoodResultRow";
 import { FoodRowSkeleton } from "../components/FoodRowSkeleton";
 import { LogItemSheet } from "../components/LogItemSheet";
-import { MacroCards } from "../components/MacroCards";
 import { SearchResultsSheet } from "../components/SearchResultsSheet";
 import { WaterAmountSheet } from "../components/WaterAmountSheet";
 import { WaterProgressRing } from "../components/WaterProgressRing";
-import { parsePositiveQuantity, stepQuantity } from "../utils/quantity";
 import {
   useAddWaterLog,
-  useBarcodeLookup,
   useDeleteWaterLog,
-  useEstimateFood,
   useFavorites,
   useFoodSearch,
-  useLogEstimate,
   useLogFood,
   useRecentFoods,
   useUpdateWaterLog,
@@ -72,26 +50,6 @@ import {
 } from "../hooks/useFoodLogging";
 
 type Segment = "food" | "water";
-type Subview = "main" | "scan" | "describe" | "create";
-
-const portions: { label: string; value: PortionMeasure }[] = [
-  { label: "Serving", value: "serving" },
-  { label: "Weight", value: "weight" },
-  { label: "Cup", value: "cup" },
-  { label: "Tbsp", value: "tbsp" },
-  { label: "Piece", value: "piece" },
-];
-
-// Switching units shouldn't leave a stale quantity from the previous unit behind
-// (e.g. 900 grams -> Serving landing on "900 servings") - reset to a sensible
-// per-unit default instead.
-const DEFAULT_QUANTITY_BY_MEASURE: Record<PortionMeasure, string> = {
-  weight: "100",
-  serving: "1",
-  cup: "1",
-  tbsp: "1",
-  piece: "1",
-};
 
 function useDebouncedValue<T>(value: T, delayMs: number): T {
   const [debounced, setDebounced] = useState(value);
@@ -102,15 +60,9 @@ function useDebouncedValue<T>(value: T, delayMs: number): T {
   return debounced;
 }
 
-function normalizeBarcode(value: string): string | null {
-  const normalized = value.replace(/[\s-]/g, "");
-  return /^\d{8,14}$/.test(normalized) ? normalized : null;
-}
-
 export function LogFoodScreen() {
   const day = useCurrentDay();
   const [segment, setSegment] = useState<Segment>("food");
-  const [subview, setSubview] = useState<Subview>("main");
   const [resetVersion, setResetVersion] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -118,7 +70,6 @@ export function LogFoodScreen() {
     () =>
       subscribeTabRootReset("log", () => {
         setSegment("food");
-        setSubview("main");
         setResetVersion((version) => version + 1);
       }),
     []
@@ -137,22 +88,13 @@ export function LogFoodScreen() {
     void Promise.all(queries).finally(() => setRefreshing(false));
   };
 
-  if (subview === "scan") return <ScanBarcodeScreen day={day} onBack={() => setSubview("main")} />;
-  if (subview === "describe")
-    return <DescribeMealScreen day={day} onBack={() => setSubview("main")} />;
-  if (subview === "create") return <CreateFoodScreen day={day} onBack={() => setSubview("main")} />;
-
   return (
     <Screen
       scroll
       edges={["top", "left", "right"]}
       rhythm="default"
       header={
-        <PageHeader
-          title={segment === "food" ? "Log Food" : "Log Water"}
-          subtitle="What are you logging today?"
-          showBack={false}
-        />
+        <PageHeader title="Food Logs" subtitle="What are you having today?" showBack={false} />
       }
       refreshing={refreshing}
       onRefresh={refresh}
@@ -169,9 +111,9 @@ export function LogFoodScreen() {
         <FoodHome
           key={resetVersion}
           day={day}
-          onScan={() => setSubview("scan")}
-          onDescribe={() => setSubview("describe")}
-          onCreate={() => setSubview("create")}
+          onScan={() => router.push("/(app)/scan-barcode")}
+          onDescribe={() => router.push("/(app)/describe-meal")}
+          onCreate={() => router.push("/(app)/create-food")}
         />
       ) : (
         <WaterHome day={day} />
@@ -196,29 +138,62 @@ function FoodHome({
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [editingEntry, setEditingEntry] = useState<FoodLogEntry | null>(null);
   const [loggingItem, setLoggingItem] = useState<FoodItem | null>(null);
+  const [quickAddingId, setQuickAddingId] = useState<string | null>(null);
   const search = useFoodSearch(debouncedQuery);
   const recent = useRecentFoods();
   const favorites = useFavorites();
   const logFood = useLogFood();
+  const { showToast } = useToast();
 
   const hasQuery = query.trim().length > 0;
   const canSearch = query.trim().length >= 2;
   const results = search.items;
-  const recentItems = recent.data?.items ?? [];
   const favoriteItems = favorites.data?.items ?? [];
   const searchLoading =
     canSearch && (search.isLoading || (results.length === 0 && search.isFetchingNextPage));
+
+  // The recent list is a running feed, so it spans days; the frame heads the
+  // newest group "Recent foods" and dates the ones behind it.
+  const recentGroups = useMemo(() => {
+    const groups: { day: string; entries: FoodLogEntry[] }[] = [];
+    for (const entry of recent.data?.items ?? []) {
+      const current = groups[groups.length - 1];
+      if (current && current.day === entry.day) current.entries.push(entry);
+      else groups.push({ day: entry.day, entries: [entry] });
+    }
+    return groups;
+  }, [recent.data?.items]);
 
   const openLogSheet = (food: FoodItem) => {
     setQuery("");
     setLoggingItem(food);
   };
 
+  // The "+" beside a recent food logs it again onto today, at the same amount.
+  const quickAdd = (entry: FoodLogEntry) => {
+    if (!entry.foodItemId) return;
+    setQuickAddingId(entry.id);
+    logFood.mutate(
+      {
+        foodItemId: entry.foodItemId,
+        day,
+        servings: entry.servings,
+        servingId: entry.servingId ?? undefined,
+        servingUnit: entry.servingUnit ?? undefined,
+      },
+      {
+        onSuccess: () => showToast({ message: `${entry.name} logged`, variant: "success" }),
+        onError: () => showToast({ message: "Could not log that. Try again.", variant: "error" }),
+        onSettled: () => setQuickAddingId(null),
+      }
+    );
+  };
+
   return (
     <View className="gap-xl">
       <View className="flex-row justify-between">
         <QuickAction
-          icon={<Barcode size={22} color={colors.dark} />}
+          icon={<Scan size={22} color={colors.dark} />}
           label="Scan barcode"
           onPress={onScan}
         />
@@ -231,7 +206,7 @@ function FoodHome({
           }}
         />
         <QuickAction
-          icon={<TextAlignLeft size={22} color={colors.dark} />}
+          icon={<ChatText size={22} color={colors.dark} />}
           label="Describe it"
           onPress={onDescribe}
         />
@@ -247,8 +222,9 @@ function FoodHome({
           setQuery(value);
           setShowFavoritesOnly(false);
         }}
-        placeholder="Or, search by name..."
+        placeholder="Or, search food by name..."
         autoCapitalize="none"
+        shape="pill"
         leadingIcon={<MagnifyingGlass size={20} color={colors.gray[500]} />}
       />
       {showFavoritesOnly ? (
@@ -269,17 +245,29 @@ function FoodHome({
             />
           ))}
         </FoodListSection>
-      ) : recentItems.length > 0 ? (
-        <View className="gap-md">
-          <RecentFoodsHeader />
-          {recentItems.map((entry) => (
-            <RecentFoodRow key={entry.id} entry={entry} onPress={() => setEditingEntry(entry)} />
+      ) : recentGroups.length > 0 ? (
+        <View>
+          {recentGroups.map((group, index) => (
+            <View key={`${group.day}-${index}`}>
+              <SectionHeading label={recentGroupLabel(group.day, index, day)} first={index === 0} />
+              {group.entries.map((entry) => (
+                <RecentFoodRow
+                  key={entry.id}
+                  entry={entry}
+                  onPress={() => setEditingEntry(entry)}
+                  onQuickAdd={() => quickAdd(entry)}
+                  adding={quickAddingId === entry.id}
+                />
+              ))}
+            </View>
           ))}
         </View>
       ) : recent.isLoading ? (
-        <View className="gap-md">
-          <RecentFoodsHeader />
-          <FoodRowSkeleton count={3} />
+        <View>
+          <SectionHeading label="Recent foods" first />
+          <View className="gap-md pt-md">
+            <FoodRowSkeleton count={3} />
+          </View>
         </View>
       ) : recent.isError ? (
         <SectionError
@@ -354,7 +342,6 @@ function WaterHome({ day }: { day: string }) {
   const unitSystem = settings.data?.unitSystem ?? "metric";
   const waterUnit = waterUnitFor(unitSystem);
   const quickAddAmounts = [100, 250, 500];
-  const [manualOpen, setManualOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<WaterEntry | null>(null);
   const data = water.data;
   const behind = Boolean(data?.alert);
@@ -389,20 +376,20 @@ function WaterHome({ day }: { day: string }) {
   }
 
   return (
-    <View className="gap-xl">
+    <View className="gap-2xl">
       <View className="flex-row items-center gap-xl">
         <WaterProgressRing progressPercent={data.progressPercent} behind={behind} />
         <View className="flex-1">
           <Text variant="heading1" color="dark">
             {roundTo(waterFromMl(data.totalMl, unitSystem), unitSystem === "imperial" ? 1 : 0)}{" "}
-            <Text variant="body" color="muted">
+            <Text variant="body-sm" color="muted">
               {waterUnit}
             </Text>
           </Text>
-          <Text variant="body" color="muted">
+          <Text variant="body-sm" color="muted">
             of {formatWater(data.targetMl, unitSystem)} daily goal
           </Text>
-          <Text variant="body" color={behind ? "accent" : "primary"} className="font-semibold">
+          <Text variant="body-sm" color={behind ? "accent" : "primary"} className="font-semibold">
             {formatWater(data.remainingMl, unitSystem)} remaining
           </Text>
         </View>
@@ -420,8 +407,8 @@ function WaterHome({ day }: { day: string }) {
           </Text>
         </Card>
       ) : null}
-      <View className="gap-md">
-        <Text variant="body" color="dark">
+      <View className="gap-sm">
+        <Text variant="body-sm" color="gray500">
           Quick add
         </Text>
         <View className="flex-row gap-md">
@@ -438,53 +425,30 @@ function WaterHome({ day }: { day: string }) {
                 accessibilityLabel={`Add ${formatWater(amountMl, unitSystem)} water`}
                 disabled={addWater.isPending}
                 onPress={() => addWaterAmount(amountMl)}
-                className={`h-controlLg flex-1 items-center justify-center rounded-md ${
+                className={`h-controlXl flex-1 items-center justify-center rounded-md ${
                   isDefault ? "bg-primarySoft" : "bg-gray-100"
                 }`}
               >
                 <Text
-                  variant="body"
+                  variant="body-sm"
                   color={isDefault ? "primary" : "muted"}
                   className="font-semibold"
                 >
                   {amount}
                 </Text>
-                <Text variant="caption" color={isDefault ? "primary" : "muted"}>
+                <Text variant="micro" color={isDefault ? "primary" : "muted"}>
                   {waterUnit}
                 </Text>
               </Pressable>
             );
           })}
         </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Add water manually"
-          onPress={() => setManualOpen(true)}
-          className="min-h-touchTarget justify-center self-end py-xs"
-        >
-          <Text variant="body" color="primary" className="font-semibold">
-            Add water manually
-          </Text>
-        </Pressable>
       </View>
-      <View className="gap-md">
-        <View className="flex-row items-center justify-between">
-          <Text variant="heading3" color="muted">
+      <View>
+        <View className="border-b border-gray-200 pb-md">
+          <Text variant="body-sm" color="gray500" accessibilityRole="header">
             {"Today's log"}
           </Text>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="View all water logs"
-            onPress={() =>
-              router.push({ pathname: "/(app)/water-history", params: { returnTo: "log" } })
-            }
-            className="min-h-touchTarget flex-row items-center gap-xs py-xs"
-          >
-            <Text variant="body" color="primary" className="font-semibold">
-              View all logs
-            </Text>
-            <CaretRight size={16} color={colors.primary} weight="bold" />
-          </Pressable>
         </View>
         {data.entries.map((entry) => (
           <Pressable
@@ -493,13 +457,13 @@ function WaterHome({ day }: { day: string }) {
             accessibilityLabel="Edit water entry"
             disabled={!canEditEntries}
             onPress={() => setEditingEntry(entry)}
-            className="min-h-touchTarget flex-row items-center justify-between border-b border-gray-200 py-sm"
+            className="min-h-touchTarget flex-row items-center justify-between border-b border-gray-200 py-md"
           >
             <View>
               <Text variant="body" color="dark">
                 Glass of water
               </Text>
-              <Text variant="caption" color="muted">
+              <Text variant="micro" color="gray500">
                 {formatTime(entry.recordedAt)}
               </Text>
             </View>
@@ -511,7 +475,7 @@ function WaterHome({ day }: { day: string }) {
                     unitSystem === "imperial" ? 1 : 0
                   )}
                 </Text>
-                <Text variant="caption" color="muted">
+                <Text variant="micro" color="gray500">
                   {waterUnit}
                 </Text>
               </View>
@@ -534,22 +498,11 @@ function WaterHome({ day }: { day: string }) {
           </Pressable>
         ))}
         {data.entries.length === 0 ? (
-          <Text variant="body" color="muted">
+          <Text variant="body" color="muted" className="pt-md">
             No water logged yet.
           </Text>
         ) : null}
       </View>
-      <WaterAmountSheet
-        visible={manualOpen}
-        title="Add water manually"
-        submitLabel="Add water"
-        initialAmountMl={0}
-        unitSystem={unitSystem}
-        loading={addWater.isPending}
-        error={addWater.error?.message ?? null}
-        onClose={() => setManualOpen(false)}
-        onSubmit={({ amountMl }) => addWaterAmount(amountMl, () => setManualOpen(false))}
-      />
       <WaterAmountSheet
         visible={editingEntry !== null}
         title="Glass of water"
@@ -578,364 +531,25 @@ function WaterHome({ day }: { day: string }) {
   );
 }
 
-const barcodeTypes: BarcodeType[] = ["ean13", "ean8", "upc_a", "upc_e", "code128"];
-
-function ScanBarcodeScreen({ day, onBack }: { day: string; onBack: () => void }) {
-  const [barcode, setBarcode] = useState("");
-  const [format, setFormat] = useState<string | null>(null);
-  const [scanned, setScanned] = useState(false);
-  // The offline queue is per user, so scans can never replay into another
-  // account on a shared device.
-  const ownerId = useUserId();
-  const [message, setMessage] = useState<string | null>(null);
-  const [permission, requestPermission] = useCameraPermissions();
-  const [loggingItem, setLoggingItem] = useState<FoodItem | null>(null);
-  const lookupBarcode = normalizeBarcode(barcode);
-  const lookup = useBarcodeLookup(lookupBarcode);
-  const food = lookup.data?.food;
-  const lastScanRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    void (async () => {
-      const online = await isNetworkReachable();
-      if (!active || !online || barcode) return;
-      const [queued] = ownerId ? await readQueuedBarcodeScans(ownerId) : [];
-      if (!active || !queued) return;
-      const normalized = normalizeBarcode(queued.barcode);
-      if (!normalized) return;
-      setBarcode(normalized);
-      setFormat(queued.format);
-      setMessage("Replaying an offline scan.");
-    })();
-    return () => {
-      active = false;
-    };
-    // `ownerId` is part of the dependency list on purpose: it arrives from the
-    // session store only after Clerk restores and GET /users/me resolves, so on
-    // a cold start into this screen the first run sees `null` and finds nothing
-    // to replay. Without re-running when it lands, a scan queued offline would
-    // sit in storage forever with no visible failure.
-  }, [barcode, ownerId]);
-
-  useEffect(() => {
-    if (food && lookupBarcode) {
-      if (ownerId) void removeQueuedBarcodeScan(ownerId, lookupBarcode);
-    }
-    // Same reason as above — a lookup that resolves before the session id does
-    // would leave the scan queued and replay it again on the next visit.
-  }, [food, lookupBarcode, ownerId]);
-
-  const handleScan = (result: BarcodeScanningResult) => {
-    const value = result.raw ?? result.data;
-    if (!value) return;
-    const normalized = normalizeBarcode(value);
-    if (!normalized) {
-      setMessage("That barcode format is not supported. Try another packaged food.");
-      return;
-    }
-    if (lastScanRef.current === normalized) return;
-    lastScanRef.current = normalized;
-    setScanned(true);
-    setBarcode(normalized);
-    setFormat(result.type);
-    setMessage("Barcode captured. Looking up nutrition...");
-    // A decoded barcode, not a lookup result — the funnel step is the scan
-    // itself. The `lastScanRef` guard above keeps a steady camera to one event.
-    analytics.track("thrivo.barcode_scanned", { format: result.type });
-    void (async () => {
-      const online = await isNetworkReachable();
-      if (!online) {
-        if (ownerId) {
-          await queueBarcodeScan(ownerId, {
-            barcode: normalized,
-            format: result.type,
-            scannedAt: new Date().toISOString(),
-          });
-        }
-        setMessage("You are offline. The decoded barcode was saved for lookup later.");
-      }
-    })();
-  };
-
+/** Group heading over the recent-food rows: muted label on a hairline rule. */
+function SectionHeading({ label, first }: { label: string; first?: boolean }) {
   return (
-    <Screen
-      scroll
-      style={{ gap: rhythm.pageGap }}
-      header={
-        <PageHeader
-          title="Scan Barcode"
-          subtitle="Packaged foods - instant nutrition look up."
-          onBack={onBack}
-        />
-      }
-    >
-      <View className="h-[220px] overflow-hidden rounded-lg bg-dark">
-        {permission?.granted ? (
-          <CameraView
-            style={{ flex: 1 }}
-            facing="back"
-            barcodeScannerSettings={{ barcodeTypes }}
-            onBarcodeScanned={scanned ? undefined : handleScan}
-          />
-        ) : (
-          <View className="flex-1 items-center justify-center gap-sm p-lg">
-            <Barcode size={32} color={colors.primaryBright} />
-            <Text variant="caption" color="inverse" className="text-center">
-              Camera access is needed to scan packaged foods.
-            </Text>
-            <Button
-              label="Enable camera"
-              fullWidth={false}
-              variant="secondary"
-              onPress={() => void requestPermission()}
-            />
-          </View>
-        )}
-        <View className="absolute inset-0 justify-between p-lg" pointerEvents="none">
-          <View className="flex-row justify-between">
-            <Corner />
-            <Barcode size={28} color={colors.primaryBright} />
-            <Corner right />
-          </View>
-          <View className="h-[1px] bg-primaryBright" />
-          <Text variant="caption" color="inverse" className="text-center">
-            Align barcode with frame
-          </Text>
-        </View>
-      </View>
-      {barcode ? (
-        <Card className="gap-xs bg-primarySoft">
-          <Text variant="caption" color="muted">
-            Captured barcode
-          </Text>
-          <Text variant="body" color="dark">
-            {barcode}
-            {format ? ` · ${format}` : ""}
-          </Text>
-          <Button
-            label="Scan another"
-            variant="secondary"
-            fullWidth={false}
-            onPress={() => {
-              setBarcode("");
-              setFormat(null);
-              setScanned(false);
-              lastScanRef.current = null;
-              setMessage(null);
-            }}
-          />
-        </Card>
-      ) : null}
-      {__DEV__ ? (
-        <Input
-          label="Developer barcode"
-          value={barcode}
-          onChangeText={(value) => {
-            const normalized = normalizeBarcode(value);
-            setBarcode(normalized ?? value);
-            setScanned(Boolean(normalized));
-          }}
-          keyboardType="number-pad"
-          placeholder="Type barcode to test lookup"
-        />
-      ) : null}
-      {message ? (
-        <Text variant="caption" color={message.includes("offline") ? "muted" : "primary"}>
-          {message}
-        </Text>
-      ) : null}
-      {lookup.isFetching ? <Text color="muted">Looking up barcode...</Text> : null}
-      {lookup.isError ? (
-        <SectionError
-          title="Could not look up barcode"
-          message="Something went wrong looking that up. Try again in a moment."
-          onRetry={() => void lookup.refetch()}
-        />
-      ) : null}
-      {barcode && lookup.data && !lookup.isFetching && !lookup.isError && !food ? (
-        <SectionError
-          title="Barcode not found"
-          message="This packaged food is not in Open Food Facts yet. You can search by name or describe the meal instead."
-          onRetry={() => void lookup.refetch()}
-        />
-      ) : null}
-      {food ? (
-        <Card className="gap-md">
-          <FoodResultRow item={food} onLog={() => setLoggingItem(food)} loading={false} />
-        </Card>
-      ) : null}
-      <LogItemSheet
-        item={loggingItem}
-        day={day}
-        visible={loggingItem !== null}
-        onClose={() => setLoggingItem(null)}
-      />
-    </Screen>
-  );
-}
-
-function DescribeMealScreen({ day, onBack }: { day: string; onBack: () => void }) {
-  const [name, setName] = useState("");
-  const [ingredients, setIngredients] = useState("");
-  const [method, setMethod] = useState("");
-  const [measure, setMeasure] = useState<PortionMeasure>("weight");
-  const [quantity, setQuantity] = useState("150");
-  const [message, setMessage] = useState<string | null>(null);
-  const estimate = useEstimateFood();
-  const logEstimate = useLogEstimate();
-  const estimateResult = estimate.data?.estimate;
-  const quantityValue = parsePositiveQuantity(quantity);
-  const canEstimate = name.trim().length > 0 && quantityValue !== null;
-
-  const payload = useMemo(
-    () => ({
-      name,
-      ingredients,
-      cookingMethod: method || undefined,
-      portionMeasure: measure,
-      quantity: quantityValue ?? 0,
-    }),
-    [ingredients, measure, method, name, quantityValue]
-  );
-
-  const handleMeasureChange = (next: PortionMeasure) => {
-    setMeasure(next);
-    setQuantity(DEFAULT_QUANTITY_BY_MEASURE[next]);
-  };
-
-  const runEstimate = () => {
-    setMessage(null);
-    estimate.mutate(payload, {
-      onError: () => setMessage("Could not estimate this meal. Try again."),
-    });
-  };
-
-  const logEstimatedMeal = () => {
-    setMessage(null);
-    void isNetworkReachable().then((online) => {
-      if (!online) setMessage("Saved offline. We'll sync this meal when you're back online.");
-    });
-    logEstimate.mutate(
-      {
-        ...payload,
-        day,
-        nutrients: estimateResult!.nutrients,
-        referenceGrams: estimateResult!.referenceGrams,
-        servingUnit: estimateResult!.servingUnit,
-      },
-      {
-        onSuccess: () => setMessage("Estimate logged."),
-        onError: () => setMessage("Could not log estimate. Try again."),
-      }
-    );
-  };
-
-  return (
-    <Screen
-      scroll
-      style={{ gap: rhythm.pageGap }}
-      header={
-        <PageHeader
-          title="Describe a meal"
-          subtitle="We'll help you estimate the calories."
-          onBack={onBack}
-        />
-      }
-    >
-      <Input
-        label="Name of food"
-        value={name}
-        onChangeText={setName}
-        placeholder="Chicken breast, grilled"
-      />
-      <Input
-        label="Main Ingredients"
-        value={ingredients}
-        onChangeText={setIngredients}
-        placeholder="Yam, melon, palm oil"
-      />
-      <Input
-        label="Cooking method"
-        value={method}
-        onChangeText={setMethod}
-        placeholder="How was it cooked?"
-      />
-      <View className="gap-sm">
-        <Text variant="caption" color="dark">
-          Portion measure
-        </Text>
-        <Segmented value={measure} onChange={handleMeasureChange} options={portions} />
-      </View>
-      <View className="flex-row items-center gap-md">
-        <StepperButton label="-" onPress={() => setQuantity(stepQuantity(quantity, -1))} />
-        <TextInput
-          value={quantity}
-          onChangeText={setQuantity}
-          keyboardType="decimal-pad"
-          className="h-control flex-1 rounded-md border border-gray-300 bg-white text-center text-body-lg"
-          style={{ color: colors.dark }}
-        />
-        <Text variant="body" color="primary">
-          {measure === "weight" ? "grams" : measure}
-        </Text>
-        <StepperButton label="+" onPress={() => setQuantity(stepQuantity(quantity, 1))} />
-      </View>
-      {!canEstimate ? (
-        <Text variant="caption" color="error">
-          Add a food name and a positive portion quantity.
-        </Text>
-      ) : null}
-      <Button
-        label="Estimate"
-        loading={estimate.isPending}
-        disabled={!canEstimate}
-        onPress={runEstimate}
-      />
-      {message ? (
-        <Text variant="caption" color={message.includes("Could not") ? "error" : "primary"}>
-          {message}
-        </Text>
-      ) : null}
-      {estimateResult ? (
-        <View className="gap-lg">
-          <View className="items-center">
-            <Text variant="heading1" color="dark">
-              {estimateResult.nutrients.calories}{" "}
-              <Text variant="body" color="muted">
-                kcal
-              </Text>
-            </Text>
-            <Text variant="caption" color="accent" className="rounded-md bg-accentSoft px-sm py-xs">
-              Estimated
-            </Text>
-          </View>
-          <MacroCards nutrients={estimateResult.nutrients} />
-          <Button label="Log estimate" loading={logEstimate.isPending} onPress={logEstimatedMeal} />
-        </View>
-      ) : null}
-    </Screen>
-  );
-}
-
-function RecentFoodsHeader() {
-  return (
-    <View className="flex-row items-center justify-between">
-      <Text variant="heading3" color="muted">
-        Recent foods
+    <View className={`border-b border-gray-200 pb-sm ${first ? "" : "pt-xl"}`}>
+      <Text variant="body" color="subtle">
+        {label}
       </Text>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="View food history"
-        onPress={() => router.push({ pathname: "/(app)/history", params: { returnTo: "log" } })}
-        className="min-h-touchTarget flex-row items-center gap-xs py-xs"
-      >
-        <Text variant="body" color="primary" className="font-semibold">
-          View history
-        </Text>
-        <CaretRight size={16} color={colors.primary} weight="bold" />
-      </Pressable>
     </View>
+  );
+}
+
+/** "Recent foods" heads the newest group; older ones say which day they are. */
+function recentGroupLabel(groupDay: string, index: number, today: string): string {
+  if (index === 0) return "Recent foods";
+  if (groupDay === addDays(today, -1)) return "Yesterday";
+  const [year, month, date] = groupDay.split("-").map(Number);
+  if (!year || !month || !date) return groupDay;
+  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(
+    new Date(year, month - 1, date)
   );
 }
 
@@ -964,33 +578,61 @@ function QuickAction({
   );
 }
 
-function RecentFoodRow({ entry, onPress }: { entry: FoodLogEntry; onPress: () => void }) {
+function RecentFoodRow({
+  entry,
+  onPress,
+  onQuickAdd,
+  adding,
+}: {
+  entry: FoodLogEntry;
+  onPress: () => void;
+  onQuickAdd: () => void;
+  adding: boolean;
+}) {
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`View ${entry.name}`}
       onPress={onPress}
-      className="min-h-touchTarget flex-row items-center justify-between border-b border-gray-200 py-sm"
+      className="min-h-touchTarget flex-row items-center gap-md border-b border-gray-200 py-md"
     >
-      <View className="flex-1">
-        <Text variant="body" color="dark">
+      <View className="flex-1 gap-xs">
+        <Text variant="body" color="dark" numberOfLines={1}>
           {entry.name}
         </Text>
-        <Text variant="caption" color="dark">
-          {entry.nutrients.calories} kcal · {formatTime(entry.consumedAt)}
-        </Text>
-      </View>
-      <View className="flex-row items-center gap-md">
-        <View className="items-end">
-          <Text variant="body" color="dark">
-            {entry.servings}
+        <View className="flex-row items-center gap-sm">
+          <Text variant="label" color="dark">
+            {entry.nutrients.calories} kcal
           </Text>
-          <Text variant="caption" color="muted">
-            {entry.servingUnit ?? "serving"}
+          <Text variant="label" color="subtle">
+            {formatTime(entry.consumedAt)}
           </Text>
         </View>
-        {entry.foodItemId ? <FavoriteButton foodItemId={entry.foodItemId} size={22} /> : null}
       </View>
+      <View className="items-end">
+        <Text variant="body" color="dark">
+          {entry.servings}
+        </Text>
+        <Text variant="label" color="subtle">
+          {entry.servingUnit ?? "serving"}
+        </Text>
+      </View>
+      {/* Only catalog-backed entries can be re-logged — an estimate has no
+          `foodItemId` to log against. */}
+      {entry.foodItemId ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Log ${entry.name} again`}
+          hitSlop={12}
+          disabled={adding}
+          onPress={(event) => {
+            event?.stopPropagation?.();
+            onQuickAdd();
+          }}
+        >
+          <PlusCircle size={26} color={colors.primary} />
+        </Pressable>
+      ) : null}
     </Pressable>
   );
 }
@@ -1068,14 +710,6 @@ function WaterSkeleton() {
         <FoodRowSkeleton count={2} />
       </View>
     </View>
-  );
-}
-
-function Corner({ right }: { right?: boolean }) {
-  return (
-    <View
-      className={`h-[24px] w-[24px] border-primaryBright ${right ? "border-r border-t" : "border-l border-t"}`}
-    />
   );
 }
 

@@ -15,6 +15,7 @@ import {
   useIsOnboarded,
   useIsOnboardingSkipped,
 } from "@/stores";
+import { useHasDismissedOnboarding } from "@/hooks";
 import { colors } from "@/theme";
 import appleIcon from "../../../assets/auth-apple.png";
 import googleIcon from "../../../assets/auth-google.png";
@@ -38,6 +39,7 @@ export function WelcomeScreen() {
   const isBiometricUnlocked = useIsBiometricUnlocked();
   const isOnboarded = useIsOnboarded();
   const isOnboardingSkipped = useIsOnboardingSkipped();
+  const hasDismissedOnboarding = useHasDismissedOnboarding();
   const { setBiometricUnlocked } = useBiometricUnlockActions();
   const [emailRoute, setEmailRoute] = useState<EmailRoute | null>(null);
   const [biometricAvailable, setBiometricAvailable] = useState(false);
@@ -52,7 +54,9 @@ export function WelcomeScreen() {
   const isAuthenticated = status === "authenticated";
   useAuthScreenDiagnostics("welcome", status, clerk);
   const postUnlockTarget =
-    isOnboarded || isOnboardingSkipped ? "/(app)/(tabs)/dashboard" : "/(onboarding)/name";
+    isOnboarded || isOnboardingSkipped || hasDismissedOnboarding
+      ? "/(app)/(tabs)/dashboard"
+      : "/(onboarding)/goal";
   const canUseBiometric =
     isAuthenticated && biometricEnabled && biometricAvailable && !isBiometricUnlocked;
 

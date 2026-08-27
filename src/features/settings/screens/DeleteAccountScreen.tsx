@@ -4,7 +4,7 @@ import { Linking, TextInput, View, Platform } from "react-native";
 import { Warning } from "phosphor-react-native";
 import { Button, FormError, PageHeader, Screen, Text } from "@/components";
 import { useEntitlement } from "@/hooks";
-import { colors, rhythm } from "@/theme";
+import { colors, inputFont, rhythm } from "@/theme";
 import { useDeleteAccount } from "../hooks/useDeleteAccount";
 import { useReauthentication } from "../hooks/useReauthentication";
 import { subscription } from "@/lib";
@@ -59,7 +59,7 @@ export function DeleteAccountScreen() {
       onSuccess: () => {
         // The session is gone; send them to the unauthenticated root rather than
         // letting the guard bounce them through a half-torn-down tab layout.
-        router.replace("/(auth)/welcome");
+        router.replace("/(auth)/sign-in");
       },
     });
   };
@@ -184,7 +184,8 @@ export function DeleteAccountScreen() {
           <TextInput
             ref={codeInput}
             accessibilityLabel="Verification code"
-            className="min-h-[56px] rounded-md border border-gray-300 px-lg text-center text-2xl tracking-[8px]"
+            className="min-h-[56px] rounded-md border border-gray-300 px-lg text-center tracking-[8px]"
+            style={[inputFont("metric"), { color: colors.dark }]}
             keyboardType="number-pad"
             textContentType="oneTimeCode"
             maxLength={6}

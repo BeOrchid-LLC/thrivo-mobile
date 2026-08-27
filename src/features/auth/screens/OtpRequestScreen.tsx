@@ -1,24 +1,19 @@
+import { View } from "react-native";
 import { router } from "expo-router";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { View } from "react-native";
 import { z } from "zod";
 import { useAuth, useSignUp } from "@clerk/expo";
-import {
-  Button,
-  FormError,
-  Input,
-  MailIcon,
-  PageHeader,
-  Screen,
-  Text,
-  UserIcon,
-} from "@/components";
-import { colors } from "@/theme";
+import { Button, FormError, Input, MailIcon } from "@/components";
 import { emailSchema } from "@/contracts";
 import { useAuthStatus, useOnboardingDraftActions } from "@/stores";
 import { logAuthError, useAuthScreenDiagnostics } from "../auth-debug";
+import { AuthScreenShell } from "../components/AuthScreenShell";
 import { AuthSwitchLink } from "../components/AuthSwitchLink";
+
+const BUTTON_HEIGHT = 52;
+/** Figma sits the two field groups closer than the page's 32pt form rhythm. */
+const FIELD_GAP = 22;
 
 const otpRequestForm = z.object({
   name: z.string().trim().min(1, "Enter your name"),
@@ -87,70 +82,60 @@ export function OtpRequestScreen() {
   });
 
   return (
-    <Screen
-      scroll
-      backgroundColor={colors.white}
-      header={
-        <PageHeader
-          title="Sign up for Thrivo"
-          subtitle="Create your account. We'll email a secure code to confirm it's you."
-        />
-      }
+    <AuthScreenShell
+      title="Welcome to Thrivo!"
+      subtitle="Enter your details to receive a magic link and get started."
     >
-      <View className="gap-lg">
-        <View className="mt-md gap-md">
-          <Controller
-            control={control}
-            name="name"
-            render={({ field: { onChange, onBlur, value } }) => (
-              <Input
-                label="Name"
-                placeholder="Ada Lovelace"
-                leadingIcon={<UserIcon />}
-                autoCapitalize="words"
-                autoComplete="name"
-                value={value}
-                onChangeText={onChange}
-                onBlur={onBlur}
-                error={errors.name?.message}
-              />
-            )}
-          />
+      <View style={{ gap: FIELD_GAP }}>
+        <Controller
+          control={control}
+          name="name"
+          render={({ field: { onChange, onBlur, value } }) => (
+            <Input
+              label="Name"
+              placeholder="Jane Doe"
+              hint="What should we call you?"
+              autoCapitalize="words"
+              autoComplete="name"
+              value={value}
+              onChangeText={onChange}
+              onBlur={onBlur}
+              variant="auth"
+              error={errors.name?.message}
+            />
+          )}
+        />
 
-          <Controller
-            control={control}
-            name="email"
-            render={({ field: { onChange, onBlur, value } }) => (
-              <Input
-                label="Email"
-                placeholder="you@example.com"
-                leadingIcon={<MailIcon />}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                autoComplete="email"
-                value={value}
-                onChangeText={onChange}
-                onBlur={onBlur}
-                error={errors.email?.message}
-              />
-            )}
-          />
-
-          <Text variant="caption" color="muted">
-            No password needed. Your code expires in 5 minutes.
-          </Text>
-
-          <FormError message={errors.root?.message} />
-
-          <Button label="Send code" loading={isSubmitting} onPress={send} />
-        </View>
-
-        <AuthSwitchLink
-          prompt="Already have an account?"
-          actionLabel="Sign in"
-          onPress={() => router.replace("/(auth)/sign-in")}
+        <Controller
+          control={control}
+          name="email"
+          render={({ field: { onChange, onBlur, value } }) => (
+            <Input
+              label="Email"
+              placeholder="user@sampleemail.com"
+              leadingIcon={<MailIcon />}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              autoComplete="email"
+              value={value}
+              onChangeText={onChange}
+              onBlur={onBlur}
+              variant="auth"
+              error={errors.email?.message}
+            />
+          )}
         />
       </View>
-    </Screen>
+
+      <FormError message={errors.root?.message} />
+
+      <Button label="Request Magic Link" loading={isSubmitting} onPress={send} />
+
+      <AuthSwitchLink
+        prompt="Already have an account?"
+        actionLabel="Sign In"
+        onPress={() => router.replace("/(auth)/sign-in")}
+      />
+    </AuthScreenShell>
   );
 }

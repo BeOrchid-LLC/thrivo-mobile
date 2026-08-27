@@ -50,6 +50,7 @@ jest.mock("react-native-purchases", () => ({
       created: false,
     })),
     setLogLevel: jest.fn(async () => undefined),
+    setLogHandler: jest.fn(),
     getOfferings: jest.fn(async () => ({ current: { availablePackages: [] } })),
     purchasePackage: jest.fn(async () => ({ customerInfo: { entitlements: { active: {} } } })),
     restorePurchases: jest.fn(async () => ({ entitlements: { active: {} } })),

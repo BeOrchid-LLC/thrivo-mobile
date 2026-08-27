@@ -6,6 +6,7 @@ export {
   useSessionStore,
   useAccountStatus,
   useAuthStatus,
+  useRestoreError,
   useIsAuthenticated,
   useUserId,
   useIsOnboarded,
@@ -23,6 +24,7 @@ export {
 export {
   usePreferencesStore,
   useBiometricAuthEnabled,
+  useOnboardingDismissedFor,
   usePreferencesHydrated,
   usePreferencesActions,
 } from "./preferences.store";

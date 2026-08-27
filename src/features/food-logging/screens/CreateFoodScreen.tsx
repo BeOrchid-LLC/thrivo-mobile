@@ -1,14 +1,13 @@
 import { useState } from "react";
 import { View } from "react-native";
 import { Button, FormError, Input, PageHeader, Screen, Text, useToast } from "@/components";
-import { rhythm } from "@/theme";
 import type { FoodItem } from "@/contracts";
 import { LogItemSheet } from "../components/LogItemSheet";
 import { useCreateFood } from "../hooks/useFoodLogging";
 import {
   EMPTY_CUSTOM_FOOD,
-  NUMERIC_CUSTOM_FOOD_FIELDS,
-  sanitizeDecimalInput,
+  isNumericCustomFoodField,
+  numericFieldError,
   validateCustomFood,
   type CustomFoodForm,
   type CustomFoodField,
@@ -24,8 +23,11 @@ export interface CreateFoodScreenProps {
  * (`POST /foods`) and then opens the normal log sheet on it, so creating and
  * logging is one flow rather than two.
  *
- * Errors appear only after the first save attempt — validating every keystroke
- * would flag half-typed numbers as wrong while the user is still typing.
+ * The number fields behave the way the onboarding ones do: they keep whatever
+ * was typed and say what is wrong with it as it is typed, rather than dropping
+ * keystrokes the keypad was only ever a hint against. Nothing is said while a
+ * field is empty — "required" is a question for the first save attempt, which
+ * is also when the text fields answer.
  */
 export function CreateFoodScreen({ day, onBack }: CreateFoodScreenProps) {
   const [form, setForm] = useState<CustomFoodForm>(EMPTY_CUSTOM_FOOD);
@@ -35,11 +37,14 @@ export function CreateFoodScreen({ day, onBack }: CreateFoodScreenProps) {
   const { showToast } = useToast();
 
   const validation = validateCustomFood(form);
-  const errors = submitted ? validation.errors : {};
 
   const setField = (field: CustomFoodField) => (value: string) => {
-    const next = NUMERIC_CUSTOM_FOOD_FIELDS.includes(field) ? sanitizeDecimalInput(value) : value;
-    setForm((current) => ({ ...current, [field]: next }));
+    setForm((current) => ({ ...current, [field]: value }));
+  };
+
+  const errorFor = (field: CustomFoodField): string | undefined => {
+    if (submitted) return validation.errors[field];
+    return isNumericCustomFoodField(field) ? numericFieldError(field, form[field]) : undefined;
   };
 
   const save = () => {
@@ -65,7 +70,7 @@ export function CreateFoodScreen({ day, onBack }: CreateFoodScreenProps) {
   return (
     <Screen
       scroll
-      style={{ gap: rhythm.pageGap }}
+      rhythm="default"
       header={
         <PageHeader
           title="Create a food"
@@ -73,35 +78,42 @@ export function CreateFoodScreen({ day, onBack }: CreateFoodScreenProps) {
           onBack={onBack}
         />
       }
+      // Pinned: the form is long enough to scroll, so an inline Save would sit
+      // wherever the last field happened to end.
+      footer={
+        <View className="gap-md">
+          <FormError message={createFood.error?.message ?? null} />
+          <Button label="Save food" onPress={save} loading={createFood.isPending} />
+        </View>
+      }
     >
       <Input
         label="Name of food"
         value={form.name}
         onChangeText={setField("name")}
-        error={errors.name}
+        error={errorFor("name")}
         placeholder="Jollof rice, homemade"
       />
       <Input
         label="Brand (optional)"
         value={form.brand}
         onChangeText={setField("brand")}
-        error={errors.brand}
+        error={errorFor("brand")}
         placeholder="Who makes it?"
       />
       <Input
         label="One serving is"
         value={form.servingLabel}
         onChangeText={setField("servingLabel")}
-        error={errors.servingLabel}
+        error={errorFor("servingLabel")}
         placeholder="1 bowl"
       />
       <Input
         label="Serving weight (optional)"
         value={form.servingGrams}
         onChangeText={setField("servingGrams")}
-        error={errors.servingGrams}
-        keyboardType="decimal-pad"
-        inputMode="decimal"
+        error={errorFor("servingGrams")}
+        numeric="decimal"
         trailingText="g"
         placeholder="250"
       />
@@ -114,9 +126,8 @@ export function CreateFoodScreen({ day, onBack }: CreateFoodScreenProps) {
           label="Calories"
           value={form.calories}
           onChangeText={setField("calories")}
-          error={errors.calories}
-          keyboardType="decimal-pad"
-          inputMode="decimal"
+          error={errorFor("calories")}
+          numeric="decimal"
           trailingText="kcal"
           placeholder="0"
         />
@@ -126,9 +137,8 @@ export function CreateFoodScreen({ day, onBack }: CreateFoodScreenProps) {
               label="Protein"
               value={form.proteinG}
               onChangeText={setField("proteinG")}
-              error={errors.proteinG}
-              keyboardType="decimal-pad"
-              inputMode="decimal"
+              error={errorFor("proteinG")}
+              numeric="decimal"
               trailingText="g"
               placeholder="0"
             />
@@ -138,9 +148,8 @@ export function CreateFoodScreen({ day, onBack }: CreateFoodScreenProps) {
               label="Carbs"
               value={form.carbsG}
               onChangeText={setField("carbsG")}
-              error={errors.carbsG}
-              keyboardType="decimal-pad"
-              inputMode="decimal"
+              error={errorFor("carbsG")}
+              numeric="decimal"
               trailingText="g"
               placeholder="0"
             />
@@ -150,9 +159,8 @@ export function CreateFoodScreen({ day, onBack }: CreateFoodScreenProps) {
               label="Fat"
               value={form.fatG}
               onChangeText={setField("fatG")}
-              error={errors.fatG}
-              keyboardType="decimal-pad"
-              inputMode="decimal"
+              error={errorFor("fatG")}
+              numeric="decimal"
               trailingText="g"
               placeholder="0"
             />
@@ -163,9 +171,6 @@ export function CreateFoodScreen({ day, onBack }: CreateFoodScreenProps) {
       <Text variant="caption" color="muted">
         Only you can see the foods you create. Blank macros are saved as 0.
       </Text>
-
-      <FormError message={createFood.error?.message ?? null} />
-      <Button label="Save food" onPress={save} loading={createFood.isPending} />
 
       <LogItemSheet
         item={createdItem}

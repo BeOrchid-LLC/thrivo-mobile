@@ -211,7 +211,7 @@ describe("LogFoodScreen", () => {
   it("renders the empty food state", () => {
     const screen = render(<LogFoodScreen />);
 
-    expect(screen.getByText("Log Food")).toBeTruthy();
+    expect(screen.getByText("Food Logs")).toBeTruthy();
     expect(screen.getByText("Nothing logged yet")).toBeTruthy();
   });
 
@@ -221,14 +221,14 @@ describe("LogFoodScreen", () => {
     mockUseLogFood.mockReturnValue({ mutate, isPending: false, error: null, reset: jest.fn() });
 
     const screen = render(<LogFoodScreen />);
-    fireEvent.changeText(screen.getByPlaceholderText("Or, search by name..."), "Chic");
+    fireEvent.changeText(screen.getByPlaceholderText("Or, search food by name..."), "Chic");
     await waitFor(() => expect(screen.getByText("Search results")).toBeTruthy());
     await waitFor(() => expect(screen.getByText("Chicken breast, grilled")).toBeTruthy());
     expect(screen.getByText(/Estimated/)).toBeTruthy();
     fireEvent.press(screen.getByLabelText("Log Chicken breast, grilled"));
 
     // Search closes/clears once an item is selected for logging.
-    expect(screen.getByPlaceholderText("Or, search by name...").props.value).toBe("");
+    expect(screen.getByPlaceholderText("Or, search food by name...").props.value).toBe("");
 
     fireEvent.press(screen.getByText("Log food"));
 
@@ -239,36 +239,6 @@ describe("LogFoodScreen", () => {
       }),
       expect.any(Object)
     );
-  });
-
-  it("estimates a described meal", () => {
-    const mutate = jest.fn();
-    mockUseEstimateFood.mockReturnValue({ mutate, isPending: false, data: undefined });
-
-    const screen = render(<LogFoodScreen />);
-    fireEvent.press(screen.getByText("Describe it"));
-    fireEvent.changeText(screen.getByPlaceholderText("Chicken breast, grilled"), "Greek yoghurt");
-    fireEvent.press(screen.getByText("Estimate"));
-
-    expect(screen.getByText(/Describe a meal/)).toBeTruthy();
-    expect(mutate).toHaveBeenCalledWith(
-      expect.objectContaining({ name: "Greek yoghurt", portionMeasure: "weight" }),
-      expect.any(Object)
-    );
-  });
-
-  it("resets the described-meal quantity to a per-unit default when the portion measure changes", () => {
-    const screen = render(<LogFoodScreen />);
-    fireEvent.press(screen.getByText("Describe it"));
-
-    // Default measure is "weight", default quantity "150".
-    expect(screen.getByDisplayValue("150")).toBeTruthy();
-
-    fireEvent.press(screen.getByText("Serving"));
-    expect(screen.getByDisplayValue("1")).toBeTruthy();
-
-    fireEvent.press(screen.getByText("Weight"));
-    expect(screen.getByDisplayValue("100")).toBeTruthy();
   });
 
   it("opens a favorites-only state from the quick action without duplicating the list", () => {
@@ -314,38 +284,6 @@ describe("LogFoodScreen", () => {
     expect(screen.queryByLabelText("Add favorite")).toBeNull();
   });
 
-  it("toggles favorite on a scanned food", () => {
-    const toggleFavorite = jest.fn();
-    mockUseToggleFavorite.mockReturnValue(toggleFavorite);
-    mockUseBarcodeLookup.mockReturnValue(successQuery({ food }));
-
-    const screen = render(<LogFoodScreen />);
-    fireEvent.press(screen.getByText("Scan barcode"));
-    fireEvent.press(screen.getByLabelText("Add favorite"));
-
-    expect(toggleFavorite).toHaveBeenCalledWith(food.id);
-  });
-
-  it("opens the log sheet for a scanned food instead of logging immediately", () => {
-    const mutate = jest.fn();
-    mockUseBarcodeLookup.mockReturnValue(successQuery({ food }));
-    mockUseLogFood.mockReturnValue({ mutate, isPending: false, error: null, reset: jest.fn() });
-
-    const screen = render(<LogFoodScreen />);
-    fireEvent.press(screen.getByText("Scan barcode"));
-    fireEvent.press(screen.getByLabelText("Log Chicken breast, grilled"));
-
-    expect(mutate).not.toHaveBeenCalled();
-    expect(screen.getByText("Log food")).toBeTruthy();
-
-    fireEvent.press(screen.getByText("Log food"));
-
-    expect(mutate).toHaveBeenCalledWith(
-      expect.objectContaining({ foodItemId: food.id, servings: 1 }),
-      expect.any(Object)
-    );
-  });
-
   it("shows a filled heart and toggles off an already-favorited item", () => {
     const toggleFavorite = jest.fn();
     mockUseToggleFavorite.mockReturnValue(toggleFavorite);
@@ -371,93 +309,18 @@ describe("LogFoodScreen", () => {
     expect(screen.getByText("Save changes")).toBeTruthy();
   });
 
-  it("resets to the default food screen when the log tab is pressed", () => {
+  it("resets to the food segment when the log tab is pressed", () => {
     const screen = render(<LogFoodScreen />);
-    fireEvent.press(screen.getByText("Scan barcode"));
+    fireEvent.press(screen.getByText("Water"));
 
-    expect(screen.getByText("Scan Barcode")).toBeTruthy();
+    expect(screen.getByText("Glass of water")).toBeTruthy();
 
     act(() => {
       emitTabRootReset("log");
     });
 
-    expect(screen.getByText("Log Food")).toBeTruthy();
+    expect(screen.queryByText("Glass of water")).toBeNull();
     expect(screen.getByText("Nothing logged yet")).toBeTruthy();
-    expect(screen.queryByText("Scan Barcode")).toBeNull();
-  });
-
-  it("captures a barcode from the camera scanner", () => {
-    const screen = render(<LogFoodScreen />);
-    fireEvent.press(screen.getByText("Scan barcode"));
-    act(() => {
-      mockCameraScan();
-    });
-
-    return waitFor(() => {
-      expect(screen.getByText("Captured barcode")).toBeTruthy();
-      expect(mockUseBarcodeLookup).toHaveBeenLastCalledWith("1234567890123");
-      // Funnel step is the decode itself, not the lookup result.
-      expect(mockTrack).toHaveBeenCalledWith("thrivo.barcode_scanned", expect.objectContaining({}));
-    });
-  });
-
-  it("queues a captured barcode while offline, against the signed-in user", async () => {
-    mockIsNetworkReachable.mockResolvedValue(false);
-    useSessionStore.setState({ userId: "user-1" });
-
-    const screen = render(<LogFoodScreen />);
-    fireEvent.press(screen.getByText("Scan barcode"));
-    act(() => {
-      mockCameraScan();
-    });
-
-    await waitFor(() => {
-      // Owner-scoped, so it can never replay into another account.
-      expect(mockQueueBarcodeScan).toHaveBeenCalledWith(
-        "user-1",
-        expect.objectContaining({ barcode: "1234567890123", format: "ean13" })
-      );
-      expect(screen.getByText(/saved for lookup later/i)).toBeTruthy();
-    });
-  });
-
-  it("replays a queued offline scan once the session id arrives", async () => {
-    // `userId` lands only after Clerk restores and GET /users/me resolves, so a
-    // cold start into this screen renders with none. The replay has to re-run
-    // when it appears — otherwise the queued scan sits in storage forever and
-    // nothing surfaces the failure.
-    mockReadQueuedBarcodeScans.mockResolvedValue([
-      { barcode: "1234567890123", format: "ean13", scannedAt: new Date().toISOString() },
-    ]);
-
-    const screen = render(<LogFoodScreen />);
-    fireEvent.press(screen.getByText("Scan barcode"));
-    expect(mockReadQueuedBarcodeScans).not.toHaveBeenCalled();
-
-    await act(async () => {
-      useSessionStore.setState({ userId: "user-1" });
-    });
-
-    await waitFor(() => {
-      expect(mockReadQueuedBarcodeScans).toHaveBeenCalledWith("user-1");
-      expect(screen.getByText("Replaying an offline scan.")).toBeTruthy();
-      expect(mockUseBarcodeLookup).toHaveBeenLastCalledWith("1234567890123");
-    });
-  });
-
-  it("clears the replayed scan from the queue once the lookup resolves", async () => {
-    mockReadQueuedBarcodeScans.mockResolvedValue([
-      { barcode: "1234567890123", format: "ean13", scannedAt: new Date().toISOString() },
-    ]);
-    mockUseBarcodeLookup.mockReturnValue(successQuery({ food }));
-    useSessionStore.setState({ userId: "user-1" });
-
-    const screen = render(<LogFoodScreen />);
-    fireEvent.press(screen.getByText("Scan barcode"));
-
-    await waitFor(() =>
-      expect(mockRemoveQueuedBarcodeScan).toHaveBeenCalledWith("user-1", "1234567890123")
-    );
   });
 
   it("renders water progress and supports quick add/delete", () => {
@@ -498,7 +361,7 @@ describe("LogFoodScreen", () => {
     );
   });
 
-  it("updates the water manual amount when the unit system changes", () => {
+  it("restates the water quick-add amounts when the unit system changes", () => {
     const settings: { data: { unitSystem: "metric" | "imperial" } } = {
       data: { unitSystem: "metric" },
     };
@@ -507,13 +370,13 @@ describe("LogFoodScreen", () => {
     const screen = render(<LogFoodScreen />);
     fireEvent.press(screen.getByText("Water"));
 
-    fireEvent.press(screen.getByText("Add water manually"));
-    expect(screen.getAllByText("0").length).toBeGreaterThan(0);
+    expect(screen.getByLabelText("Add 250 ml water")).toBeTruthy();
 
     settings.data.unitSystem = "imperial";
     screen.rerender(<LogFoodScreen />);
 
-    expect(screen.getAllByText("0").length).toBeGreaterThan(0);
-    expect(screen.getByText("Log Water")).toBeTruthy();
+    expect(screen.getByLabelText("Add 8.5 fl oz water")).toBeTruthy();
+    // The water segment keeps the Food Logs page title.
+    expect(screen.getByText("Food Logs")).toBeTruthy();
   });
 });

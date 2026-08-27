@@ -26,7 +26,9 @@ export type TextColor =
   | "warning"
   | "warningText"
   | "error"
-  | "success";
+  | "success"
+  | "successBright"
+  | "targetGreen";
 
 // Variant carries size + line height (text-*) and the Inter family weight
 // (font-*); both come from the tailwind theme, which is sourced from src/theme.
@@ -61,6 +63,8 @@ const colorValue: Record<TextColor, string> = {
   warningText: colors.warningText,
   error: colors.error,
   success: colors.success,
+  successBright: colors.successBright,
+  targetGreen: colors.targetGreen,
 };
 
 export interface TextProps extends RNTextProps {

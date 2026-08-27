@@ -12,11 +12,15 @@ export interface SubscriptionProduct {
   id: string;
   productId: string;
   priceLabel: string;
+  /** The same price as a number, for comparing plans (annual savings). */
+  price: number;
   periodLabel: string;
   currencyCode: string;
   plan: SubscriptionPlan;
   hasFreeTrial: boolean;
   trialLabel: string | null;
+  /** Length of the free trial in days, or null when the offer has none. */
+  trialDays: number | null;
 }
 
 export interface PurchaseResult {
@@ -63,7 +67,16 @@ type FreePhase = {
   amountMicros?: number | string;
   cycles?: number;
   periodUnit?: string;
+  periodNumberOfUnits?: number;
 };
+
+/**
+ * Days per store period unit. Month and year are the store's own nominal
+ * lengths — a trial is offered as "1 month", never as a day count, so the
+ * date the paywall quotes is an estimate for those units and exact for the
+ * day/week trials the app actually configures.
+ */
+const DAYS_PER_UNIT: Record<string, number> = { day: 1, week: 7, month: 30, year: 365 };
 
 function isZeroPrice(value: FreePhase | null): boolean {
   if (!value) return false;
@@ -77,10 +90,34 @@ function trialLabel(value: FreePhase | null): string | null {
   return `${cycles} ${unit}${cycles === 1 ? "" : "s"} free`;
 }
 
+function trialDays(value: FreePhase | null): number | null {
+  if (!value || !isZeroPrice(value)) return null;
+  const perUnit = DAYS_PER_UNIT[(value.periodUnit ?? "").toLowerCase()];
+  if (!perUnit) return null;
+  // iOS states the length in `periodNumberOfUnits`; Android's free phase counts
+  // billing `cycles` of the same unit.
+  return (value.periodNumberOfUnits ?? value.cycles ?? 1) * perUnit;
+}
+
 function androidFreePhase(pkg: PurchasesPackage): FreePhase | null {
   const option = (pkg.product as unknown as { defaultOption?: { freePhase?: unknown } })
     .defaultOption;
   return (option?.freePhase as FreePhase | null) ?? null;
+}
+
+/**
+ * The SDK installs a default log handler on `configure()` that routes its ERROR
+ * level through `console.error`. In dev that turns ordinary outcomes — most
+ * often the user tapping Cancel on the native purchase sheet — into a
+ * full-screen LogBox error. Claiming the handler first keeps the SDK away from
+ * `console.error`; real failures still surface through the thrown error that
+ * `purchase()` and `restore()` propagate.
+ */
+function installLogHandler(): void {
+  if (typeof Purchases.setLogHandler !== "function") return;
+  Purchases.setLogHandler((_level: unknown, message: string) => {
+    if (__DEV__) console.log(`[RevenueCat] ${message}`);
+  });
 }
 
 let ready: Promise<void> | null = null;
@@ -110,6 +147,7 @@ const revenueCatAdapter: SubscriptionAdapter = {
     const apiKey = env.revenueCatKey;
     if (!apiKey || configuredUserId === userId) return;
     const attempt = (async () => {
+      installLogHandler();
       if (await Purchases.isConfigured()) await Purchases.logIn(userId);
       else {
         Purchases.configure({ apiKey, appUserID: userId });
@@ -155,11 +193,13 @@ const revenueCatAdapter: SubscriptionAdapter = {
           id: pkg.identifier,
           productId: pkg.product.identifier,
           priceLabel: pkg.product.priceString,
+          price: pkg.product.price,
           periodLabel: plan === "annual" ? "year" : "month",
           currencyCode: pkg.product.currencyCode,
           plan,
           hasFreeTrial: isZeroPrice(freeOffer),
           trialLabel: trialLabel(freeOffer),
+          trialDays: trialDays(freeOffer),
         } satisfies SubscriptionProduct,
       ];
     });

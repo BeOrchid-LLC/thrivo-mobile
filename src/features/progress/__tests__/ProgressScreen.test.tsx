@@ -128,11 +128,30 @@ describe("ProgressScreen", () => {
 
     expect(screen.getByText("Progress")).toBeTruthy();
     expect(screen.getByText("Current weight")).toBeTruthy();
-    expect(screen.queryByText("Logging streak")).toBeNull();
+    expect(screen.getByText("Logging streak")).toBeTruthy();
+    expect(screen.getByText(`${currentStreakDays} days`)).toBeTruthy();
+    expect(screen.getByText("This week average")).toBeTruthy();
+    expect(screen.getByText("Target weight")).toBeTruthy();
     expect(screen.getByText(`Current streak: ${currentStreakDays}`)).toBeTruthy();
-    expect(screen.getByText(`Personal best: ${longestStreakDays}`)).toBeTruthy();
+    // Once on the streak stat card, once in the calendar header.
+    expect(screen.getAllByText(`Personal best: ${longestStreakDays}`)).toHaveLength(2);
     expect(screen.getByText("Weight over time")).toBeTruthy();
-    expect(screen.getByText("-0.9 lbs / week")).toBeTruthy();
+    expect(screen.getByText("~ 0.9 lbs / week")).toBeTruthy();
+  });
+
+  it("labels the chart axes in the user's units", () => {
+    const screen = render(<ProgressScreen />);
+
+    // The API answers weight in kg; the axis has to read in the unit the user
+    // picked, so the caption and the chart's own label both convert. The axis
+    // ticks are SVG <Text>, which renders without queryable text children.
+    expect(screen.getByText("7 days : lbs")).toBeTruthy();
+    expect(screen.getByLabelText("Weight over time, in lbs")).toBeTruthy();
+
+    fireEvent.press(screen.getByLabelText("Select progress metric"));
+    fireEvent.press(screen.getByLabelText("Calories"));
+
+    expect(screen.getByText("7 days : kcal")).toBeTruthy();
   });
 
   it("renders streak values from the progress response", () => {
@@ -152,7 +171,8 @@ describe("ProgressScreen", () => {
     const screen = render(<ProgressScreen />);
 
     expect(screen.getByText("Current streak: 3")).toBeTruthy();
-    expect(screen.getByText("Personal best: 9")).toBeTruthy();
+    expect(screen.getByText("3 days")).toBeTruthy();
+    expect(screen.getAllByText("Personal best: 9")).toHaveLength(2);
     expect(screen.queryByText(`Current streak: ${currentStreakDays}`)).toBeNull();
     expect(screen.queryByText(`Personal best: ${longestStreakDays}`)).toBeNull();
   });
@@ -179,7 +199,7 @@ describe("ProgressScreen", () => {
 
     fireEvent.press(screen.getByText("View subscription plans"));
 
-    expect(router.push).toHaveBeenCalledWith("/settings/subscription");
+    expect(router.push).toHaveBeenCalledWith("/(app)/subscription");
     expect(mockUseMetricChart).toHaveBeenLastCalledWith("weight", "7d");
   });
 
@@ -210,35 +230,27 @@ describe("ProgressScreen", () => {
     expect(screen.getByText("Unlock longer history")).toBeTruthy();
   });
 
-  it("logs weight from the sub-screen", () => {
-    const mutate = jest.fn();
-    mockUseAddWeight.mockReturnValue({ mutate, isPending: false });
-
+  it("pushes the weigh-in as its own screen, clear of the tab bar", () => {
     const screen = render(<ProgressScreen />);
     fireEvent.press(screen.getByText("Log this week’s weight"));
-    fireEvent.changeText(screen.getByDisplayValue("177.9"), "178.0");
-    fireEvent.press(screen.getByText("Save weight"));
 
-    expect(screen.getByText("Log weight")).toBeTruthy();
-    expect(mutate).toHaveBeenCalledWith(
-      expect.objectContaining({ day: expect.any(String), weightKg: expect.any(Number) }),
-      expect.any(Object)
-    );
+    expect(router.push).toHaveBeenCalledWith("/(app)/log-weight");
   });
 
-  it("resets to the default progress screen when the progress tab is pressed", () => {
+  it("resets the chart selection when the progress tab is pressed", () => {
     const screen = render(<ProgressScreen />);
-    fireEvent.press(screen.getByText("Log this week’s weight"));
 
-    expect(screen.getByText("Log weight")).toBeTruthy();
+    fireEvent.press(screen.getByLabelText("Select progress metric"));
+    fireEvent.press(screen.getByLabelText("Calories"));
+
+    expect(screen.getByText("Calories over time")).toBeTruthy();
 
     act(() => {
       emitTabRootReset("metrics");
     });
 
-    expect(screen.getByText("Progress")).toBeTruthy();
     expect(screen.getByText("Weight over time")).toBeTruthy();
-    expect(screen.queryByText("Log weight")).toBeNull();
+    expect(screen.queryByText("Calories over time")).toBeNull();
   });
 
   it("navigates to the food logging tab", () => {

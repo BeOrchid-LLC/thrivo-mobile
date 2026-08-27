@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { router } from "expo-router";
-import { Button, DumbbellIcon, SwapIcon, TrendDownIcon, type IconProps } from "@/components";
-import type { ComponentType } from "react";
+import { Button } from "@/components";
 import type { Goal } from "@/contracts";
 import { useOnboardingDraftActions, useSessionActions } from "@/stores";
 import { OnboardingStep } from "@/features/onboarding/components/OnboardingStep";
@@ -10,30 +9,10 @@ import { useSubmitOnboarding } from "@/features/onboarding/hooks/useCompleteOnbo
 import { useOnboardingPrefill } from "@/features/onboarding/hooks/useOnboardingPrefill";
 import type { OnboardingStepProps } from "../types";
 
-const GOALS: {
-  value: Goal;
-  label: string;
-  description: string;
-  icon: ComponentType<IconProps>;
-}[] = [
-  {
-    value: "lose",
-    label: "Lose weight",
-    description: "Reach a lower, healthier weight",
-    icon: TrendDownIcon,
-  },
-  {
-    value: "maintain",
-    label: "Maintain weight",
-    description: "Stay at your current weight",
-    icon: SwapIcon,
-  },
-  {
-    value: "gain",
-    label: "Build muscle",
-    description: "Gain lean mass with a calorie surplus",
-    icon: DumbbellIcon,
-  },
+const GOALS: { value: Goal; label: string }[] = [
+  { value: "lose", label: "Lose Weight" },
+  { value: "maintain", label: "Maintain Weight" },
+  { value: "gain", label: "Build Muscle" },
 ];
 
 export default function GoalStep({
@@ -56,7 +35,7 @@ export default function GoalStep({
 
   const next = () => {
     if (!goal) return;
-    const fields = { goal, onboardingStep: 2 as const };
+    const fields = { goal, onboardingStep: 1 as const };
     setFields(fields);
     if (mode === "revisit") {
       void onNext?.(fields);
@@ -70,21 +49,21 @@ export default function GoalStep({
       onDone?.();
       return;
     }
-    if (goal) setFields({ goal, onboardingStep: 2 });
+    if (goal) setFields({ goal, onboardingStep: 1 });
     setIsOnboardingSkipped(true);
     router.replace("/(app)/(tabs)/dashboard");
     void submit("skip", {
       silent: true,
-      onboardingStep: 2,
+      onboardingStep: 1,
       fields: goal ? { goal } : undefined,
     });
   };
 
   return (
     <OnboardingStep
-      step={2}
-      title="What's your goal?"
-      subtitle="This sets your calorie target and experience."
+      step={1}
+      title="What are your fitness goals?"
+      subtitle="We'll help you stay on track."
       onBack={mode === "revisit" ? onBack : undefined}
       variant={variant}
       footer={
@@ -96,8 +75,8 @@ export default function GoalStep({
             onPress={next}
           />
           <Button
-            label={mode === "revisit" ? "Done later" : "Skip for now"}
-            variant="ghost"
+            label={mode === "revisit" ? "Done later" : "Skip For Now"}
+            variant="outline"
             loading={mode === "initial" && isPending}
             onPress={skip}
           />
@@ -107,9 +86,8 @@ export default function GoalStep({
       {GOALS.map((item) => (
         <SelectCard
           key={item.value}
+          variant="plain"
           label={item.label}
-          description={item.description}
-          icon={item.icon}
           selected={goal === item.value}
           onPress={() => setGoal(item.value)}
         />

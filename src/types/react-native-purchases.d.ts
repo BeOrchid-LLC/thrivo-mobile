@@ -18,6 +18,7 @@ declare module "react-native-purchases" {
     packageType: string;
     product: {
       identifier: string;
+      price: number;
       priceString: string;
       currencyCode: string;
       introPrice?: unknown;

@@ -19,4 +19,4 @@ export {
   formatHeight,
   formatWater,
 } from "./units";
-export { localDay, addDays, isToday, localTimezone } from "./date";
+export { localDay, addDays, isToday, localTimezone, formatLongDate, formatShortDate } from "./date";

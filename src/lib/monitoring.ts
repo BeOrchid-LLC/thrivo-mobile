@@ -34,7 +34,9 @@ const sentryMonitoring: Monitoring = {
       Sentry.captureException(error, context ? { extra: context } : undefined);
       return;
     }
-    if (__DEV__) console.error("[monitoring] captureException", error, context);
+    // `console.log`, not `console.error`: without a Sentry DSN every captured
+    // exception would otherwise raise a LogBox toast over the running screen.
+    if (__DEV__) console.log("[monitoring] captureException", error, context);
   },
   setUser: (user) => {
     if (env.sentryDsn) {

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Pressable, View } from "react-native";
 import { router } from "expo-router";
 import { CaretRight, CheckCircle, Lock } from "phosphor-react-native";
-import { Button, PageHeader, Screen, SkeletonText, Text } from "@/components";
+import { Button, ErrorDialog, PageHeader, Screen, SkeletonText, Text } from "@/components";
 import { useMe } from "@/features/profile";
 import { useSettings } from "@/features/settings/hooks/useSettings";
 import { useOnboardingPrefill } from "@/features/onboarding/hooks/useOnboardingPrefill";
@@ -52,15 +52,11 @@ export function OnboardingSettingsScreen() {
     const StepScreen = STEP_SCREENS[activeStep];
     return (
       <View className="flex-1">
-        {saveError ? (
-          <Pressable
-            accessibilityRole="alert"
-            onPress={() => setSaveError(null)}
-            className="bg-red-50 px-lg py-sm"
-          >
-            <Text color="error">{saveError}</Text>
-          </Pressable>
-        ) : null}
+        <ErrorDialog
+          message={saveError}
+          title="Could not save this step"
+          onDismiss={() => setSaveError(null)}
+        />
         <StepScreen
           mode="revisit"
           isSaving={saveStep.isPending}
@@ -72,7 +68,7 @@ export function OnboardingSettingsScreen() {
               await saveStep.save(fields, activeStep, activeStep === TOTAL_ONBOARDING_STEPS);
               setActiveStep(activeStep === TOTAL_ONBOARDING_STEPS ? null : activeStep + 1);
             } catch {
-              setSaveError("Could not save this step. Check your connection and try again.");
+              setSaveError("Check your connection and try again.");
             }
           }}
         />
@@ -84,7 +80,6 @@ export function OnboardingSettingsScreen() {
   return (
     <Screen
       scroll
-      edges={["top", "left", "right"]}
       backgroundColor="white"
       rhythm="form"
       header={

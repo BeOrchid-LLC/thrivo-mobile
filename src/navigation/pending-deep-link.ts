@@ -5,7 +5,7 @@ export type AppDeepLinkTarget =
   | "/(app)/(tabs)/dashboard"
   | "/(app)/(tabs)/log"
   | "/(app)/(tabs)/metrics"
-  | "/settings/subscription";
+  | "/(app)/subscription";
 
 const STORAGE_KEY = "thrivo.navigation.pendingDeepLink";
 const TTL_MS = 15 * 60 * 1000;
@@ -14,7 +14,9 @@ const routes: Record<string, AppDeepLinkTarget> = {
   dashboard: "/(app)/(tabs)/dashboard",
   log: "/(app)/(tabs)/log",
   metrics: "/(app)/(tabs)/metrics",
-  "settings/subscription": "/settings/subscription",
+  // The public link keeps its "settings/subscription" path; the screen it
+  // opens moved out of the tab group, so only the target changes.
+  "settings/subscription": "/(app)/subscription",
 };
 
 export function parseAppDeepLink(url: string): AppDeepLinkTarget | null {

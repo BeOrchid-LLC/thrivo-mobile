@@ -33,6 +33,13 @@ export function useAuthScreenDiagnostics(
   }, [clerk.isLoaded, clerk.isSignedIn, screen, status]);
 }
 
+/**
+ * Deliberately `console.log`, not `console.error`. Every failed sign-in reaches
+ * here — including the ordinary outcome of the user backing out of the Apple or
+ * Google sheet — and in dev `console.error` turns that into a LogBox error
+ * toast over the sign-in screen. The user already sees the inline message the
+ * screen renders from the mutation error; this is only a dev breadcrumb.
+ */
 export function logAuthError(screen: string, stage: string, error: unknown): void {
-  if (__DEV__) console.error(`[auth:${screen}] ${stage} error: ${formatError(error)}`);
+  if (__DEV__) console.log(`[auth:${screen}] ${stage} error: ${formatError(error)}`);
 }

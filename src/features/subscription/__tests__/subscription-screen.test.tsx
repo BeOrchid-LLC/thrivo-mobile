@@ -31,7 +31,15 @@ jest.mock("../index", () => ({
   useStartTrial: () => ({ mutate: mockStartTrialMutate, isPending: false }),
   usePurchaseSubscription: () => ({ mutate: mockPurchaseMutate, isPending: false }),
   useRestorePurchases: () => ({ mutate: mockRestoreMutate, isPending: false }),
+}));
+
+// The cancel dialogs are their own component now; they reach the hook directly.
+jest.mock("../hooks/useCancelSubscription", () => ({
   useCancelSubscription: () => ({ mutate: mockCancelMutate, isPending: false }),
+}));
+
+jest.mock("@/features/profile", () => ({
+  useMe: () => ({ data: { email: "alex@email.com" } }),
 }));
 
 jest.mock("@/components", () => ({
@@ -45,9 +53,30 @@ jest.mock("@/lib", () => ({
 }));
 
 const PRODUCTS = [
-  { id: "monthly", plan: "monthly", priceLabel: "$14.99", hasFreeTrial: true },
-  { id: "annual", plan: "annual", priceLabel: "$150.00", hasFreeTrial: true },
+  {
+    id: "monthly",
+    plan: "monthly",
+    priceLabel: "$14.99",
+    price: 14.99,
+    currencyCode: "USD",
+    periodLabel: "month",
+    hasFreeTrial: true,
+    trialDays: 14,
+  },
+  {
+    id: "annual",
+    plan: "annual",
+    priceLabel: "$150.00",
+    price: 150,
+    currencyCode: "USD",
+    periodLabel: "year",
+    hasFreeTrial: true,
+    trialDays: 14,
+  },
 ];
+
+/** The frame's primary action, which quotes what today costs. */
+const TRIAL_CTA = "Start free trial — $0 today";
 
 const baseSubscription = {
   entitlement: "free",
@@ -94,7 +123,7 @@ describe("SubscriptionPlansScreen", () => {
       const screen = render(<SubscriptionPlansScreen />);
 
       expect(screen.getByText("Subscription plans")).toBeTruthy();
-      fireEvent.press(screen.getByText("Start free trial"));
+      fireEvent.press(screen.getByText(TRIAL_CTA));
 
       expect(mockStartTrialMutate).toHaveBeenCalledWith(
         { plan: "monthly", productId: "monthly" },
@@ -104,14 +133,14 @@ describe("SubscriptionPlansScreen", () => {
 
     it("sells the plan outright once the intro offer is used up", () => {
       mockUseOfferings.mockReturnValue({
-        data: [{ id: "monthly", plan: "monthly", priceLabel: "$14.99", hasFreeTrial: false }],
+        data: [{ ...PRODUCTS[0], hasFreeTrial: false, trialDays: null }],
         isLoading: false,
         isFetching: false,
         refetch: mockRefetch,
       });
       const screen = render(<SubscriptionPlansScreen />);
 
-      fireEvent.press(screen.getByText("Subscribe monthly"));
+      fireEvent.press(screen.getByText("Subscribe — $14.99"));
 
       expect(mockPurchaseMutate).toHaveBeenCalledWith(
         { plan: "monthly", packageId: "monthly", isTrial: false },
@@ -121,8 +150,38 @@ describe("SubscriptionPlansScreen", () => {
 
     it("shows the live store price, not a hardcoded fallback", () => {
       const screen = render(<SubscriptionPlansScreen />);
-      // Composed with the period in the headline, so assert the billed row.
-      expect(screen.getByText("$14.99 per month")).toBeTruthy();
+      // The headline states the price on its own; the summary line above the
+      // card is where it is quoted with the period.
+      expect(screen.getByText("$14.99")).toBeTruthy();
+      expect(
+        screen.getByText("Full access for 14 days, then $14.99/month. Cancel any time.")
+      ).toBeTruthy();
+    });
+
+    // The saving is a claim about money, so it is computed from the two live
+    // store prices rather than written into the copy.
+    it("prices the annual plan against twelve months of the monthly one", () => {
+      const screen = render(<SubscriptionPlansScreen />);
+
+      fireEvent.press(screen.getByText("Annual"));
+
+      expect(screen.getByText("Save $29")).toBeTruthy();
+      expect(screen.getByText("Best value")).toBeTruthy();
+    });
+
+    it("makes no savings claim the store has not priced", () => {
+      mockUseOfferings.mockReturnValue({
+        data: PRODUCTS.map((product) => ({ ...product, price: undefined })),
+        isLoading: false,
+        isFetching: false,
+        refetch: mockRefetch,
+      });
+      const screen = render(<SubscriptionPlansScreen />);
+
+      fireEvent.press(screen.getByText("Annual"));
+
+      expect(screen.queryByText("Best value")).toBeNull();
+      expect(screen.getByText("14-day free trial")).toBeTruthy();
     });
 
     it("offers a retry rather than a dead button when plans fail to load", () => {
@@ -162,8 +221,8 @@ describe("SubscriptionPlansScreen", () => {
     it("does not try to sell a plan to someone already on one", () => {
       const screen = render(<SubscriptionPlansScreen />);
 
-      expect(screen.queryByText("Start free trial")).toBeNull();
-      expect(screen.queryByText("Subscribe monthly")).toBeNull();
+      expect(screen.queryByText(TRIAL_CTA)).toBeNull();
+      expect(screen.queryByText("Subscribe — $14.99")).toBeNull();
     });
   });
 
@@ -250,7 +309,7 @@ describe("SubscriptionPlansScreen", () => {
       );
       const screen = render(<SubscriptionPlansScreen />);
 
-      fireEvent.press(screen.getByText("Start free trial"));
+      fireEvent.press(screen.getByText(TRIAL_CTA));
 
       expect(mockShowToast).toHaveBeenCalledWith(expect.objectContaining({ variant: "success" }));
     });
@@ -263,7 +322,7 @@ describe("SubscriptionPlansScreen", () => {
       );
       const screen = render(<SubscriptionPlansScreen />);
 
-      fireEvent.press(screen.getByText("Start free trial"));
+      fireEvent.press(screen.getByText(TRIAL_CTA));
 
       expect(mockShowToast).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -279,7 +338,7 @@ describe("SubscriptionPlansScreen", () => {
       );
       const screen = render(<SubscriptionPlansScreen />);
 
-      fireEvent.press(screen.getByText("Start free trial"));
+      fireEvent.press(screen.getByText(TRIAL_CTA));
 
       expect(mockShowToast).not.toHaveBeenCalled();
     });
@@ -288,7 +347,7 @@ describe("SubscriptionPlansScreen", () => {
       mockStartTrialMutate.mockImplementation((_v, options) => options?.onError?.(new Error("x")));
       const screen = render(<SubscriptionPlansScreen />);
 
-      fireEvent.press(screen.getByText("Start free trial"));
+      fireEvent.press(screen.getByText(TRIAL_CTA));
 
       expect(mockShowToast).toHaveBeenCalledWith(
         expect.objectContaining({

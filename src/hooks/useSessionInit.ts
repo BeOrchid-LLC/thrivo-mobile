@@ -10,6 +10,21 @@ function bootLog(message: string): void {
 }
 
 /**
+ * A short `CODE: message` line for the restore-error screen. Restore can fail
+ * for reasons that look identical to the user but need opposite fixes — the
+ * device is offline, the backend is down, the response broke its contract — and
+ * without the code on screen there is no way to tell them apart on a real
+ * device.
+ */
+function describeRestoreFailure(error: unknown): string {
+  if (isApiError(error)) {
+    const status = error.status > 0 ? ` (${error.status})` : "";
+    return `${error.code}${status}: ${error.message}`;
+  }
+  return error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+}
+
+/**
  * Bridges Clerk's auth state into the app's session store. Runs at every auth
  * state transition:
  * - Clerk not yet loaded → stay in "loading" (splash held).
@@ -105,8 +120,10 @@ export function useSessionInit(): void {
           handleUnauthenticated();
           return;
         }
-        bootLog(`session restore failed${error instanceof Error ? `: ${error.message}` : ""}`);
-        actions.setStatus("restore_error");
+        const detail = describeRestoreFailure(error);
+        bootLog(`session restore failed: ${detail}`);
+        monitoring.captureException(error, { seam: "session-restore" });
+        actions.setRestoreError(detail);
       }
     })();
 

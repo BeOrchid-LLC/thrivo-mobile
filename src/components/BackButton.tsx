@@ -3,14 +3,14 @@ import { router } from "expo-router";
 import { ChevronLeftIcon } from "./icons";
 
 export interface BackButtonProps {
-  /** Override the default behavior (router.back, falling back to the auth welcome screen). */
+  /** Override the default behavior (router.back, falling back to the sign-in screen). */
   onPress?: () => void;
 }
 
 /**
  * Shared header back affordance for the V2 auth/onboarding screens. 44×44 keeps
  * the tap target ≥44pt (WCAG 2.2 AA). Defaults to `router.back()` and falls back
- * to the welcome screen when there's no history (e.g. an auth cold start).
+ * to the sign-in screen when there's no history (e.g. an auth cold start).
  */
 export function BackButton({ onPress }: BackButtonProps) {
   const handlePress = () => {
@@ -21,7 +21,7 @@ export function BackButton({ onPress }: BackButtonProps) {
     if (router.canGoBack()) {
       router.back();
     } else {
-      router.replace("/(auth)/welcome");
+      router.replace("/(auth)/sign-in");
     }
   };
 

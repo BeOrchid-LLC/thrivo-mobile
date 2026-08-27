@@ -6,6 +6,7 @@ import {
   CaloriesSummarySection,
   DashboardHeader,
   MacrosSection,
+  MoodCheckinSection,
   StreakSection,
   TodayMealLogSection,
   WaterSection,
@@ -36,6 +37,7 @@ export default function Dashboard() {
       onRefresh={refresh}
     >
       <View className="gap-lg">
+        <MoodCheckinSection />
         <CaloriesSummarySection />
         <MacrosSection />
         <StreakSection />

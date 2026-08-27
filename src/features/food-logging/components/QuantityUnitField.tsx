@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { TextInput, View } from "react-native";
 import { SelectInput, SelectSheet, StepperButton, Text } from "@/components";
-import { colors } from "@/theme";
+import { colors, inputFont } from "@/theme";
 import type { ServingChoice } from "../utils/servingChoices";
 import { stepQuantity } from "../utils/quantity";
 
@@ -49,8 +49,8 @@ export function QuantityUnitField({
           onChangeText={onQuantityChange}
           keyboardType="decimal-pad"
           editable={!disabled}
-          className="h-control flex-1 rounded-md border border-gray-300 bg-white text-center text-body-lg"
-          style={{ color: colors.dark }}
+          className="h-control flex-1 rounded-md border border-gray-300 bg-white text-center"
+          style={[inputFont("body-lg"), { color: colors.dark }]}
         />
         <StepperButton
           label="+"

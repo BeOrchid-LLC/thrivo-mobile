@@ -105,18 +105,29 @@ describe("CreateFoodScreen", () => {
     );
   });
 
-  it("keeps letters out of the number fields", () => {
+  it("keeps what was typed in a number field and says what is wrong with it", () => {
     const screen = render(<CreateFoodScreen day="2026-06-21" onBack={jest.fn()} />);
     const calories = screen.getByLabelText("Calories");
 
-    fireEvent.changeText(calories, "sdf");
-    expect(calories.props.value).toBe("");
-
+    // The keypad is only a hint, so the field explains rather than silently
+    // rewriting the entry the way the onboarding number fields do.
     fireEvent.changeText(calories, "12abc3");
-    expect(calories.props.value).toBe("123");
+    expect(screen.getByLabelText("Calories").props.value).toBe("12abc3");
+    expect(screen.getByText("Numbers only")).toBeTruthy();
 
-    fireEvent.changeText(screen.getByLabelText("Protein"), "1,5");
-    expect(screen.getByLabelText("Protein").props.value).toBe("1.5");
+    fireEvent.changeText(calories, "5001");
+    expect(screen.getByText("Enter 0\u20135000 kcal")).toBeTruthy();
+
+    fireEvent.changeText(calories, "420");
+    expect(screen.queryByText("Numbers only")).toBeNull();
+    expect(screen.queryByText("Enter 0\u20135000 kcal")).toBeNull();
+  });
+
+  it("says nothing about an untouched number field", () => {
+    const screen = render(<CreateFoodScreen day="2026-06-21" onBack={jest.fn()} />);
+
+    expect(screen.queryByText("Numbers only")).toBeNull();
+    expect(screen.queryByText("Add the calories per serving.")).toBeNull();
   });
 
   it("opens the log sheet on the food it just created", () => {

@@ -3,8 +3,8 @@ import { popOnlyScreenListeners, popOnlyScreenOptions } from "@/navigation/pop-a
 
 /**
  * Authenticated group. A stack whose root is the tab navigator, so the screens
- * reached *from* a tab (food history, water history, check-in) push over the
- * tab bar and pop back with the standard slide.
+ * reached *from* a tab (food history, water history, check-in, personal info)
+ * push over the tab bar and pop back with the standard slide.
  *
  * They used to be `href: null` tab screens, which meant `router.push` was really
  * a tab switch: no push/pop, no back animation, and `router.canGoBack()` false
@@ -18,7 +18,16 @@ export default function AppLayout() {
       <Stack.Screen name="history" />
       <Stack.Screen name="water-history" />
       <Stack.Screen name="checkin" />
+      <Stack.Screen name="log-weight" />
       <Stack.Screen name="foods" />
+      <Stack.Screen name="create-food" />
+      <Stack.Screen name="scan-barcode" />
+      <Stack.Screen name="describe-meal" />
+      <Stack.Screen name="food-log-reminder" />
+      <Stack.Screen name="personal-info" />
+      <Stack.Screen name="subscription" />
+      <Stack.Screen name="onboarding-setup" />
+      <Stack.Screen name="settings-edit/[step]" />
     </Stack>
   );
 }
