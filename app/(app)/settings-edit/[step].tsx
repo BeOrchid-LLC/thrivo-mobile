@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Pressable, View } from "react-native";
+import { View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { Text } from "@/components";
+import { ErrorDialog, Text } from "@/components";
 import { useOnboardingPrefill } from "@/features/onboarding/hooks/useOnboardingPrefill";
 import { useSaveOnboardingStep } from "@/features/onboarding/hooks/useSaveOnboardingStep";
 import { ONBOARDING_STEPS, TOTAL_ONBOARDING_STEPS } from "@/features/onboarding/config";
@@ -37,15 +37,11 @@ export default function SettingsEditStepScreen() {
 
   return (
     <View className="flex-1">
-      {saveError ? (
-        <Pressable
-          accessibilityRole="alert"
-          onPress={() => setSaveError(null)}
-          className="bg-red-50 px-lg py-sm"
-        >
-          <Text color="error">{saveError}</Text>
-        </Pressable>
-      ) : null}
+      <ErrorDialog
+        message={saveError}
+        title="Could not save"
+        onDismiss={() => setSaveError(null)}
+      />
       <StepScreen
         mode="revisit"
         variant="settings"
@@ -59,7 +55,7 @@ export default function SettingsEditStepScreen() {
             await saveStep.save(fields, stepNumber, isLast);
             router.back();
           } catch {
-            setSaveError("Could not save. Check your connection and try again.");
+            setSaveError("Check your connection and try again.");
           }
         }}
       />

@@ -12,6 +12,11 @@ export interface CenterModalProps {
   body: string;
   /** The action buttons, stacked under the copy. */
   children: ReactNode;
+  /**
+   * Android hardware back. Left undefined a dialog is un-dismissable, which is
+   * what a confirm wants; an acknowledge-only alert should pass its dismiss.
+   */
+  onRequestClose?: () => void;
 }
 
 /**
@@ -22,10 +27,17 @@ export interface CenterModalProps {
  * It has no dismiss affordance of its own on purpose — every action it carries
  * is a decision, so the caller's buttons are the only way out.
  */
-export function CenterModal({ visible, tone, title, body, children }: CenterModalProps) {
+export function CenterModal({
+  visible,
+  tone,
+  title,
+  body,
+  children,
+  onRequestClose,
+}: CenterModalProps) {
   const isSuccess = tone === "success";
   return (
-    <Modal visible={visible} transparent animationType="fade">
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onRequestClose}>
       <View className="flex-1 items-center justify-center bg-black/30 px-xl">
         <View className="w-full gap-lg rounded-lg bg-white p-xl">
           <View

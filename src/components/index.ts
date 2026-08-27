@@ -12,6 +12,8 @@ export { Input } from "./Input";
 export type { InputProps } from "./Input";
 export { CenterModal } from "./CenterModal";
 export type { CenterModalProps } from "./CenterModal";
+export { ErrorDialog } from "./ErrorDialog";
+export type { ErrorDialogProps } from "./ErrorDialog";
 export { SelectSheet } from "./select-sheet";
 export type { SelectSheetOption, SelectSheetProps } from "./select-sheet";
 export { SelectInput } from "./SelectInput";
