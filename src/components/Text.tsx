@@ -14,6 +14,8 @@ type Variant = keyof Typography;
  */
 export type TextColor =
   | "primary"
+  | "primaryDeep"
+  | "primaryBright"
   | "dark"
   | "muted"
   | "subtle"
@@ -28,7 +30,10 @@ export type TextColor =
   | "error"
   | "success"
   | "successBright"
-  | "targetGreen";
+  | "targetGreen"
+  | "tdeeNumber"
+  | "tdeeValue"
+  | "tdeeLabel";
 
 // Variant carries size + line height (text-*) and the Inter family weight
 // (font-*); both come from the tailwind theme, which is sourced from src/theme.
@@ -37,6 +42,7 @@ const variantClass: Record<Variant, string> = {
   heading1: "text-heading1 font-semibold",
   heading2: "text-heading2 font-semibold",
   heading3: "text-heading3 font-semibold",
+  pageTitle: "text-pageTitle font-bold",
   title: "text-title font-semibold",
   metric: "text-metric font-semibold",
   otp: "text-otp font-semibold",
@@ -50,6 +56,8 @@ const variantClass: Record<Variant, string> = {
 
 const colorValue: Record<TextColor, string> = {
   primary: colors.primary,
+  primaryDeep: colors.primaryDeep,
+  primaryBright: colors.primaryBright,
   dark: colors.dark,
   muted: colors.gray[600],
   subtle: colors.muted,
@@ -65,6 +73,9 @@ const colorValue: Record<TextColor, string> = {
   success: colors.success,
   successBright: colors.successBright,
   targetGreen: colors.targetGreen,
+  tdeeNumber: colors.tdeeNumber,
+  tdeeValue: colors.tdeeValue,
+  tdeeLabel: colors.tdeeLabel,
 };
 
 export interface TextProps extends RNTextProps {

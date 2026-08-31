@@ -176,7 +176,7 @@ const revenueCatAdapter: SubscriptionAdapter = {
         ? await Purchases.checkTrialOrIntroductoryPriceEligibility(ids).catch(() => ({}))
         : {};
 
-    return packages.flatMap((pkg: PurchasesPackage) => {
+    const products = packages.flatMap((pkg: PurchasesPackage) => {
       const plan = planForPackage(pkg);
       if (!plan) return [];
       const intro = pkg.product.introPrice as unknown as FreePhase | null;
@@ -203,6 +203,20 @@ const revenueCatAdapter: SubscriptionAdapter = {
         } satisfies SubscriptionProduct,
       ];
     });
+    // Packages exist but none is a monthly or annual one. Returning [] here
+    // left the paywall showing "—" with every button disabled and nothing in
+    // the logs, because only a thrown error reaches useOfferingsDiagnostics.
+    // Name what the offering actually contains — the fix is always in the
+    // dashboard, and this is the only place that can see it.
+    if (products.length === 0) {
+      const seen = packages
+        .map((pkg: PurchasesPackage) => `${pkg.identifier}(${pkg.packageType})`)
+        .join(", ");
+      throw new Error(
+        `offering "${offerings.current.identifier}" has no monthly or annual package — saw: ${seen}`
+      );
+    }
+    return products;
   },
 
   purchase: async (packageId) => {

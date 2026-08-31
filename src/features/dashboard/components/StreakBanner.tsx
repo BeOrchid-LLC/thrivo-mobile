@@ -1,6 +1,6 @@
 import { Pressable } from "react-native";
-import { ArrowRight, Flame } from "phosphor-react-native";
-import { AnimatedNumber } from "@/components";
+import { ArrowRight } from "phosphor-react-native";
+import { AnimatedNumber, Text } from "@/components";
 import { colors } from "@/theme";
 
 interface StreakBannerProps {
@@ -14,12 +14,12 @@ export function StreakBanner({ days, onPress }: StreakBannerProps) {
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
-      className="flex-row items-center gap-sm rounded-lg bg-accentSoft px-lg py-md"
+      className="flex-row items-center gap-md rounded-lg bg-accentSoft p-lg"
     >
-      <Flame size={20} color={colors.accent} weight="fill" />
+      <Text variant="heading3">🔥</Text>
       <AnimatedNumber
         variant="body"
-        color="accent"
+        color="dark"
         className="flex-1 font-semibold"
         value={days}
         format={(n) => `${n}-day streak - keep it up!`}

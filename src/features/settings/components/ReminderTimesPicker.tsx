@@ -79,17 +79,21 @@ export function ReminderTimesPicker({
 
   return (
     <View className="gap-lg">
-      <View className="flex-row items-center gap-md rounded-group bg-primarySoft px-lg py-md">
-        <BellIcon size={28} color={colors.primary} />
-        <Text variant="caption" color="muted" className="uppercase tracking-label">
+      {/* Figma S7: a 72pt tinted header, not a padded strip. */}
+      <View className="h-[72px] flex-row items-center gap-lg rounded-group border-[1.333px] border-primaryBright/[0.12] bg-primaryBright/[0.08] px-[17.333px]">
+        <BellIcon size={32} color={colors.primaryBright} />
+        <Text variant="caption" color="subtle" className="uppercase tracking-label">
           Reminders per day
         </Text>
       </View>
 
       <Segmented
+        fullWidth
+        equalSegments
+        size="count"
         options={COUNTS}
         value={String(count)}
-        activeColor="primary"
+        activeColor="primaryBright"
         onChange={(value) => onCountChange(Number(value))}
       />
 
@@ -99,25 +103,37 @@ export function ReminderTimesPicker({
           return (
             <View
               key={index}
-              className={`flex-row items-center rounded-group border-[1.333px] px-lg py-md ${accent ? "border-primaryBright bg-primaryBright/[0.06]" : "border-gray-300 bg-white"}`}
+              // The frame keeps every row white; only the outline, the badge and
+              // the time chip say which one is the next reminder.
+              className={`h-[60px] flex-row items-center rounded-group border-[1.333px] bg-white px-lg ${
+                accent ? "border-primaryBright" : "border-hairline"
+              }`}
             >
               <View
-                className={`h-[28px] w-[28px] items-center justify-center rounded-pill ${accent ? "bg-primaryBright" : "bg-gray-200"}`}
+                className={`h-[28px] w-[28px] items-center justify-center rounded-pill ${accent ? "bg-primaryBright" : "bg-numberBadge"}`}
               >
-                <Text variant="caption" color={accent ? "inverse" : "gray500"}>
+                <Text variant="caption" color={accent ? "inverse" : "subtle"} className="font-bold">
                   {index + 1}
                 </Text>
               </View>
-              <Text variant="body" color="dark" className="ml-md flex-1 font-medium">
+              <Text variant="body-sm" color="dark" className="ml-md flex-1 font-medium">
                 {LABELS[index]}
               </Text>
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={`Edit ${LABELS[index]} reminder time`}
                 onPress={() => setEditing(index)}
-                className={`min-h-touchTarget flex-row items-center gap-xs rounded-md px-md py-sm ${accent ? "bg-primaryBright/[0.12]" : "bg-gray-100"}`}
+                className={`flex-row items-center gap-xs rounded-md border-[0.667px] px-md py-sm ${
+                  accent
+                    ? "border-primaryBright/[0.12] bg-primaryBright/[0.08]"
+                    : "border-segmentTrack bg-light"
+                }`}
               >
-                <Text variant="caption" color={accent ? "primary" : "dark"}>
+                <Text
+                  variant="body-sm"
+                  color={accent ? "primaryBright" : "dark"}
+                  className="font-semibold"
+                >
                   {to12h(time)}
                 </Text>
                 <ChevronDownIcon size={13} color={accent ? colors.primary : colors.gray[500]} />

@@ -9,6 +9,8 @@ import { MOOD_SCALE, moodOption } from "@/features/checkin/utils/mood-scale";
 
 interface MoodCheckinRowProps {
   onSelect: (mood: Mood) => void;
+  /** Blocks further taps while a check-in write is in flight. */
+  disabled?: boolean;
 }
 
 /**
@@ -20,10 +22,10 @@ interface MoodCheckinRowProps {
  * where a note and the returned tip live; this is the prompt that makes
  * answering cost nothing.
  */
-export function MoodCheckinRow({ onSelect }: MoodCheckinRowProps) {
+export function MoodCheckinRow({ onSelect, disabled = false }: MoodCheckinRowProps) {
   return (
     <View className="gap-md">
-      <Text variant="label" color="muted">
+      <Text variant="body" color="subtle">
         How are you feeling today?
       </Text>
       <View className="flex-row justify-between">
@@ -33,12 +35,13 @@ export function MoodCheckinRow({ onSelect }: MoodCheckinRowProps) {
             accessibilityRole="button"
             accessibilityLabel={`Feeling ${option.label.toLowerCase()}`}
             onPress={() => onSelect(option.value)}
+            disabled={disabled}
             className="items-center gap-xs"
           >
-            <View className="h-tile w-tile items-center justify-center rounded-pill bg-gray-100">
-              <Text variant="heading3">{option.emoji}</Text>
+            <View className="h-moodTile w-moodTile items-center justify-center rounded-pill bg-gray-100">
+              <Text variant="heading2">{option.emoji}</Text>
             </View>
-            <Text variant="micro" color="muted">
+            <Text variant="label" color="subtle">
               {option.label}
             </Text>
           </Pressable>
@@ -58,12 +61,9 @@ export function MoodCheckinSummary({ mood, onPress }: { mood: Mood; onPress: () 
       onPress={onPress}
       className="min-h-touchTarget flex-row items-center gap-sm"
     >
-      <Text variant="body">{option.emoji}</Text>
-      <Text variant="label" color="dark">
-        Feeling {option.label.toLowerCase()}{" "}
-        <Text variant="label" color="muted">
-          • logged
-        </Text>
+      <Text variant="heading2">{option.emoji}</Text>
+      <Text variant="body" color="subtle">
+        Feeling {option.label.toLowerCase()} • logged
       </Text>
     </Pressable>
   );

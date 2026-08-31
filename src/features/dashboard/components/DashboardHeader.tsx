@@ -27,7 +27,7 @@ export function DashboardHeader() {
 
   return (
     <View className="gap-xs">
-      <Text variant="label" color="muted">
+      <Text variant="body" color="subtle">
         {todayLabel()}
       </Text>
       <Text variant="heading3" color="dark" accessibilityRole="header">

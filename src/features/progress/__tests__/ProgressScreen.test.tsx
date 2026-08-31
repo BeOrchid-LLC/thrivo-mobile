@@ -109,7 +109,8 @@ describe("ProgressScreen", () => {
     mockUseWeightContext.mockReturnValue(successQuery(weightContext));
     mockUseAddWeight.mockReturnValue({ mutate: jest.fn(), isPending: false });
     mockUseSettings.mockReturnValue({ data: { unitSystem: "imperial" } });
-    mockUseEntitlement.mockReturnValue({ isPremium: false, isLoading: false });
+    // Charts are premium outright, so the chart-rendering cases run as premium.
+    mockUseEntitlement.mockReturnValue({ isPremium: true, isLoading: false });
     mockUseFoodLogDay.mockReturnValue(
       successQuery({
         day: "2026-06-18",
@@ -188,19 +189,14 @@ describe("ProgressScreen", () => {
     expect(mockUseMetricChart).toHaveBeenLastCalledWith("calories", "14d");
   });
 
-  it("locks premium period options for free users and links to subscription settings", () => {
-    const screen = render(<ProgressScreen />);
-
-    fireEvent.press(screen.getByLabelText("Select time period"));
-    fireEvent.press(screen.getByLabelText("Month, premium required"));
-
-    expect(screen.getByText("Premium required")).toBeTruthy();
-    expect(screen.getByText("You have to be premium to view this option.")).toBeTruthy();
-
-    fireEvent.press(screen.getByText("View subscription plans"));
-
-    expect(router.push).toHaveBeenCalledWith("/(app)/subscription");
-    expect(mockUseMetricChart).toHaveBeenLastCalledWith("weight", "7d");
+  // Charts are premium outright, so a free user never reaches the period
+  // picker — the controls are hidden along with the chart they drive.
+  it("hides the chart controls for free users", async () => {
+    mockUseEntitlement.mockReturnValue({ isPremium: false, isLoading: false });
+    const view = render(<ProgressScreen />);
+    await view.findByText("Subscribe to see your progress charts");
+    expect(view.queryByLabelText("Select time period")).toBeNull();
+    expect(view.queryByLabelText("Select progress metric")).toBeNull();
   });
 
   it("lets premium users select long period options", () => {
@@ -211,6 +207,12 @@ describe("ProgressScreen", () => {
     fireEvent.press(screen.getByLabelText("Month"));
 
     expect(mockUseMetricChart).toHaveBeenLastCalledWith("weight", "1m");
+  });
+
+  it("gates the whole chart for free users", async () => {
+    mockUseEntitlement.mockReturnValue({ isPremium: false, isLoading: false });
+    const view = render(<ProgressScreen />);
+    expect(await view.findByText("Subscribe to see your progress charts")).toBeTruthy();
   });
 
   it("shows an upgrade prompt for long periods", () => {

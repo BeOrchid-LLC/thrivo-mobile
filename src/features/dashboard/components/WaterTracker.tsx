@@ -21,12 +21,10 @@ export function WaterTracker({
 }: WaterTrackerProps) {
   const filled = Math.min(glasses, targetGlasses);
   return (
-    <View
-      className={`gap-lg rounded-lg ${glasses > 0 ? "bg-primaryTint" : "bg-light"} px-lg py-[20px]`}
-    >
+    <View className="gap-lg rounded-lg bg-primaryTint p-lg">
       <View className="flex-row items-center">
-        <PintGlassIcon size={22} color={colors.primary} weight="regular" />
-        <Text variant="body" color="primary" className="ml-sm flex-1 font-semibold">
+        <PintGlassIcon size={20} color={colors.primaryDeep} weight="regular" />
+        <Text variant="body" color="primaryDeep" className="ml-sm flex-1 font-semibold">
           Drink water
         </Text>
         <Pressable
@@ -36,19 +34,19 @@ export function WaterTracker({
           disabled={adding}
           hitSlop={8}
         >
-          <PlusCircle size={24} color={colors.primary} weight="regular" />
+          <PlusCircle size={24} color={colors.primaryDeep} weight="regular" />
         </Pressable>
       </View>
       <View className="flex-row items-center">
-        <Text variant="body" color="muted" className="flex-1">
+        <Text variant="label" color="primaryDeep" className="flex-1">
           {glasses} of {targetGlasses} glasses
         </Text>
-        <View className="flex-row gap-xs">
+        <View className="flex-row">
           {Array.from({ length: targetGlasses }).map((_, i) => (
             <Drop
               key={i}
-              size={20}
-              color={colors.primary}
+              size={16}
+              color={colors.primaryDeep}
               weight={i < filled ? "fill" : "regular"}
             />
           ))}

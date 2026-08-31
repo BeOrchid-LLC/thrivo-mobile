@@ -324,10 +324,39 @@ describe("SubscriptionPlansScreen", () => {
 
       fireEvent.press(screen.getByText(TRIAL_CTA));
 
+      const { message } = mockShowToast.mock.calls[0]![0] as { message: string };
+      expect(message).not.toMatch(/Premium is active/i);
+      expect(message).toMatch(/in a moment/i);
+    });
+
+    // Payment succeeded; only activation is late, and the hook keeps checking
+    // in the background. Colouring that as an error tells someone who has just
+    // been charged that something went wrong.
+    it("does not report a slow activation as a failure", () => {
+      mockStartTrialMutate.mockImplementation((_v, options) =>
+        options?.onSuccess?.({ completed: true, confirmed: false })
+      );
+      const screen = render(<SubscriptionPlansScreen />);
+
+      fireEvent.press(screen.getByText(TRIAL_CTA));
+
+      expect(mockShowToast).toHaveBeenCalledWith(expect.objectContaining({ variant: "success" }));
+    });
+
+    // A sync that threw every time is a real failure, and must not be dressed
+    // up as a pending activation the user should wait out.
+    it("reports an error when every activation attempt failed", () => {
+      mockStartTrialMutate.mockImplementation((_v, options) =>
+        options?.onSuccess?.({ completed: true, confirmed: false, error: new Error("sync down") })
+      );
+      const screen = render(<SubscriptionPlansScreen />);
+
+      fireEvent.press(screen.getByText(TRIAL_CTA));
+
       expect(mockShowToast).toHaveBeenCalledWith(
         expect.objectContaining({
           variant: "error",
-          message: expect.stringContaining("Activation is delayed"),
+          message: expect.stringContaining("contact support"),
         })
       );
     });

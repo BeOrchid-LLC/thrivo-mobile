@@ -30,7 +30,7 @@ import { LEGAL_LINKS } from "@/config/links";
 import { useLogout } from "@/features/auth/hooks/useAuth";
 import { analytics } from "@/lib";
 import { useMe } from "@/features/profile";
-import { useSubscription } from "@/features/subscription";
+import { productForPlan, useOfferings, useSubscription } from "@/features/subscription";
 import { CancelSubscriptionDialogs } from "@/features/subscription/components/CancelSubscriptionDialogs";
 import { authenticateBiometric, isBiometricAvailable } from "@/lib/biometric";
 import { useBiometricAuthEnabled, usePreferencesActions } from "@/stores";
@@ -146,6 +146,7 @@ export function SettingsScreen() {
   const settings = useSettings();
   const updateSettings = useUpdateSettings();
   const subscription = useSubscription();
+  const offerings = useOfferings();
   const logout = useLogout();
 
   const biometricEnabled = useBiometricAuthEnabled();
@@ -186,6 +187,14 @@ export function SettingsScreen() {
   // The charge date is the renewal specifically — an access-end date is when
   // premium stops, which is the opposite of a date money moves on.
   const nextChargeOn = formatShortDate(sub?.renewsAt);
+  // `subscription.priceLabel` is deprecated and comes back null — store-localised
+  // pricing lives in the RevenueCat packages, the same source the paywall uses.
+  const plan = sub?.plan ?? "monthly";
+  const priceLabel =
+    productForPlan(offerings.data, plan)?.priceLabel ??
+    sub?.plans?.find((p) => p.plan === plan)?.priceLabel ??
+    sub?.priceLabel ??
+    null;
 
   const onTimePicked = (event: TimePickerEvent, date?: Date) => {
     const field = editingTime;
@@ -467,16 +476,22 @@ export function SettingsScreen() {
           }
           onPress={() => router.push("/(app)/subscription")}
         />
-        {isPremium && sub.priceLabel && nextChargeOn && !sub.cancelAtPeriodEnd ? (
+        {isPremium && !sub.cancelAtPeriodEnd ? (
           <View className="px-lg py-lg">
-            <View className="flex-row items-center justify-between rounded-md bg-primarySoft px-lg py-md">
-              <Text>Next charge</Text>
-              <Text className="font-semibold">
-                {sub.priceLabel} on {nextChargeOn}
-              </Text>
-            </View>
+            {nextChargeOn ? (
+              <View className="flex-row items-center justify-between rounded-md bg-primarySoft px-lg py-md">
+                <Text>Next charge</Text>
+                <Text className="font-semibold">
+                  {priceLabel ? `${priceLabel} on ${nextChargeOn}` : nextChargeOn}
+                </Text>
+              </View>
+            ) : null}
             <Pressable
-              className="mt-lg min-h-touchTarget items-center justify-center"
+              className={
+                nextChargeOn
+                  ? "mt-lg min-h-touchTarget items-center justify-center"
+                  : "min-h-touchTarget items-center justify-center"
+              }
               accessibilityRole="button"
               onPress={() => setConfirmCancelOpen(true)}
             >

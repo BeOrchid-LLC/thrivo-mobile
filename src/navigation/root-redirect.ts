@@ -4,7 +4,7 @@ export type RootGroup = string | undefined;
 export type RootRedirectTarget =
   | "/(auth)/sign-in"
   | "/(auth)/welcome"
-  | "/(onboarding)/goal"
+  | "/(onboarding)/name"
   | "/(app)/(tabs)/dashboard";
 
 interface RootRedirectInput {
@@ -56,7 +56,7 @@ export function resolveRootRedirect({
   const pastOnboarding = isOnboarded || isOnboardingSkipped || hasDismissedOnboarding;
 
   if (status === "authenticated" && !pastOnboarding) {
-    return atRoot || (!inOnboarding && !inAuthCallback) ? "/(onboarding)/goal" : null;
+    return atRoot || (!inOnboarding && !inAuthCallback) ? "/(onboarding)/name" : null;
   }
 
   // The `(onboarding)` group is the one-time flow only; re-opening a step from

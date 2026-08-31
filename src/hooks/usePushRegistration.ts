@@ -31,7 +31,16 @@ export function usePushRegistration(): void {
   // Re-send the schedule alongside the token. `notifyTimes` is optional in the
   // payload, so omitting it risks a backend reading absence as "clear them" —
   // which would silently wipe the user's reminders on every foreground.
-  const notifyTimes = useMemo(() => normalizeTimes(me?.notifyTimes), [me?.notifyTimes]);
+  //
+  // Keyed on the joined string, not the array: the effect below depends on this
+  // value, and a refetch of `me` that returns identical times can still hand
+  // back a fresh array. Comparing identity there re-registers the token on
+  // every refetch; comparing the values re-registers only on a real change.
+  const notifyTimesKey = normalizeTimes(me?.notifyTimes)?.join(",");
+  const notifyTimes = useMemo(
+    () => (notifyTimesKey ? notifyTimesKey.split(",") : undefined),
+    [notifyTimesKey]
+  );
 
   useEffect(() => {
     if (!isAuthenticated) {

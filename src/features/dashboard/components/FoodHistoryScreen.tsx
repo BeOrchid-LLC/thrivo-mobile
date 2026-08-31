@@ -26,6 +26,7 @@ import type {
 import { MEAL_TIME_WINDOWS } from "@/contracts";
 import { CopyLogSheet, EditFoodLogSheet, useFavorites } from "@/features/food-logging";
 import { FavoriteButton } from "@/features/food-logging/components/FavoriteButton";
+import { useEntitlement } from "@/hooks/useEntitlement";
 import { useDebouncedValue } from "@/hooks";
 import { colors } from "@/theme";
 import { isToday } from "@/utils";
@@ -125,8 +126,35 @@ function getItemType(item: HistoryListItem): string {
   return item.type;
 }
 
+/** Blurred stand-in behind the gate: the shape of a day's meals, no data. */
+function FoodHistoryTeaser() {
+  return (
+    <Card className="min-h-[240px] gap-md bg-gray-100">
+      {Array.from({ length: 5 }).map((_, index) => (
+        <View
+          key={index}
+          className="flex-row items-center justify-between border-b border-gray-200 py-sm"
+        >
+          <View>
+            <Text variant="body" color="dark">
+              Meal
+            </Text>
+            <Text variant="caption" color="muted">
+              --:--
+            </Text>
+          </View>
+          <Text variant="body" color="dark">
+            -- kcal
+          </Text>
+        </View>
+      ))}
+    </Card>
+  );
+}
+
 export function FoodHistoryScreen({ refreshing, onRefresh }: FoodHistoryScreenProps) {
   const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
+  const entitlement = useEntitlement();
   useFavorites();
   const [period, setPeriod] = useState<ChartPeriod>("1m");
   const [periodSheetOpen, setPeriodSheetOpen] = useState(false);
@@ -267,22 +295,39 @@ export function FoodHistoryScreen({ refreshing, onRefresh }: FoodHistoryScreenPr
   const hasFiltersActive =
     !!debouncedSearch.trim() || !!mealTime || favoritesOnly || sort !== "newest";
 
+  const handleBack = () => {
+    if (returnTo === "log") {
+      router.replace("/(app)/(tabs)/log");
+      return;
+    }
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.replace("/(app)/(tabs)/log");
+  };
+
+  // Premium outright, matching water history: the header stays so the screen is
+  // escapable, and nothing else renders — a partial list would read as the
+  // feature half-working rather than as something to subscribe for.
+  if (!entitlement.isLoading && !entitlement.isPremium) {
+    return (
+      <View className="flex-1 gap-lg">
+        <PageHeader title="Food history" onBack={handleBack} />
+        <PremiumGate
+          title="Subscribe to see your food history"
+          subtitle="Your full meal log unlocks with Premium."
+          onViewPlans={() => router.push("/(app)/subscription")}
+        >
+          <FoodHistoryTeaser />
+        </PremiumGate>
+      </View>
+    );
+  }
+
   return (
     <View className="flex-1 gap-lg">
-      <PageHeader
-        title="Food history"
-        onBack={() => {
-          if (returnTo === "log") {
-            router.replace("/(app)/(tabs)/log");
-            return;
-          }
-          if (router.canGoBack()) {
-            router.back();
-            return;
-          }
-          router.replace("/(app)/(tabs)/log");
-        }}
-      />
+      <PageHeader title="Food history" onBack={handleBack} />
 
       <SearchBar
         value={searchText}

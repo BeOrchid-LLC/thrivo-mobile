@@ -22,6 +22,7 @@ import type {
   WaterHistoryResponse,
 } from "@/contracts";
 import { MEAL_TIME_WINDOWS } from "@/contracts";
+import { useEntitlement } from "@/hooks/useEntitlement";
 import { useSettings } from "@/features/settings";
 import { localDay, formatWater } from "@/utils";
 import type { WaterHistoryFilters } from "../api/food-logging.api";
@@ -124,6 +125,7 @@ function getItemType(item: HistoryListItem): string {
 
 export function WaterHistoryScreen({ refreshing, onRefresh }: WaterHistoryScreenProps) {
   const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
+  const entitlement = useEntitlement();
   const [period, setPeriod] = useState<ChartPeriod>("7d");
   const [periodSheetOpen, setPeriodSheetOpen] = useState(false);
   const [sortSheetOpen, setSortSheetOpen] = useState(false);
@@ -240,22 +242,46 @@ export function WaterHistoryScreen({ refreshing, onRefresh }: WaterHistoryScreen
   const isEmpty = !isLoading && !isError && listItems.length === 0 && !history.isFetchingNextPage;
   const hasFiltersActive = !!mealTime || sort !== "newest";
 
+  const handleBack = () => {
+    if (returnTo === "log") {
+      router.replace("/(app)/(tabs)/log");
+      return;
+    }
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.replace("/(app)/(tabs)/log");
+  };
+
+  // History is premium outright — not premium beyond a window. Free users get
+  // the header (so they can still get out) and the gate, nothing else: no
+  // filters, no list, no partial series that would read as the feature working.
+  if (!entitlement.isLoading && !entitlement.isPremium) {
+    return (
+      <View className="flex-1 gap-lg">
+        <PageHeader
+          title="Water history"
+          subtitle="Review your hydration logs over time."
+          onBack={handleBack}
+        />
+        <PremiumGate
+          title="Subscribe to see your water history"
+          subtitle="Your full hydration log unlocks with Premium."
+          onViewPlans={() => router.push("/(app)/subscription")}
+        >
+          <HistoryTeaser />
+        </PremiumGate>
+      </View>
+    );
+  }
+
   return (
     <View className="flex-1 gap-lg">
       <PageHeader
         title="Water history"
         subtitle="Review your hydration logs over time."
-        onBack={() => {
-          if (returnTo === "log") {
-            router.replace("/(app)/(tabs)/log");
-            return;
-          }
-          if (router.canGoBack()) {
-            router.back();
-            return;
-          }
-          router.replace("/(app)/(tabs)/log");
-        }}
+        onBack={handleBack}
       />
 
       <View className="flex-row gap-sm">
@@ -400,6 +426,32 @@ function WaterHistoryEntryRow({
         {formatWater(entry.amountMl, unitSystem)}
       </Text>
     </View>
+  );
+}
+
+/** The blurred stand-in behind the gate: shaped like the list, empty of data. */
+function HistoryTeaser() {
+  return (
+    <Card className="min-h-[240px] gap-md bg-gray-100">
+      {Array.from({ length: 5 }).map((_, index) => (
+        <View
+          key={index}
+          className="flex-row items-center justify-between border-b border-gray-200 py-sm"
+        >
+          <View>
+            <Text variant="body" color="dark">
+              Glass of water
+            </Text>
+            <Text variant="caption" color="muted">
+              --:--
+            </Text>
+          </View>
+          <Text variant="body" color="dark">
+            -- ml
+          </Text>
+        </View>
+      ))}
+    </Card>
   );
 }
 

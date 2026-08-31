@@ -13,6 +13,7 @@
  */
 const regular = "Inter_400Regular";
 const semiBold = "Inter_600SemiBold";
+const bold = "Inter_700Bold";
 
 /** The loaded Inter families, for the few places that need one by name. */
 export const fontFamilies = {
@@ -46,6 +47,21 @@ export const typography = {
     fontSize: 20,
     fontWeight: "600" as const,
     lineHeight: 24,
+  },
+  /**
+   * The left-aligned page question on the V2 onboarding frames (S1-S7).
+   *
+   * Read from the Figma Dev Mode server: Inter Bold, 26px, 31.2px leading,
+   * -0.5px tracking — identical on all seven screens. It sits between `metric`
+   * (24) and `title` (28), and is the one ramp entry that is bold rather than
+   * semibold, so neither could stand in. Tracking lives in the tailwind
+   * letterSpacing map as `title`.
+   */
+  pageTitle: {
+    fontFamily: bold,
+    fontSize: 26,
+    fontWeight: "700" as const,
+    lineHeight: 31.2,
   },
   title: {
     fontFamily: semiBold,

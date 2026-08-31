@@ -9,6 +9,7 @@ import { useAddWater, useDashboardMacros } from "../hooks/useDashboard";
 const mockUseAddWaterLog = jest.fn();
 const mockUseEntitlement = jest.fn();
 const mockGetDashboardMacros = jest.fn();
+const mockFlags = { gated: false };
 
 jest.mock("@/features/food-logging", () => ({
   useAddWaterLog: (...args: unknown[]) => mockUseAddWaterLog(...args),
@@ -16,6 +17,14 @@ jest.mock("@/features/food-logging", () => ({
 
 jest.mock("@/hooks/useEntitlement", () => ({
   useEntitlement: () => mockUseEntitlement(),
+}));
+
+// A getter, so a test can flip the parked gate back on and still exercise the
+// entitlement path the flag restores.
+jest.mock("../flags", () => ({
+  get DASHBOARD_MACROS_GATED() {
+    return mockFlags.gated;
+  },
 }));
 
 jest.mock("../api/dashboard.api", () => {
@@ -72,7 +81,15 @@ describe("useAddWater", () => {
 });
 
 describe("useDashboardMacros", () => {
-  it("does not request premium macros for free users", () => {
+  beforeEach(() => {
+    mockGetDashboardMacros.mockClear();
+  });
+
+  afterEach(() => {
+    mockFlags.gated = false;
+  });
+
+  it("requests macros for free users when the gate is off", () => {
     mockUseEntitlement.mockReturnValue({ isPremium: false, isLoading: false });
     mockGetDashboardMacros.mockResolvedValue({});
     const queryClient = new QueryClient({
@@ -83,6 +100,23 @@ describe("useDashboardMacros", () => {
       wrapper: wrapperFor(queryClient),
     });
 
+    expect(result.current.isGated).toBe(false);
+    expect(mockGetDashboardMacros).toHaveBeenCalled();
+  });
+
+  it("does not request premium macros for free users when the gate is on", () => {
+    mockFlags.gated = true;
+    mockUseEntitlement.mockReturnValue({ isPremium: false, isLoading: false });
+    mockGetDashboardMacros.mockResolvedValue({});
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+
+    const { result } = renderHook(() => useDashboardMacros(), {
+      wrapper: wrapperFor(queryClient),
+    });
+
+    expect(result.current.isGated).toBe(true);
     expect(result.current.isPremium).toBe(false);
     expect(mockGetDashboardMacros).not.toHaveBeenCalled();
   });

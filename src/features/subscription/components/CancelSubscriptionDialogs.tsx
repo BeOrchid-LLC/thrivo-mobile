@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { router } from "expo-router";
-import { Button, CenterModal } from "@/components";
+import { Button, CenterModal, useToast } from "@/components";
 import { useMe } from "@/features/profile";
 import { isBillingConfigured } from "@/lib";
 import { formatLongDate } from "@/utils";
@@ -36,6 +36,7 @@ export function CancelSubscriptionDialogs({
   renewsAt,
 }: CancelSubscriptionDialogsProps) {
   const cancel = useCancelSubscription();
+  const { showToast } = useToast();
   const email = useMe().data?.email;
   const [cancelledOpen, setCancelledOpen] = useState(false);
   const billingLive = isBillingConfigured();
@@ -62,7 +63,9 @@ export function CancelSubscriptionDialogs({
             : `You'll keep premium access until ${accessUntil}. No partial refunds.`
         }
       >
-        <Button label="Keep premium" onPress={onClose} />
+        {/* Held while the cancel is in flight: closing the dialog mid-request
+            would leave the mutation running with nothing showing its outcome. */}
+        <Button label="Keep premium" disabled={cancel.isPending} onPress={onClose} />
         <Button
           label={billingLive ? "Manage in app store" : "Cancel my subscription"}
           variant="danger"
@@ -76,6 +79,16 @@ export function CancelSubscriptionDialogs({
                   // Store cancellations finish outside the app, so only the
                   // backend path can honestly claim it is done.
                   if (!result.openedStore) setCancelledOpen(true);
+                },
+                // Without this the dialog sits on a spinner that never resolves
+                // and says nothing — the user cannot tell whether they are still
+                // subscribed. Close and say so instead.
+                onError: () => {
+                  onClose();
+                  showToast({
+                    message: "We couldn't cancel just now. Your subscription is unchanged.",
+                    variant: "error",
+                  });
                 },
               }
             )

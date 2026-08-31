@@ -169,8 +169,8 @@ criterion can be tested at all.
 | # | Item | Owner | Blocks |
 | --- | --- | --- | --- |
 | ~~2.1~~ | ~~RevenueCat project~~ — ✅ **done.** Project `Thrivo`, entitlement `Thrivo Premium`, offering `default` with `$rc_monthly` / `$rc_annual`. iOS key in `.env`. | — | done |
-| 2.2 | **Store products.** ✅ iOS done — both App Store products exist, are attached to the offering's packages *and* to the entitlement, and StoreKit returns them. ⬜ Android not started (no Play products, no `goog_` key). | product | — |
-| ~~2.3~~ | ~~RevenueCat → backend webhook~~ — ✅ **done.** `POST /webhooks/revenuecat` in `thrivo-backend` (`src/routes/webhooks.ts` → `src/services/billing-webhook.service.ts`, merged via PR #72 to staging 2026-08-23). Auth'd against `REVENUECAT_WEBHOOK_AUTH` (fail-closed), idempotent via a `(provider, event_id)` ledger, maps all lifecycle events (renewals/cancellations/refunds/expiries/billing issues/transfers) to subscription status through the single subscription writer, and handles account-erasure tombstones. Covered by `tests/integration/revenuecat-webhook.test.ts` + unit tests. | Edward | done |
+| 2.2 | **Store products.** ✅ iOS done — both App Store products exist, are attached to the offering's packages *and* to the entitlement, and StoreKit returns them. 🟨 Android part-done — the Play app is registered in RevenueCat and the `goog_` public SDK key is in `.env` (2026-08-31). Still missing: the two Play subscription products, and the Play service-account JSON uploaded to RevenueCat. Without those the key initialises the SDK but every Android purchase fails validation. Both are blocked on the client — the Play Console invite lacks permission to accept the Play app signing ToS, so the app cannot be created. | product | — |
+| ~~2.3~~ | ~~RevenueCat → backend webhook~~ — ✅ **done.** `POST /webhooks/revenuecat` in `thrivo-backend` (`src/routes/webhooks.ts` → `src/services/billing-webhook.service.ts`, merged via PR #72 to staging 2026-08-23). Auth'd against `REVENUECAT_WEBHOOK_AUTH` (fail-closed), idempotent via a `(provider, event_id)` ledger, maps all lifecycle events (renewals/cancellations/refunds/expiries/billing issues/transfers) to subscription status through the single subscription writer, and handles account-erasure tombstones. Covered by `tests/integration/revenuecat-webhook.test.ts` + unit tests. **Verified live 2026-08-31:** the RevenueCat webhook is configured against `https://api.thrivo.fit/api/v1/webhooks/revenuecat` (Both Production and Sandbox, all event types, HMAC off — the handler does a plain `Authorization` compare). A dashboard test event returned `200 {"outcome":"ignored"}`, which confirms the shared secret matches on both sides (the handler fails closed, so a mismatch could not have returned 200); `TEST` is not a lifecycle type, so it is recorded and not applied. Caveat: the webhook's App filter is `Thrivo (App Store)`, so it sees App Store events only — Test Store and, later, Google Play each need their own webhook entry pointing at the same URL and secret. A real `processed` outcome still awaits the sandbox tester (2.6). | Edward | done |
 | ~~2.4~~ | ~~Confirmation email on purchase~~ — ✅ **done**, cancellation side already live; **purchase side built 2026-08-24** on `thrivo-backend` branch `fix/revenuecat-purchase-confirmation-email` (uncommitted): fires on a real (non-trial) `INITIAL_PURCHASE` or a trial converting to paid, not on trial start (nothing charged yet). New `purchase_confirmation` email kind, migration, tests passing. | Edward | done |
 | 2.5 | Real pricing and trial length (item 0.1) fed into the store products. | product | 2.2 |
 | 2.6 | **Sandbox tester account** (App Store Connect → Users and Access → Sandbox), signed in on the device under Settings → Developer. Needs the Apple Developer membership active. This is the only thing standing between the current build and a real end-to-end purchase. Apple provides no shared test account — there is no equivalent of Stripe's `4242` card. | product | real purchase |
@@ -180,7 +180,13 @@ criterion can be tested at all.
 1. **A sandbox tester account** (2.6) — the last blocker on a real purchase.
 2. **Confirmation that $14.99 / $150 are the agreed prices** and that the trial
    length in App Store Connect matches what was promised.
-3. **The Android key** (`goog_…`) plus Play products, when Android is in scope.
+3. **Play Console permissions** — Admin, or at minimum: Manage Play app
+   signing, Create and publish apps, Manage store presence, Manage orders and
+   subscriptions, View financial data. The current invite cannot accept the Play
+   app signing ToS, which blocks creating the app at all.
+4. **Google Cloud access** to mint the Play Developer API service account, whose
+   JSON RevenueCat needs for purchase validation and renewal/cancellation
+   notifications. (The `goog_…` key itself is already obtained.)
 
 Resolved since this plan was written: the SDK keys, the entitlement identifier
 (`Thrivo Premium`, not `premium`), the package types (standard

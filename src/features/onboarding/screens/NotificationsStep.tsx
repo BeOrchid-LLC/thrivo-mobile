@@ -12,8 +12,10 @@ import { type OnboardingDraft, useOnboardingDraftActions, useSessionActions } fr
 import { OnboardingStep } from "@/features/onboarding/components/OnboardingStep";
 import { useSubmitOnboarding } from "@/features/onboarding/hooks/useCompleteOnboarding";
 import { useOnboardingPrefill } from "@/features/onboarding/hooks/useOnboardingPrefill";
-import { ONBOARDING_COMPLETE_STEP } from "../config";
+import { STEP_NUMBER, ONBOARDING_COMPLETE_STEP } from "../config";
 import type { OnboardingStepProps } from "../types";
+
+const STEP = STEP_NUMBER.notifications;
 
 export default function NotificationsStep({
   mode = "initial",
@@ -44,7 +46,7 @@ export default function NotificationsStep({
   const fieldsToSave = (): Partial<OnboardingDraft> => ({
     notifyTimes: selectedTimes,
     timezone: draft.timezone ?? localTimezone(),
-    onboardingStep: 6,
+    onboardingStep: STEP,
   });
 
   /**
@@ -105,27 +107,23 @@ export default function NotificationsStep({
     router.replace("/(app)/(tabs)/dashboard");
     void submit("skip", {
       silent: true,
-      onboardingStep: 6,
+      onboardingStep: STEP,
       fields: { notifyTimes: undefined, timezone: undefined },
     });
   };
 
   return (
     <OnboardingStep
-      step={6}
-      title="Food log reminders"
-      subtitle="Pick 1–3 local times a day to remember your food log."
+      step={STEP}
+      title="Daily food log reminder"
+      subtitle="Pick 1–3 reminder times a day. We'll check in — not spam you."
       onBack={mode === "revisit" ? onBack : undefined}
       variant={variant}
       footer={
         <>
+          <Button label="Continue" loading={isPending || isSaving} onPress={() => void finish()} />
           <Button
-            label={mode === "revisit" ? "Save and finish" : "Enable notifications"}
-            loading={isPending || isSaving}
-            onPress={() => void finish()}
-          />
-          <Button
-            label={mode === "revisit" ? "Done later" : "Skip for now"}
+            label="Skip for now"
             variant="ghost"
             disabled={isPending || isSaving}
             onPress={skip}

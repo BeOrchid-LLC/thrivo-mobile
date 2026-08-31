@@ -1,7 +1,16 @@
 import { useEffect, useState } from "react";
-import { Pressable, View } from "react-native";
+import { Platform, Pressable, View } from "react-native";
 import { ArrowsClockwise, SealCheck } from "phosphor-react-native";
-import { Button, NoteBox, PageHeader, Screen, Segmented, Text, useToast } from "@/components";
+import {
+  BlockingLoader,
+  Button,
+  NoteBox,
+  PageHeader,
+  Screen,
+  Segmented,
+  Text,
+  useToast,
+} from "@/components";
 import type { SubscriptionPlan } from "@/contracts";
 import { analytics, isBillingConfigured, type SubscriptionProduct } from "@/lib";
 import { colors, sizing } from "@/theme";
@@ -25,6 +34,10 @@ const FEATURES = [
   "Weekly progress reports & trend charts",
   "Apple Health & Google Fit sync",
 ];
+
+/** Whichever store this build actually talks to — "App Store" on a Play device
+ * is the kind of detail that makes an error message look like a bug. */
+const STORE_NAME = Platform.OS === "android" ? "Play Store" : "App Store";
 
 const PLAN_LABEL: Record<SubscriptionPlan, string> = { monthly: "Monthly", annual: "Annual" };
 const PERIOD: Record<SubscriptionPlan, string> = { monthly: "month", annual: "year" };
@@ -146,6 +159,13 @@ export function SubscriptionPlansScreen() {
   const periodLabel = storeProduct?.periodLabel ?? PERIOD[selectedPlan];
   const trialAvailable = billingLive && storeProduct ? storeProduct.hasFreeTrial : !sub?.trialUsed;
   const canTransact = billingLive && Boolean(storeProduct);
+  // The switch button buys the *other* plan, so it has to be gated on that
+  // plan's product — not on `selectedPlan`, which is pinned to the plan the
+  // user is already on. Keying it to the wrong one either disables a switch
+  // that would work, or enables one that silently does nothing.
+  const switchTarget = currentPlan ? otherPlan(currentPlan) : null;
+  const canSwitch =
+    billingLive && Boolean(switchTarget && productForPlan(offerings.data, switchTarget));
   const trial = trialAvailable
     ? trialDates(storeProduct?.trialDays ?? sub?.trialDays ?? FALLBACK_TRIAL_DAYS)
     : null;
@@ -165,7 +185,14 @@ export function SubscriptionPlansScreen() {
 
   const buy = (plan: SubscriptionPlan, { asTrial }: { asTrial: boolean }) => {
     const productId = productForPlan(offerings.data, plan)?.id;
-    if (billingLive && !productId) return;
+    if (billingLive && !productId) {
+      // Silently doing nothing reads as a broken button. Say why instead.
+      showToast({
+        message: `The ${PLAN_LABEL[plan].toLowerCase()} plan isn't available from the store right now.`,
+        variant: "error",
+      });
+      return;
+    }
 
     const onError = () =>
       showToast({
@@ -176,15 +203,27 @@ export function SubscriptionPlansScreen() {
     // payment while `/subscriptions/sync` is still catching up, and telling
     // someone premium is active before the backend agrees means the very next
     // screen they open is still locked. Say what actually happened instead.
-    const onSuccess = (result: { completed: boolean; confirmed?: boolean }) => {
+    const onSuccess = (result: { completed: boolean; confirmed?: boolean; error?: unknown }) => {
       if (!result.completed) return; // dismissed sheet — nothing to announce
       showToast({
         message: result.confirmed
           ? asTrial
-            ? "Your free trial has started."
-            : "Premium is active."
-          : "Purchase received. Activation is delayed; try again shortly.",
-        variant: result.confirmed ? "success" : "error",
+            ? // No money moved yet — saying "paid" here would be a lie, and the
+              // card-required trial already makes people wary of a charge.
+              "Your free trial has started. Premium is active."
+            : "Payment successful. Premium is active."
+          : result.error
+            ? // Every sync attempt errored — this is not a slow activation, it
+              // is a broken one, and telling someone to "try again shortly"
+              // sends them round a loop that cannot resolve itself.
+              "Purchase received, but we couldn't activate it. Please contact support."
+            : // Payment succeeded and activation is still catching up. The hook
+              // keeps checking in the background and unlocks the app on its own,
+              // so this is news, not an error — and must not read like one to
+              // someone who has just been charged.
+              "Payment successful. Premium unlocks in a moment.",
+        // Only a genuine failure is an error. A slow activation is not.
+        variant: result.confirmed || !result.error ? "success" : "error",
       });
     };
 
@@ -243,7 +282,7 @@ export function SubscriptionPlansScreen() {
   ) : (
     <View className="gap-sm">
       <Text color="error" className="text-center">
-        We couldn&apos;t load plans from the App Store.
+        We couldn&apos;t load plans from the {STORE_NAME}.
       </Text>
       {__DEV__ && offerings.error instanceof Error ? (
         <Text variant="caption" color="muted" className="text-center">
@@ -267,6 +306,16 @@ export function SubscriptionPlansScreen() {
       header={<PageHeader title={isPremium ? "Your subscription" : "Subscription plans"} />}
       footer={isPremium ? undefined : purchaseFooter}
     >
+      {/* Money is moving: hold the whole screen until the store answers and the
+          backend confirms, so no back tap and no second press lands mid-charge. */}
+      <BlockingLoader
+        visible={isWorking || restore.isPending}
+        message={
+          restore.isPending
+            ? "Restoring your purchases…"
+            : "Completing your purchase — don't close the app."
+        }
+      />
       {isPremium ? (
         <>
           {/* Current subscription — what they have, what happens next. */}
@@ -330,7 +379,7 @@ export function SubscriptionPlansScreen() {
                   label={`Switch to ${PLAN_LABEL[otherPlan(currentPlan)].toLowerCase()}`}
                   variant="secondary"
                   loading={isWorking}
-                  disabled={!canTransact}
+                  disabled={!canSwitch}
                   onPress={() => buy(otherPlan(currentPlan), { asTrial: false })}
                 />
               ) : null}

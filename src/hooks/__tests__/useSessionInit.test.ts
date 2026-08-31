@@ -1,9 +1,10 @@
-import { renderHook, waitFor } from "@testing-library/react-native";
+import { act, renderHook, waitFor } from "@testing-library/react-native";
 import { useSessionStore } from "@/stores/session.store";
 import { useSessionInit } from "../useSessionInit";
 
 const mockGetMe = jest.fn();
 const mockSetQueryData = jest.fn();
+const mockInvalidateQueries = jest.fn();
 const mockHandleUnauthenticated = jest.fn();
 
 jest.mock("@clerk/expo", () => ({
@@ -11,8 +12,11 @@ jest.mock("@clerk/expo", () => ({
 }));
 
 jest.mock("@/api", () => ({
-  queryClient: { setQueryData: (...args: unknown[]) => mockSetQueryData(...args) },
-  queryKeys: { me: () => ["me"] },
+  queryClient: {
+    setQueryData: (...args: unknown[]) => mockSetQueryData(...args),
+    invalidateQueries: (...args: unknown[]) => mockInvalidateQueries(...args),
+  },
+  queryKeys: { me: () => ["me"], subscription: { me: () => ["subscription", "me"] } },
   handleUnauthenticated: (...args: unknown[]) => mockHandleUnauthenticated(...args),
   // Mirrors the real guard: any ApiError, not only auth errors. The hook now
   // distinguishes 401 from 404, so conflating the two here would hide that.
@@ -149,15 +153,49 @@ describe("useSessionInit", () => {
     expect(useSessionStore.getState().status).not.toBe("restore_error");
   });
 
-  it("moves to restore_error on a non-auth network failure", async () => {
+  it("moves to restore_error only once the retries are exhausted", async () => {
+    jest.useFakeTimers();
     mockUseAuth.mockReturnValue({ isLoaded: true, isSignedIn: true });
     mockGetMe.mockRejectedValue(new Error("Network error"));
 
     renderHook(() => useSessionInit());
 
-    await waitFor(() => {
-      expect(useSessionStore.getState().status).toBe("restore_error");
+    // A transient failure must not strand the user on the error screen while
+    // retries are still outstanding.
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(100);
     });
+    expect(useSessionStore.getState().status).toBe("loading");
+
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(30_000);
+    });
+    expect(useSessionStore.getState().status).toBe("restore_error");
+    jest.useRealTimers();
+  });
+
+  it("recovers without surfacing an error when a transient failure clears", async () => {
+    jest.useFakeTimers();
+    mockUseAuth.mockReturnValue({ isLoaded: true, isSignedIn: true });
+    // A rate limit on the first attempt — exactly the 429 that used to dump a
+    // perfectly valid session onto "Could not restore your session".
+    mockGetMe
+      .mockRejectedValueOnce({ isAuthError: false, code: "RATE_LIMITED", status: 429 })
+      .mockResolvedValueOnce({
+        id: "u1",
+        accountStatus: "active",
+        isOnboarded: true,
+        isOnboardingSkipped: false,
+      });
+
+    renderHook(() => useSessionInit());
+
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(1000);
+    });
+    expect(useSessionStore.getState().status).toBe("authenticated");
+    expect(mockGetMe).toHaveBeenCalledTimes(2);
+    jest.useRealTimers();
   });
 
   it("does not apply a stale profile response after auth state changes", async () => {

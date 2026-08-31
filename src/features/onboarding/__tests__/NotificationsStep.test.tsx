@@ -47,7 +47,7 @@ beforeEach(() => {
 describe("NotificationsStep analytics", () => {
   it("emits thrivo.reminder_set once the schedule is saved", async () => {
     const screen = await renderStep();
-    fireEvent.press(screen.getByText("Enable notifications"));
+    fireEvent.press(screen.getByText("Continue"));
 
     await waitFor(() =>
       expect(mockTrack).toHaveBeenCalledWith("thrivo.reminder_set", {
@@ -62,7 +62,7 @@ describe("NotificationsStep analytics", () => {
   it("emits from the Settings revisit path too", async () => {
     const onNext = jest.fn().mockResolvedValue(undefined);
     const screen = await renderStep({ mode: "revisit", onNext });
-    fireEvent.press(screen.getByText("Save and finish"));
+    fireEvent.press(screen.getByText("Continue"));
 
     await waitFor(() => expect(onNext).toHaveBeenCalled());
     expect(mockTrack).toHaveBeenCalledWith(
@@ -75,7 +75,7 @@ describe("NotificationsStep analytics", () => {
     mockSubmit.mockRejectedValue(new Error("offline"));
 
     const screen = await renderStep();
-    fireEvent.press(screen.getByText("Enable notifications"));
+    fireEvent.press(screen.getByText("Continue"));
 
     await waitFor(() =>
       expect(screen.getByText("We couldn't save your reminder preferences. Please try again."))
@@ -95,7 +95,7 @@ describe("NotificationsStep analytics", () => {
     mockRegister.mockRejectedValue(new Error("denied"));
 
     const screen = await renderStep();
-    fireEvent.press(screen.getByText("Enable notifications"));
+    fireEvent.press(screen.getByText("Continue"));
 
     await waitFor(() => expect(mockSubmit).toHaveBeenCalled());
     expect(mockTrack).toHaveBeenCalledWith(

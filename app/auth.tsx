@@ -28,7 +28,7 @@ export default function AuthCallbackScreen() {
       router.replace(
         isOnboarded || isOnboardingSkipped || hasDismissedOnboarding
           ? "/(app)/(tabs)/dashboard"
-          : "/(onboarding)/goal"
+          : "/(onboarding)/name"
       );
     }
   }, [hasDismissedOnboarding, isOnboarded, isOnboardingSkipped, status]);
