@@ -306,10 +306,11 @@ export function SubscriptionPlansScreen() {
       header={<PageHeader title={isPremium ? "Your subscription" : "Subscription plans"} />}
       footer={isPremium ? undefined : purchaseFooter}
     >
-      {/* Money is moving: hold the whole screen until the store answers and the
-          backend confirms, so no back tap and no second press lands mid-charge. */}
+      {/* Held only once the store has handed back and we are waiting on our own
+          backend — never while the store's sheet is up, which on Android sits
+          below an RN modal and would have its taps swallowed. */}
       <BlockingLoader
-        visible={isWorking || restore.isPending}
+        visible={purchase.awaitingActivation || startTrial.awaitingActivation || restore.isPending}
         message={
           restore.isPending
             ? "Restoring your purchases…"
