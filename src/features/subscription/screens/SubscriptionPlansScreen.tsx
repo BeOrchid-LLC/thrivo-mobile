@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Pressable, View } from "react-native";
+import { Platform, Pressable, View } from "react-native";
 import { ArrowsClockwise, SealCheck } from "phosphor-react-native";
 import {
   BlockingLoader,
@@ -34,6 +34,10 @@ const FEATURES = [
   "Weekly progress reports & trend charts",
   "Apple Health & Google Fit sync",
 ];
+
+/** Whichever store this build actually talks to — "App Store" on a Play device
+ * is the kind of detail that makes an error message look like a bug. */
+const STORE_NAME = Platform.OS === "android" ? "Play Store" : "App Store";
 
 const PLAN_LABEL: Record<SubscriptionPlan, string> = { monthly: "Monthly", annual: "Annual" };
 const PERIOD: Record<SubscriptionPlan, string> = { monthly: "month", annual: "year" };
@@ -278,7 +282,7 @@ export function SubscriptionPlansScreen() {
   ) : (
     <View className="gap-sm">
       <Text color="error" className="text-center">
-        We couldn&apos;t load plans from the App Store.
+        We couldn&apos;t load plans from the {STORE_NAME}.
       </Text>
       {__DEV__ && offerings.error instanceof Error ? (
         <Text variant="caption" color="muted" className="text-center">
