@@ -9,6 +9,7 @@ import {
   BottomSheetShell,
   Card,
   PageHeader,
+  PremiumGate,
   Screen,
   SectionError,
   SelectSheet,
@@ -131,33 +132,48 @@ function ProgressHome({ day }: { day: string }) {
         {/* The frame draws the chart controls as the heading and the caption
             under it, not as two labelled fields — so the metric picker hangs off
             the heading and the period picker off the caption. */}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Select progress metric"
-          accessibilityValue={{ text: selectedMetricLabel }}
-          className="flex-row items-center gap-xs self-start"
-          hitSlop={6}
-          onPress={() => setMetricSelectOpen(true)}
-        >
-          <Text variant="heading3" color="dark">
-            {labelForMetric(metric)} over time
-          </Text>
-          <CaretDown size={14} weight="bold" color={colors.gray[500]} />
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Select time period"
-          accessibilityValue={{ text: selectedPeriodLabel }}
-          className="flex-row items-center gap-xs self-start"
-          hitSlop={8}
-          onPress={() => setPeriodSelectOpen(true)}
-        >
-          <Text variant="body-sm" color="muted">
-            {selectedPeriodLabel} : {chartUnitLabel}
-          </Text>
-          <CaretDown size={12} weight="bold" color={colors.gray[500]} />
-        </Pressable>
-        {premiumRequired ? (
+        {lockPremiumPeriods ? null : (
+          <>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Select progress metric"
+              accessibilityValue={{ text: selectedMetricLabel }}
+              className="flex-row items-center gap-xs self-start"
+              hitSlop={6}
+              onPress={() => setMetricSelectOpen(true)}
+            >
+              <Text variant="heading3" color="dark">
+                {labelForMetric(metric)} over time
+              </Text>
+              <CaretDown size={14} weight="bold" color={colors.gray[500]} />
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Select time period"
+              accessibilityValue={{ text: selectedPeriodLabel }}
+              className="flex-row items-center gap-xs self-start"
+              hitSlop={8}
+              onPress={() => setPeriodSelectOpen(true)}
+            >
+              <Text variant="body-sm" color="muted">
+                {selectedPeriodLabel} : {chartUnitLabel}
+              </Text>
+              <CaretDown size={12} weight="bold" color={colors.gray[500]} />
+            </Pressable>
+          </>
+        )}
+        {lockPremiumPeriods ? (
+          // Charts are premium outright, not premium-past-a-window. A partial
+          // series is still the feature, so the whole display is gated rather
+          // than trimmed — the blurred chart behind the card is the teaser.
+          <PremiumGate
+            title="Subscribe to see your progress charts"
+            subtitle="Track calories, water, weight and macros over time."
+            onViewPlans={() => router.push("/(app)/subscription")}
+          >
+            <ChartSkeleton />
+          </PremiumGate>
+        ) : premiumRequired ? (
           <Card className="mt-sm gap-sm bg-primarySoft" style={{ borderWidth: 0 }}>
             <View className="flex-row items-center gap-sm">
               <Warning size={20} color={colors.primary} />

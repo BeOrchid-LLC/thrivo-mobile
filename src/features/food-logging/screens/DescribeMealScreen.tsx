@@ -1,6 +1,17 @@
 import { useMemo, useState } from "react";
+import { router } from "expo-router";
 import { TextInput, View } from "react-native";
-import { Button, Input, PageHeader, Screen, Segmented, StepperButton, Text } from "@/components";
+import {
+  Button,
+  Input,
+  PageHeader,
+  PremiumGate,
+  Screen,
+  Segmented,
+  StepperButton,
+  Text,
+} from "@/components";
+import { useEntitlement } from "@/hooks/useEntitlement";
 import { isNetworkReachable } from "@/lib";
 import { colors, inputFont } from "@/theme";
 import type { PortionMeasure } from "@/contracts";
@@ -38,6 +49,7 @@ export interface DescribeMealScreenProps {
  * tab bar would otherwise sit.
  */
 export function DescribeMealScreen({ day, onBack }: DescribeMealScreenProps) {
+  const entitlement = useEntitlement();
   const [name, setName] = useState("");
   const [ingredients, setIngredients] = useState("");
   const [method, setMethod] = useState("");
@@ -186,7 +198,21 @@ export function DescribeMealScreen({ day, onBack }: DescribeMealScreenProps) {
               Estimated
             </Text>
           </View>
-          <MacroCards nutrients={estimateResult.nutrients} />
+          {/* Macros are premium wherever they appear — an estimate screen is no
+              exception, or the gate elsewhere is just a detour. */}
+          {entitlement.isLoading ? (
+            <View className="h-24" />
+          ) : entitlement.isPremium ? (
+            <MacroCards nutrients={estimateResult.nutrients} />
+          ) : (
+            <PremiumGate
+              title="Subscribe to see macros"
+              subtitle="Protein, carbs, and fat unlock with Premium."
+              onViewPlans={() => router.push("/(app)/subscription")}
+            >
+              <MacroCards nutrients={estimateResult.nutrients} />
+            </PremiumGate>
+          )}
         </View>
       ) : null}
     </Screen>

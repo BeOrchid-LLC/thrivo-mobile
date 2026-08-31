@@ -15,6 +15,7 @@ type Variant = keyof Typography;
 export type TextColor =
   | "primary"
   | "primaryDeep"
+  | "primaryBright"
   | "dark"
   | "muted"
   | "subtle"
@@ -56,6 +57,7 @@ const variantClass: Record<Variant, string> = {
 const colorValue: Record<TextColor, string> = {
   primary: colors.primary,
   primaryDeep: colors.primaryDeep,
+  primaryBright: colors.primaryBright,
   dark: colors.dark,
   muted: colors.gray[600],
   subtle: colors.muted,

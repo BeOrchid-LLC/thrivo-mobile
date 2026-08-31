@@ -196,9 +196,9 @@ describe("Dashboard graceful degradation", () => {
     expect(screen.getByText("Hi, Ada")).toBeTruthy();
   });
 
-  // The gate is parked behind `DASHBOARD_MACROS_GATED` — a free user now gets
-  // the same macro card the Figma dashboard frames show.
-  it("renders the real macro card for free users while the gate is parked", () => {
+  // Both arms stay covered whichever way `DASHBOARD_MACROS_GATED` is set, so
+  // flipping the flag can never silently drop a branch from the suite.
+  it("renders the real macro card for free users when the gate is off", () => {
     mockUseDashboardMacros.mockReturnValue({
       ...successQuery(emptyMacros),
       isGated: false,
@@ -213,7 +213,7 @@ describe("Dashboard graceful degradation", () => {
     expect(screen.queryByText("Subscribe to see your macros")).toBeNull();
   });
 
-  it("renders the premium macro gate when the gate is switched back on", () => {
+  it("renders the premium macro gate for free users when the gate is on", () => {
     mockUseDashboardMacros.mockReturnValue({
       ...successQuery(emptyMacros),
       isGated: true,

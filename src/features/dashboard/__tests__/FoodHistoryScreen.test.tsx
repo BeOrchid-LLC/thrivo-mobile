@@ -9,6 +9,13 @@ const mockCopyLogSheet = jest.fn((_props: unknown) => null);
 const mockUseFavorites = jest.fn();
 const mockUseToggleFavorite = jest.fn();
 
+const mockUseEntitlement = jest.fn();
+// History is premium outright, so these list cases run as a subscriber; the
+// gated arm has its own case below.
+jest.mock("@/hooks/useEntitlement", () => ({
+  useEntitlement: () => mockUseEntitlement(),
+}));
+
 jest.mock("../hooks/useDashboard", () => ({
   useFoodLogHistory: () => mockUseFoodLogHistory(),
 }));
@@ -59,6 +66,7 @@ describe("FoodHistoryScreen", () => {
   });
 
   beforeEach(() => {
+    mockUseEntitlement.mockReturnValue({ isPremium: true, isLoading: false });
     jest.clearAllMocks();
     useFavoritesStore.setState({ favoriteIds: [] });
     mockUseFoodLogHistory.mockReturnValue({
@@ -72,6 +80,12 @@ describe("FoodHistoryScreen", () => {
     });
     mockUseFavorites.mockReturnValue({ data: { items: [] } });
     mockUseToggleFavorite.mockReturnValue(jest.fn());
+  });
+
+  it("gates the whole screen for free users", async () => {
+    mockUseEntitlement.mockReturnValue({ isPremium: false, isLoading: false });
+    const view = render(<FoodHistoryScreen />);
+    expect(await view.findByText("Subscribe to see your food history")).toBeTruthy();
   });
 
   it("opens the edit sheet with the tapped entry", () => {

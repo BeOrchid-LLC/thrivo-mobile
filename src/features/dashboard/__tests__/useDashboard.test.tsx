@@ -89,7 +89,7 @@ describe("useDashboardMacros", () => {
     mockFlags.gated = false;
   });
 
-  it("requests macros for free users while the premium gate is parked", () => {
+  it("requests macros for free users when the gate is off", () => {
     mockUseEntitlement.mockReturnValue({ isPremium: false, isLoading: false });
     mockGetDashboardMacros.mockResolvedValue({});
     const queryClient = new QueryClient({

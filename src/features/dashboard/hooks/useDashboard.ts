@@ -27,9 +27,8 @@ export function useDashboardCalories(day = localDay()) {
 
 export function useDashboardMacros(day = localDay()) {
   const entitlement = useEntitlement();
-  // With `DASHBOARD_MACROS_GATED` off, entitlement stops deciding anything here:
-  // the query runs for everyone and the section never waits on — or blurs behind
-  // — an answer it no longer reads. The gated arms are what the flag restores.
+  // Gated users never fetch: `enabled: !gated` keeps the real macros off the
+  // device entirely, so the blurred teaser cannot be read out of the cache.
   const gated = DASHBOARD_MACROS_GATED && !entitlement.isPremium;
   const query = useQuery({
     queryKey: queryKeys.dashboard.macros(day),

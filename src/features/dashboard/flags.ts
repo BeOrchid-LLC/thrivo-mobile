@@ -9,12 +9,12 @@
 /**
  * Whether the dashboard macro card is behind the premium gate.
  *
- * Off for now: the Figma dashboard frames show macros populated for every user,
- * and the "Subscribe to see your macros" card is not in them. The `PremiumGate`
- * branch in `MacrosSection` — and the entitlement check that feeds it — stay
- * intact; flip this back to `true` to restore the gate.
+ * On: nutrition macros are a paid feature, alongside progress charts beyond 14
+ * days and food/water history beyond 7. This was parked off while the Figma
+ * dashboard frames showed macros populated for every user; those frames predate
+ * the decision to gate them.
  *
- * Typed `boolean`, not the literal `false`, so the gated branches stay reachable
- * to TypeScript and do not get flagged as dead code while the flag is off.
+ * Typed `boolean`, not a literal, so both branches stay reachable to TypeScript
+ * and neither gets flagged as dead code whichever way the flag is set.
  */
-export const DASHBOARD_MACROS_GATED: boolean = false;
+export const DASHBOARD_MACROS_GATED: boolean = true;

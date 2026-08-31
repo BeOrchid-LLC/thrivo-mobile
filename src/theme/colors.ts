@@ -52,6 +52,8 @@ export const colors = {
   accentSoft: "#FEF5E7", // light amber tint — warning/expired badges (V2 auth screens)
   accentText: "#8A6A2A", // amber-dark — tint-on-tint note copy on accentSoft (onboarding NoteBox)
   warningText: "#854D0E", // Tailwind yellow-800 equivalent for the subscription preview notice
+  /** Unselected slot badge on the S7 reminder rows. */
+  numberBadge: "#EEF0F4",
   /** Row divider inside a bordered list — the S4 sex picker. */
   divider: "#F0F2F5",
   hairline: "#D8D8D8", // light outline — auth row / input border (Figma auth screens)

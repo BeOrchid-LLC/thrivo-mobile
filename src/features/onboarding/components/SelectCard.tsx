@@ -18,6 +18,11 @@ interface SelectCardProps {
    * shadow and no border until it is selected.
    */
   variant?: "detail" | "plain";
+  /**
+   * "default" is the S2 option card; "compact" the shorter activity row on S5
+   * (64pt tall, a 36pt icon tile, and its multiplier as plain text).
+   */
+  size?: "default" | "compact";
 }
 
 /** Figma: 80pt tall cards, and a shadow soft enough to read as lift, not a rule. */
@@ -43,6 +48,7 @@ export function SelectCard({
   icon: Icon,
   trailingText,
   variant = "detail",
+  size = "default",
 }: SelectCardProps) {
   if (variant === "plain") {
     return (
@@ -71,17 +77,22 @@ export function SelectCard({
       onPress={onPress}
       // Figma S2: min-h-84, rounded-16, a 2pt Thrivo-green border over an 8%
       // tint when selected; the hairline outline on white when not.
-      className={`min-h-[84px] flex-row items-center gap-lg rounded-lg border-2 px-[22px] py-[18px] ${
-        selected ? "border-primaryBright bg-primaryBright/[0.08]" : "border-hairline bg-white"
-      }`}
+      className={`flex-row items-center ${
+        size === "compact"
+          ? "h-[64px] gap-md rounded-group border-[1.333px] px-lg"
+          : "min-h-[84px] gap-lg rounded-lg border-2 px-[22px] py-[18px]"
+      } ${selected ? "border-primaryBright bg-primaryBright/[0.08]" : "border-hairline bg-white"}`}
     >
       {Icon ? (
         <View
-          className={`h-tile w-tile items-center justify-center rounded-tile ${
-            selected ? "bg-primaryBright/[0.12]" : "bg-light"
-          }`}
+          className={`items-center justify-center ${
+            size === "compact" ? "h-iconMd w-iconMd rounded-md" : "h-tile w-tile rounded-tile"
+          } ${selected ? "bg-primaryBright/[0.12]" : size === "compact" ? "bg-divider" : "bg-light"}`}
         >
-          <Icon size={24} color={selected ? colors.primaryBright : colors.gray[500]} />
+          <Icon
+            size={size === "compact" ? 20 : 24}
+            color={selected ? colors.primaryBright : colors.gray[500]}
+          />
         </View>
       ) : null}
 
@@ -96,15 +107,24 @@ export function SelectCard({
         ) : null}
       </View>
 
+      {/* S5 shows the multiplier *and* the check on the selected row, so these
+          are no longer alternatives. */}
       {trailingText ? (
-        <View
-          className={`rounded-md px-sm py-[2px] ${selected ? "bg-primaryBright/[0.12]" : "bg-gray-100"}`}
-        >
-          <Text variant="caption" color={selected ? "primary" : "gray500"}>
+        size === "compact" ? (
+          <Text variant="caption" color={selected ? "primary" : "subtle"} className="font-medium">
             {trailingText}
           </Text>
-        </View>
-      ) : selected ? (
+        ) : (
+          <View
+            className={`rounded-md px-sm py-[2px] ${selected ? "bg-primaryBright/[0.12]" : "bg-gray-100"}`}
+          >
+            <Text variant="caption" color={selected ? "primary" : "gray500"}>
+              {trailingText}
+            </Text>
+          </View>
+        )
+      ) : null}
+      {selected ? (
         <View className="h-iconSm w-iconSm items-center justify-center rounded-pill bg-primaryBright">
           <CheckIcon size={13} />
         </View>

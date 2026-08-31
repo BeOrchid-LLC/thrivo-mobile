@@ -211,8 +211,8 @@ export function MacrosSection() {
     );
   }
 
-  // Parked, not deleted — `DASHBOARD_MACROS_GATED` is off, so `isGated` is never
-  // true and every user gets the real macro card the Figma frames show.
+  // Macros are premium. The teaser behind the glass is a zeroed card at derived
+  // targets, not the user's real numbers — the gate must not leak what it hides.
   if (macros.isGated) {
     return (
       <PremiumGate

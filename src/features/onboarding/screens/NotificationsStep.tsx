@@ -115,8 +115,8 @@ export default function NotificationsStep({
   return (
     <OnboardingStep
       step={STEP}
-      title="Food log reminders"
-      subtitle="Pick 1–3 local times a day to remember your food log."
+      title="Daily food log reminder"
+      subtitle="Pick 1–3 reminder times a day. We'll check in — not spam you."
       onBack={mode === "revisit" ? onBack : undefined}
       variant={variant}
       footer={
