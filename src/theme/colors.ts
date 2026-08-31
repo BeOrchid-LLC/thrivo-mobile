@@ -12,21 +12,48 @@ export const colors = {
   primary: "#55AB68", // Thrivo logo green
   primaryHover: "#6DB77D",
   primaryActive: "#499359",
+  /**
+   * The filled-button green. Figma variable **'Clicked' Green** — read from the
+   * Dev Mode server, not sampled: every PrimaryBtn and text link on the V2
+   * onboarding frames (S1-S7) is this. It is the original Design Guide value the
+   * note above says `primary` replaced, so the frames put it back for buttons.
+   *
+   * It also settles that contrast warning: white on `primary` measures 2.8:1,
+   * under the WCAG 2.2 AA 4.5:1 floor, while on this green it measures 4.92:1
+   * and clears it. `primary` keeps its other jobs; it stops carrying white text.
+   *
+   * Hover/active are derived — the frames draw no pressed state.
+   */
+  primaryDeep: "#09823C",
+  primaryDeepHover: "#149648",
+  primaryDeepActive: "#076930",
+  /** Segmented-control track — the S3 unit pill. */
+  segmentTrack: "#E8EDF3",
   primaryTint: "#EAF3DE",
   primarySoft: "#E8F7EE", // light green tint — success badges / soft fills (V2 auth screens)
   primaryBright: "#27AE60", // brighter green — progress fill, success check (V2 screens)
-  gradientMid: "#2D5B4A", // dark-green blend stop, dark → primaryBright gradient (trial-upsell card)
+  gradientMid: "#2D5B4A",
+  /** Outline of the S6 trial panel, over its dark→green gradient. */
+  trialPanelBorder: "#0B8D42", // dark-green blend stop, dark → primaryBright gradient (trial-upsell card)
   progressTrack: "#E0E6EE", // unfilled progress segment (V2 onboarding)
   loggedGreen: "#90CFAE", // "logged" streak-calendar day fill (ProgressScreen)
   loggedGreenBorder: "#64B889", // "logged" streak-calendar day border (ProgressScreen)
+  /** S5 TDEE card: the headline number and its Target row. */
+  tdeeNumber: "#1A7A46",
+  /** S5 TDEE ledger values. */
+  tdeeValue: "#2E8B57",
+  /** S5 TDEE ledger labels. */
+  tdeeLabel: "#5A9470",
   targetGreen: "#3F8B4A", // deep green — S5 calorie-target readout, S6 trial-panel outline
   targetGreenBorder: "#4CC46B", // bright green — the calorie-target card outline (V2 onboarding S5)
   dark: "#1A1A2E", // Figma: Gray 1 (primary text)
   light: "#F4F6F9", // page background / input fields
-  accent: "#E7A03C", // Figma: Orange
+  accent: "#F39C12", // Figma variable "Orange" (read from Dev Mode, V2 frames)
   accentSoft: "#FEF5E7", // light amber tint — warning/expired badges (V2 auth screens)
   accentText: "#8A6A2A", // amber-dark — tint-on-tint note copy on accentSoft (onboarding NoteBox)
   warningText: "#854D0E", // Tailwind yellow-800 equivalent for the subscription preview notice
+  /** Row divider inside a bordered list — the S4 sex picker. */
+  divider: "#F0F2F5",
   hairline: "#D8D8D8", // light outline — auth row / input border (Figma auth screens)
   white: "#FFFFFF", // Figma: White
   /** Glass sheen over the dark premium surfaces — white at low alpha. */

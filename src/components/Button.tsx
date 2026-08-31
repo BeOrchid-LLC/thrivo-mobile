@@ -10,17 +10,17 @@ type Variant = "primary" | "secondary" | "ghost" | "outline" | "danger";
 // action; danger is the destructive twin of secondary — a red tint under a red
 // label. `active:` = pressed, `hover:` = web.
 const variantClass: Record<Variant, string> = {
-  primary: "bg-primary hover:bg-primaryHover active:bg-primaryActive",
+  primary: "bg-primaryDeep hover:bg-primaryDeepHover active:bg-primaryDeepActive",
   secondary: "bg-gray-100 active:opacity-[0.85]",
   ghost: "bg-transparent active:opacity-[0.85]",
   outline: "border border-primary bg-transparent active:opacity-[0.85]",
   danger: "bg-red-100 active:opacity-[0.85]",
 };
 
-const labelColorFor: Record<Variant, "inverse" | "dark" | "primary" | "error"> = {
+const labelColorFor: Record<Variant, "inverse" | "dark" | "primaryDeep" | "error"> = {
   primary: "inverse",
   secondary: "dark",
-  ghost: "primary",
+  ghost: "primaryDeep",
   outline: "dark",
   danger: "error",
 };
@@ -33,7 +33,7 @@ export interface ButtonProps extends Omit<PressableProps, "children"> {
 }
 
 /**
- * Themed pressable button. 52pt tall with the 14 radius, the size every V2 frame
+ * Themed pressable button. 56pt tall with the 16 radius, the size every V2 frame
  * draws a button at — comfortably above the ≥44pt tap target floor (WCAG 2.2 AA,
  * MOBILE_ARCHITECTURE §7). `loading`/`disabled` block presses.
  */
@@ -53,13 +53,13 @@ export function Button({
       accessibilityRole="button"
       accessibilityState={{ disabled: Boolean(isDisabled), busy: loading }}
       disabled={isDisabled}
-      className={`min-h-controlLg items-center justify-center rounded-group px-lg ${variantClass[variant]} ${
+      className={`min-h-control items-center justify-center rounded-lg px-lg ${variantClass[variant]} ${
         fullWidth ? "self-stretch" : ""
       } ${isDisabled ? "opacity-50" : ""} ${className ?? ""}`}
       {...rest}
     >
       {loading ? (
-        <ActivityIndicator color={variant === "primary" ? colors.white : colors.primary} />
+        <ActivityIndicator color={variant === "primary" ? colors.white : colors.primaryDeep} />
       ) : (
         <View className="flex-row items-center gap-sm">
           <Text variant="body" color={labelColorFor[variant]} className="font-semibold">

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { TextInput, View } from "react-native";
+import { StyleSheet, TextInput, View } from "react-native";
 import { router } from "expo-router";
 import { TrendDown } from "phosphor-react-native";
 import {
@@ -12,7 +12,7 @@ import {
   type TextColor,
 } from "@/components";
 import { useCurrentDay } from "@/hooks/useCurrentDay";
-import { colors, fontFamilies, inputFont, rhythm } from "@/theme";
+import { colors, fontFamilies, inputFont, rhythm, spacing } from "@/theme";
 import { formatWeight, roundTo, weightFromKg, weightToKg, weightUnitFor } from "@/utils";
 import { useSettings } from "@/features/settings";
 import { useAddWeight, useWeightContext } from "../hooks/useProgress";
@@ -23,6 +23,21 @@ import { useAddWeight, useWeightContext } from "../hooks/useProgress";
  * back out of, not a place you tab away from mid-entry. `Save weight` is pinned
  * to the bottom for the same reason: it stays put while the comparisons scroll.
  */
+/**
+ * Figma 100:644: the comparison card is a filled `light` panel with a 2pt
+ * border of the same colour and 20pt padding — not the default white `Card`.
+ * Inline, because `Card`'s own `bg-white` and `p-lg` are classNames and a
+ * competing class is not reliably the winner.
+ */
+const styles = StyleSheet.create({
+  statsCard: {
+    backgroundColor: colors.light,
+    borderWidth: 2,
+    borderColor: colors.light,
+    padding: spacing.lg + spacing.xs,
+  },
+});
+
 export function LogWeightScreen() {
   const day = useCurrentDay();
   const context = useWeightContext(day);
@@ -92,7 +107,7 @@ export function LogWeightScreen() {
         </Text>
       </View>
 
-      <Card className="gap-md bg-light" style={{ borderWidth: 0 }}>
+      <Card className="gap-lg" style={styles.statsCard}>
         <ComparisonRow
           label="Yesterday"
           detail={yesterdayLabel(day)}
@@ -118,7 +133,7 @@ export function LogWeightScreen() {
         />
       </Card>
 
-      <View className="min-h-touchTarget flex-row items-center justify-center gap-sm rounded-md bg-primarySoft px-lg">
+      <View className="min-h-touchTarget flex-row items-center justify-center gap-sm rounded-tile bg-primarySoft px-lg">
         <TrendDown size={20} color={colors.primary} />
         {weeklyRateKg === null || weeklyRateKg === undefined ? (
           <Text variant="body" color="primary" className="font-semibold">
@@ -157,7 +172,7 @@ function ComparisonRow({
           {label}
         </Text>
         {detail ? (
-          <Text variant="body-sm" color="muted">
+          <Text variant="caption" color="dark" className="font-regular">
             {detail}
           </Text>
         ) : null}

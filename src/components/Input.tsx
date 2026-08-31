@@ -21,8 +21,8 @@ export interface InputProps extends TextInputProps {
    * body colour rather than muted.
    *
    * - `auth`: no fill, so the page gradient shows through.
-   * - `onboarding`: the page-background fill, outlined — the onboarding page is
-   *   itself a light gradient, so the fill alone would not read as a field.
+   * - `onboarding`: white, outlined — the onboarding page is itself a light
+   *   gradient, so only white separates a field from the page behind it.
    * - `settings`: the same fill with no resting outline. These frames sit on
    *   white, where the fill alone is the field. Focus and error still ring it:
    *   those are states, not the resting look, and a form with no focus
@@ -92,17 +92,18 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
     onBlur?.(e);
   };
 
-  const isFilled = variant === "onboarding" || variant === "settings";
-  const restingBorder = variant === "settings" ? "border-transparent" : "border-gray-300";
-  const borderClass = error ? "border-error" : focused ? "border-primary" : restingBorder;
+  const restingBorder = variant === "settings" ? "border-transparent" : "border-hairline";
+  // Figma rings the focused field in Thrivo Green, not the lighter brand green.
+  const borderClass = error ? "border-error" : focused ? "border-primaryBright" : restingBorder;
   const isFramed = variant !== "default";
   const captionInset = isFramed ? "" : "ml-xs";
-  const captionColor = isFilled ? "dark" : "muted";
-  const fillClass = variant === "auth" ? "bg-transparent" : isFilled ? "bg-light" : "bg-white";
-  const radiusClass = shape === "pill" ? "rounded-pill" : "rounded-md";
+  const captionColor = isFramed ? "subtle" : "muted";
+  const fillClass = variant === "auth" ? "bg-transparent" : "bg-white";
+  // The V2 frames draw every field on the 14 radius (Figma: InputBox rounded-14).
+  const radiusClass = shape === "pill" ? "rounded-pill" : "rounded-group";
 
   return (
-    <View className="gap-xs">
+    <View className="gap-sm">
       {label ? (
         <Text
           variant="caption"
@@ -114,7 +115,7 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
       ) : null}
       <View className={trailingAccessory ? "flex-row items-center gap-xs" : undefined}>
         <View
-          className={`min-h-control flex-row items-center gap-sm border px-lg ${radiusClass} ${
+          className={`min-h-control flex-row items-center gap-sm border-[1.333px] px-lg ${radiusClass} ${
             trailingAccessory ? "flex-1" : ""
           } ${fillClass} ${borderClass}`}
         >

@@ -41,7 +41,7 @@ export function PageHeader({ title, subtitle, showBack = true, onBack }: PageHea
   );
 
   return (
-    <View className="gap-xs">
+    <View className="gap-sm">
       {showBack ? (
         <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={handleBack}>
           {titleRow}
@@ -50,7 +50,7 @@ export function PageHeader({ title, subtitle, showBack = true, onBack }: PageHea
         titleRow
       )}
       {subtitle ? (
-        <Text variant="body" color="muted">
+        <Text variant="body" color="subtle">
           {subtitle}
         </Text>
       ) : null}

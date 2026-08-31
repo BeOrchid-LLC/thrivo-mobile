@@ -69,8 +69,10 @@ export function SelectCard({
       accessibilityRole="button"
       accessibilityState={{ selected }}
       onPress={onPress}
+      // Figma S2: min-h-84, rounded-16, a 2pt Thrivo-green border over an 8%
+      // tint when selected; the hairline outline on white when not.
       className={`min-h-[84px] flex-row items-center gap-lg rounded-lg border-2 px-[22px] py-[18px] ${
-        selected ? "border-primaryBright bg-primaryBright/[0.08]" : "border-gray-300 bg-white"
+        selected ? "border-primaryBright bg-primaryBright/[0.08]" : "border-hairline bg-white"
       }`}
     >
       {Icon ? (
@@ -88,7 +90,7 @@ export function SelectCard({
           {label}
         </Text>
         {description ? (
-          <Text variant="label" color="gray500">
+          <Text variant="label" color="subtle">
             {description}
           </Text>
         ) : null}

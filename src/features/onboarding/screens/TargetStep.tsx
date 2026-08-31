@@ -28,7 +28,10 @@ import {
   type CalorieBreakdown,
 } from "@/features/onboarding/utils/tdee";
 import { TARGET_RANGE_KCAL, parsePositiveInteger } from "@/features/onboarding/utils/validation";
+import { STEP_NUMBER } from "../config";
 import type { OnboardingStepProps } from "../types";
+
+const STEP = STEP_NUMBER.target;
 
 /**
  * Figma-exact metrics for "Onboarding S5" (393pt wide). Literals for the same
@@ -167,7 +170,7 @@ export default function TargetStep({
   const buildFields = () => ({
     activityLevel,
     manualDailyTargetKcal: isEditing && manualInRange ? manualNum : null,
-    onboardingStep: 4 as const,
+    onboardingStep: STEP,
   });
 
   const next = () => {
@@ -190,13 +193,12 @@ export default function TargetStep({
     setFields(fields);
     setIsOnboardingSkipped(true);
     router.replace("/(app)/(tabs)/dashboard");
-    void submit("skip", { silent: true, onboardingStep: 4, fields });
+    void submit("skip", { silent: true, onboardingStep: STEP, fields });
   };
 
   return (
     <OnboardingStep
-      step={4}
-      sectionTitle="Almost done"
+      step={STEP}
       title="Your daily calorie target"
       subtitle="Calculated using Mifflin-St Jeor formula from your height, weight, age, & goal."
       contentToFooter={CONTENT_TO_FOOTER}
@@ -205,14 +207,14 @@ export default function TargetStep({
       footer={
         <>
           <Button
-            label={mode === "revisit" ? "Save and continue" : "This looks right - Continue"}
+            label="Continue"
             disabled={!valid}
             loading={isPending || isSaving}
             onPress={next}
           />
           <Button
-            label={mode === "revisit" ? "Done later" : "Skip For Now"}
-            variant="outline"
+            label="Skip for now"
+            variant="ghost"
             loading={mode === "initial" && isPending}
             onPress={skip}
           />

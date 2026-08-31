@@ -100,6 +100,9 @@ export function LogFoodScreen() {
       onRefresh={refresh}
     >
       <Segmented
+        size="large"
+        fullWidth
+        equalSegments
         value={segment}
         onChange={setSegment}
         options={[

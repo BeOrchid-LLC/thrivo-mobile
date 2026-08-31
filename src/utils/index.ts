@@ -20,3 +20,4 @@ export {
   formatWater,
 } from "./units";
 export { localDay, addDays, isToday, localTimezone, formatLongDate, formatShortDate } from "./date";
+export { formatNumber } from "./number";

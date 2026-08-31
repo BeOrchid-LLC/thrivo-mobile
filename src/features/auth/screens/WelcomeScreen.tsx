@@ -56,7 +56,7 @@ export function WelcomeScreen() {
   const postUnlockTarget =
     isOnboarded || isOnboardingSkipped || hasDismissedOnboarding
       ? "/(app)/(tabs)/dashboard"
-      : "/(onboarding)/goal";
+      : "/(onboarding)/name";
   const canUseBiometric =
     isAuthenticated && biometricEnabled && biometricAvailable && !isBiometricUnlocked;
 

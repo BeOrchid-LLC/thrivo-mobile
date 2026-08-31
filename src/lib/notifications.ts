@@ -8,6 +8,22 @@ import { callApi } from "@/api";
 
 const PUSH_DEVICE_ID_KEY = "thrivo.push.device-id";
 
+/**
+ * The last token this module obtained, and the registration in flight.
+ *
+ * `getExpoPushTokenAsync` **emits a push-token event of its own**, so a rotation
+ * listener wired straight to a re-register call feeds itself: fetch → event →
+ * fetch → event, forever. On a simulator, where the fetch also warns on every
+ * attempt, that shows up as the warning repeating without end.
+ *
+ * Two guards break it. `lastObtainedToken` lets the listener ignore an event
+ * carrying the token we just fetched — a real rotation carries a different one.
+ * `inFlightSync` collapses overlapping syncs onto one promise, so an event that
+ * lands mid-fetch joins that fetch instead of starting another.
+ */
+let lastObtainedToken: string | null = null;
+let inFlightSync: Promise<string | null> | null = null;
+
 async function resolvePushDeviceId(): Promise<string> {
   const platformId =
     Platform.OS === "android"
@@ -86,6 +102,7 @@ async function registerToken(
   const { data: expoPushToken } = await Notifications.getExpoPushTokenAsync(
     projectId ? { projectId } : undefined
   );
+  lastObtainedToken = expoPushToken;
   const deviceId = await resolvePushDeviceId();
 
   await callApi("PUSH_REGISTER", {
@@ -140,10 +157,18 @@ export async function syncPushRegistration(notifyTimes?: string[]): Promise<stri
   const Notifications = getNotifications();
   if (!Notifications) return null;
 
-  const { granted } = await Notifications.getPermissionsAsync();
-  if (!granted) return null;
+  // Join the sync already running rather than starting a second one.
+  if (inFlightSync) return inFlightSync;
 
-  return registerToken(Notifications, notifyTimes);
+  inFlightSync = (async () => {
+    const { granted } = await Notifications.getPermissionsAsync();
+    if (!granted) return null;
+    return registerToken(Notifications, notifyTimes);
+  })().finally(() => {
+    inFlightSync = null;
+  });
+
+  return inFlightSync;
 }
 
 /** Permission snapshot, in the shape screens need. */
@@ -185,7 +210,12 @@ export function addPushTokenChangeListener(handler: () => void): () => void {
   const Notifications = getNotifications();
   if (!Notifications) return noop;
 
-  const subscription = Notifications.addPushTokenListener(() => handler());
+  const subscription = Notifications.addPushTokenListener((token) => {
+    // Our own `getExpoPushTokenAsync` raises this event too. Only a token we
+    // did not just obtain is an actual rotation worth re-registering.
+    if (token.data && token.data === lastObtainedToken) return;
+    handler();
+  });
   return () => subscription.remove();
 }
 

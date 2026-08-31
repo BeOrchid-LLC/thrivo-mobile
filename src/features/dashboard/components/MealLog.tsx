@@ -38,15 +38,15 @@ export function MealLog({ entries, onLogFood, onViewAll, onEntryPress }: MealLog
   const groups = groupEntriesByMealTime(entries);
 
   return (
-    <View className="gap-xl">
+    <View className="gap-sm">
       {groups.map((group) => {
         const title = MEAL_TIME_TITLE[group.mealTime];
         return (
           <View key={group.mealTime} className="gap-sm">
             <View className="mb-xs flex-row items-center justify-between border-b border-gray-200 pb-sm">
-              <Text variant="body" color="dark" className="font-semibold">
+              <Text variant="body" color="dark">
                 {title}{" "}
-                <Text variant="body" color="muted" className="font-regular">
+                <Text variant="body" color="subtle">
                   {group.calories} kcal
                 </Text>
               </Text>
@@ -57,10 +57,10 @@ export function MealLog({ entries, onLogFood, onViewAll, onEntryPress }: MealLog
                 className="flex-row items-center gap-xs"
                 hitSlop={12}
               >
-                <Text variant="body" color="muted">
+                <Text variant="body" color="subtle">
                   View
                 </Text>
-                <CaretRight size={14} color={colors.gray[500]} />
+                <CaretRight size={20} color={colors.muted} />
               </Pressable>
             </View>
             {group.entries.map((entry) => (
@@ -69,17 +69,22 @@ export function MealLog({ entries, onLogFood, onViewAll, onEntryPress }: MealLog
           </View>
         );
       })}
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Log food"
-        onPress={onLogFood}
-        className="min-h-touchTarget flex-row items-center justify-center gap-sm"
-      >
-        <PlusCircle size={20} color={colors.primary} weight="regular" />
-        <Text variant="body" color="primary" className="font-semibold">
-          Log food
-        </Text>
-      </Pressable>
+      {/* Figma 371:560: a full-width rule, an 8pt gap, then a 44pt row that
+          centres the 24pt glyph and the label. The rule is part of this footer
+          rather than the last meal group, so an empty day still renders it. */}
+      <View className="gap-sm border-t border-gray-200 pt-sm">
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Log food"
+          onPress={onLogFood}
+          className="h-tile flex-row items-center justify-center gap-sm"
+        >
+          <PlusCircle size={24} color={colors.primaryDeep} weight="regular" />
+          <Text variant="body" color="primaryDeep" className="font-semibold">
+            Log food
+          </Text>
+        </Pressable>
+      </View>
     </View>
   );
 }

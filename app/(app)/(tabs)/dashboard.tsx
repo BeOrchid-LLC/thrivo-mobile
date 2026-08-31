@@ -36,12 +36,22 @@ export default function Dashboard() {
       refreshing={refreshing}
       onRefresh={refresh}
     >
-      <View className="gap-lg">
-        <MoodCheckinSection />
-        <CaloriesSummarySection />
+      {/*
+        The frame's vertical rhythm is not one gap (371:295, y positions):
+        question→mood 12, mood→calories 12, calories→macros 26, macros→streak
+        28, streak→water 12. So the big blocks sit `xl` apart, and the two pairs
+        the design groups tightly are nested at `md`.
+      */}
+      <View className="gap-xl">
+        <View className="gap-md">
+          <MoodCheckinSection />
+          <CaloriesSummarySection />
+        </View>
         <MacrosSection />
-        <StreakSection />
-        <WaterSection />
+        <View className="gap-md">
+          <StreakSection />
+          <WaterSection />
+        </View>
         <TodayMealLogSection />
       </View>
     </Screen>

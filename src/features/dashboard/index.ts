@@ -1,3 +1,4 @@
+export { DASHBOARD_MACROS_GATED } from "./flags";
 export { MacroBars } from "./components/MacroBars";
 export type { MacroTotals } from "./components/MacroBars";
 export { StreakBanner } from "./components/StreakBanner";

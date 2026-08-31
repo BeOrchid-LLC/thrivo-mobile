@@ -1,18 +1,50 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ComponentType } from "react";
 import { router } from "expo-router";
-import { Button } from "@/components";
+import { Button, DumbbellIcon, SwapIcon, TrendDownIcon, type IconProps } from "@/components";
 import type { Goal } from "@/contracts";
+import { spacing } from "@/theme";
 import { useOnboardingDraftActions, useSessionActions } from "@/stores";
 import { OnboardingStep } from "@/features/onboarding/components/OnboardingStep";
 import { SelectCard } from "@/features/onboarding/components/SelectCard";
 import { useSubmitOnboarding } from "@/features/onboarding/hooks/useCompleteOnboarding";
 import { useOnboardingPrefill } from "@/features/onboarding/hooks/useOnboardingPrefill";
+import { STEP_NUMBER } from "../config";
 import type { OnboardingStepProps } from "../types";
 
-const GOALS: { value: Goal; label: string }[] = [
-  { value: "lose", label: "Lose Weight" },
-  { value: "maintain", label: "Maintain Weight" },
-  { value: "gain", label: "Build Muscle" },
+const STEP = STEP_NUMBER.goal;
+
+interface GoalOption {
+  value: Goal;
+  label: string;
+  description: string;
+  icon: ComponentType<IconProps>;
+}
+
+/**
+ * Copy and glyphs from Figma "Onboarding S2". The description is what makes the
+ * choice a decision rather than three words — the frame's annotation is explicit
+ * that this answer drives the TDEE modifier computed on the target step, and
+ * whether the weight step asks for a target weight at all.
+ */
+const GOALS: GoalOption[] = [
+  {
+    value: "lose",
+    label: "Lose weight",
+    description: "Reach a lower, healthier weight",
+    icon: TrendDownIcon,
+  },
+  {
+    value: "maintain",
+    label: "Maintain weight",
+    description: "Stay at your current weight",
+    icon: SwapIcon,
+  },
+  {
+    value: "gain",
+    label: "Build muscle",
+    description: "Gain lean mass with a calorie surplus",
+    icon: DumbbellIcon,
+  },
 ];
 
 export default function GoalStep({
@@ -35,7 +67,7 @@ export default function GoalStep({
 
   const next = () => {
     if (!goal) return;
-    const fields = { goal, onboardingStep: 1 as const };
+    const fields = { goal, onboardingStep: STEP };
     setFields(fields);
     if (mode === "revisit") {
       void onNext?.(fields);
@@ -49,34 +81,36 @@ export default function GoalStep({
       onDone?.();
       return;
     }
-    if (goal) setFields({ goal, onboardingStep: 1 });
+    if (goal) setFields({ goal, onboardingStep: STEP });
     setIsOnboardingSkipped(true);
     router.replace("/(app)/(tabs)/dashboard");
     void submit("skip", {
       silent: true,
-      onboardingStep: 1,
+      onboardingStep: STEP,
       fields: goal ? { goal } : undefined,
     });
   };
 
   return (
     <OnboardingStep
-      step={1}
-      title="What are your fitness goals?"
-      subtitle="We'll help you stay on track."
+      step={STEP}
+      // Figma S2 sets the option cards 12 apart, tighter than the page default.
+      contentGap={spacing.md}
+      title="What's your goal?"
+      subtitle="This sets your calorie target and experience."
       onBack={mode === "revisit" ? onBack : undefined}
       variant={variant}
       footer={
         <>
           <Button
-            label={mode === "revisit" ? "Save and continue" : "Continue"}
+            label="Continue"
             disabled={!goal}
             loading={isPending || isSaving}
             onPress={next}
           />
           <Button
-            label={mode === "revisit" ? "Done later" : "Skip For Now"}
-            variant="outline"
+            label="Skip for now"
+            variant="ghost"
             loading={mode === "initial" && isPending}
             onPress={skip}
           />
@@ -86,8 +120,9 @@ export default function GoalStep({
       {GOALS.map((item) => (
         <SelectCard
           key={item.value}
-          variant="plain"
+          icon={item.icon}
           label={item.label}
+          description={item.description}
           selected={goal === item.value}
           onPress={() => setGoal(item.value)}
         />

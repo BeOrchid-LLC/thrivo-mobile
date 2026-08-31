@@ -20,6 +20,9 @@ export interface SectionErrorProps {
  * in place: no screen has to relearn which of its sections can fail, and turning
  * the cards back on is this one line.
  */
+// Flip to `true` (or `__DEV__`) to debug a blank screen: while this is off, a
+// failing query renders nothing at all, so a dashboard whose sections are all
+// erroring is indistinguishable from a broken layout.
 const SHOW_SECTION_ERRORS: boolean = false;
 
 /** Compact, local error state for one section without blocking the full screen. */

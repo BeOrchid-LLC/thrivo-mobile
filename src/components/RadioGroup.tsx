@@ -20,10 +20,10 @@ export interface RadioGroupProps<T extends string> {
  */
 export function RadioGroup<T extends string>({ options, value, onChange }: RadioGroupProps<T>) {
   return (
-    <View className="overflow-hidden rounded-group border-[1.333px] border-gray-300 bg-white">
+    <View className="overflow-hidden rounded-group border-[1.333px] border-hairline bg-white">
       {options.map((opt, i) => {
         const active = opt.value === value;
-        const divider = i < options.length - 1 ? "border-b-[0.667px] border-gray-100" : "";
+        const divider = i < options.length - 1 ? "border-b-[0.667px] border-divider" : "";
         return (
           <Pressable
             key={opt.value}
@@ -36,14 +36,14 @@ export function RadioGroup<T extends string>({ options, value, onChange }: Radio
           >
             <View
               className={`h-[20px] w-[20px] items-center justify-center rounded-pill border-2 ${
-                active ? "border-primary bg-primary" : "border-gray-300"
+                active ? "border-primaryDeep bg-primaryDeep" : "border-hairline"
               }`}
             >
               {active ? <View className="h-[8px] w-[8px] rounded-pill bg-white" /> : null}
             </View>
             <Text
               variant="body-sm"
-              color={active ? "dark" : "gray500"}
+              color={active ? "dark" : "subtle"}
               className={active ? "font-semibold" : "font-regular"}
             >
               {opt.label}

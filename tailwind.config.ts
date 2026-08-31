@@ -40,6 +40,12 @@ export default {
       letterSpacing: {
         /** Uppercase eyebrow labels (Figma). Always paired with `uppercase`. */
         label: "0.78px",
+        /** The onboarding page question (Figma: -0.5px on every S1-S7 title). */
+        title: "-0.5px",
+        /** S6 price headline (-1px) and its ledger labels (+0.3px). */
+        price: "-1px",
+        /** S5 TDEE headline number. */
+        tdee: "-1.5px",
       },
       fontFamily: {
         regular: ["Inter_400Regular"],
