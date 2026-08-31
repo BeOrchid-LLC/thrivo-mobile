@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import type { SubscriptionPlan, SubscriptionResponse } from "@/contracts";
 import { analytics, isBillingConfigured, monitoring, subscription as billing } from "@/lib";
@@ -84,8 +85,13 @@ function applyStorePurchase(
 
 export function usePurchaseSubscription() {
   const queryClient = useQueryClient();
+  // True only between the store handing back and our backend answering. The
+  // store's own sheet is a native window the app must not cover: a full-screen
+  // overlay during that phase sits on top of it on Android and swallows the
+  // taps, so the user cannot complete the purchase they just started.
+  const [awaitingActivation, setAwaitingActivation] = useState(false);
 
-  return useMutation({
+  const mutation = useMutation({
     mutationFn: async ({ plan, packageId, isTrial = false }: PurchaseVariables) => {
       if (!isBillingConfigured()) throw new Error("Store billing is not available");
       if (!packageId) throw new Error(`No store package for the ${plan} plan`);
@@ -93,6 +99,7 @@ export function usePurchaseSubscription() {
       // The user dismissed the native sheet — not an error, just nothing to do.
       if (!result.completed) return { completed: false as const };
 
+      setAwaitingActivation(true);
       analytics.track(isTrial ? "thrivo.trial_started" : "thrivo.subscription_started", {
         plan,
         packageId,
@@ -131,5 +138,8 @@ export function usePurchaseSubscription() {
       }
       confirmInBackground(queryClient);
     },
+    onSettled: () => setAwaitingActivation(false),
   });
+
+  return { ...mutation, awaitingActivation };
 }
