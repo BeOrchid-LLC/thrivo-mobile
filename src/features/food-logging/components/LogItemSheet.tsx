@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, View } from "react-native";
 import { router } from "expo-router";
 import { Heart } from "phosphor-react-native";
@@ -62,7 +62,14 @@ function scaleNutrients(
  * Bottom sheet shown before a NEW catalog food gets logged — servings/time,
  * optional favorite, and quantity-scaled macros (premium for P/C/F).
  */
-export function LogItemSheet({ item, day, visible, onClose }: LogItemSheetProps) {
+export function LogItemSheet({ item: openItem, day, visible, onClose }: LogItemSheetProps) {
+  // Callers clear the item in the same breath as they hide the sheet, but the
+  // sheet has to stay mounted until it has finished animating closed (see
+  // `BottomSheetShell`) — so the last item is held for the way down.
+  const lastItem = useRef(openItem);
+  if (openItem) lastItem.current = openItem;
+  const item = openItem ?? lastItem.current;
+
   const logFood = useLogFood();
   const addFavorite = useAddFavorite();
   const removeFavorite = useRemoveFavorite();

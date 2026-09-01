@@ -31,22 +31,7 @@ export function OnboardingSettingsScreen() {
   }
 
   const progress = getOnboardingProgress(profile.data);
-  if (progress.status === "complete") {
-    return (
-      <Screen backgroundColor="white" rhythm="default">
-        <PageHeader title="Onboarding complete" onBack={() => router.back()} />
-        <View className="items-center gap-md py-2xl">
-          <CheckCircle size={64} weight="fill" color={colors.successBright} />
-          <Text variant="heading3" className="text-center">
-            Your onboarding is complete
-          </Text>
-          <Text color="muted" className="text-center">
-            You can update these details from Settings.
-          </Text>
-        </View>
-      </Screen>
-    );
-  }
+  const isComplete = progress.status === "complete";
 
   if (activeStep !== null) {
     const StepScreen = STEP_SCREENS[activeStep];
@@ -64,9 +49,14 @@ export function OnboardingSettingsScreen() {
           onDone={() => setActiveStep(null)}
           onNext={async (fields) => {
             setSaveError(null);
+            const isLastStep = activeStep === TOTAL_ONBOARDING_STEPS;
             try {
-              await saveStep.save(fields, activeStep, activeStep === TOTAL_ONBOARDING_STEPS);
-              setActiveStep(activeStep === TOTAL_ONBOARDING_STEPS ? null : activeStep + 1);
+              // Continue walks the flow forward wherever the step was opened
+              // from; only the last step ends it and returns to the list. A
+              // setup that is already complete cannot complete again, so it
+              // skips the completion write and its one-time analytics event.
+              await saveStep.save(fields, activeStep, isLastStep && !isComplete);
+              setActiveStep(isLastStep ? null : activeStep + 1);
             } catch {
               setSaveError("Check your connection and try again.");
             }
@@ -85,16 +75,24 @@ export function OnboardingSettingsScreen() {
       header={
         <PageHeader
           title="Onboarding setup"
-          subtitle={`${progress.completedSteps} of ${TOTAL_ONBOARDING_STEPS} complete`}
+          subtitle={
+            isComplete
+              ? "All steps complete — tap any step to edit it"
+              : `${progress.completedSteps} of ${TOTAL_ONBOARDING_STEPS} complete`
+          }
           onBack={() => router.back()}
         />
       }
       footer={
-        <Button
-          label="Continue setup"
-          onPress={() => setActiveStep(firstIncomplete)}
-          disabled={!firstIncomplete}
-        />
+        isComplete ? (
+          <Button label="Done" onPress={() => router.back()} />
+        ) : (
+          <Button
+            label="Continue setup"
+            onPress={() => setActiveStep(firstIncomplete)}
+            disabled={!firstIncomplete}
+          />
+        )
       }
       style={{ paddingTop: 0, paddingBottom: 16 }}
     >
@@ -124,7 +122,7 @@ export function OnboardingSettingsScreen() {
                 <Text className="font-semibold">{step.title}</Text>
                 <Text variant="caption" color="muted">
                   {complete
-                    ? "Complete"
+                    ? "Complete — tap to edit"
                     : unlocked
                       ? "Ready to fill in"
                       : "Complete earlier steps first"}

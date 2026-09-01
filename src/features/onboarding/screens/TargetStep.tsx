@@ -233,6 +233,15 @@ export default function TargetStep({
           value={manualTarget}
           onChangeText={setManualTarget}
           error={manualError}
+          labelAccessory={
+            <Button
+              label="Done"
+              size="compact"
+              fullWidth={false}
+              disabled={!manualValid}
+              onPress={() => setIsEditing(false)}
+            />
+          }
         />
       ) : null}
 

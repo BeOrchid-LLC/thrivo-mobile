@@ -33,6 +33,14 @@ export const colors = {
   primarySoft: "#E8F7EE", // light green tint — success badges / soft fills (V2 auth screens)
   primaryBright: "#27AE60", // brighter green — progress fill, success check (V2 screens)
   gradientMid: "#2D5B4A",
+  /**
+   * Barcode-scanner accent — the corner brackets, the sweeping scan line and
+   * the flash glyph on the Scan Barcode frame. Figma variable **Hover Green**
+   * (46:1085), read from the Dev Mode server. It is deliberately brighter than
+   * `primaryBright`: it has to read as a live camera reticle over `dark`, not
+   * as a progress fill on white.
+   */
+  scanFrame: "#08C759",
   /** Outline of the S6 trial panel, over its dark→green gradient. */
   trialPanelBorder: "#0B8D42", // dark-green blend stop, dark → primaryBright gradient (trial-upsell card)
   progressTrack: "#E0E6EE", // unfilled progress segment (V2 onboarding)

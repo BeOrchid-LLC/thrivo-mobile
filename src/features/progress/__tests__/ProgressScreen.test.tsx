@@ -16,7 +16,8 @@ const currentStreakDays = 14;
 const longestStreakDays = 21;
 
 jest.mock("expo-router", () => ({
-  router: { push: jest.fn() },
+  router: { push: jest.fn(), setParams: jest.fn() },
+  useLocalSearchParams: () => ({}),
 }));
 
 jest.mock("../hooks/useProgress", () => ({

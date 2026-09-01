@@ -14,6 +14,8 @@ export interface InputProps extends TextInputProps {
   hint?: string;
   /** Rendered beside the field, inside the label/hint group (e.g. unit chips). */
   trailingAccessory?: ReactNode;
+  /** Rendered opposite the `label`, on the same row (e.g. a "Done" action). */
+  labelAccessory?: ReactNode;
   /**
    * Which frame set the field is dressed for. Every V2 variant sits the label
    * and hint flush with the field edge rather than the 4pt inset the rest of the
@@ -67,6 +69,7 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
     trailingText,
     hint,
     trailingAccessory,
+    labelAccessory,
     variant = "default",
     uppercaseLabel,
     shape = "default",
@@ -104,14 +107,21 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
 
   return (
     <View className="gap-sm">
-      {label ? (
-        <Text
-          variant="caption"
-          color={captionColor}
-          className={`${captionInset} ${uppercaseLabel ? "uppercase tracking-label" : ""}`}
-        >
-          {label}
-        </Text>
+      {label || labelAccessory ? (
+        <View className={`flex-row items-center justify-between gap-md ${captionInset}`}>
+          {label ? (
+            <Text
+              variant="caption"
+              color={captionColor}
+              className={uppercaseLabel ? "uppercase tracking-label" : ""}
+            >
+              {label}
+            </Text>
+          ) : (
+            <View />
+          )}
+          {labelAccessory}
+        </View>
       ) : null}
       <View className={trailingAccessory ? "flex-row items-center gap-xs" : undefined}>
         <View

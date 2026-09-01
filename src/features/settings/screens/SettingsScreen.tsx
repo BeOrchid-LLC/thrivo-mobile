@@ -298,7 +298,14 @@ export function SettingsScreen() {
           <Row
             icon={<CheckCircle size={24} weight="fill" color={colors.successBright} />}
             title="Onboarding complete"
-            subtitle="All setup steps are complete"
+            subtitle="Review or change any setup answer"
+            action={
+              <View className="flex-row items-center gap-xs">
+                <Text color="muted">Edit</Text>
+                <CaretRight size={18} color={colors.gray[500]} />
+              </View>
+            }
+            onPress={() => router.push("/(app)/onboarding-setup")}
           />
         ) : (
           <Row

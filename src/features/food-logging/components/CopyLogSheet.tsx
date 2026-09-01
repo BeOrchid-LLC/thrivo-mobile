@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { View } from "react-native";
 import { BottomSheetShell, Button, RadioGroup, Text, useToast } from "@/components";
 import { useCurrentDay } from "@/hooks/useCurrentDay";
@@ -37,7 +37,14 @@ export function formatDayLabel(day: string): string {
  * showing: history can be filtered or searched, and copying "the day" must mean
  * the whole day, not whatever happened to match the current filter.
  */
-export function CopyLogSheet({ day, visible, onClose }: CopyLogSheetProps) {
+export function CopyLogSheet({ day: openDay, visible, onClose }: CopyLogSheetProps) {
+  // Callers clear the day in the same breath as they hide the sheet, but the
+  // sheet has to stay mounted until it has finished animating closed (see
+  // `BottomSheetShell`) — so the last day is held for the way down.
+  const lastDay = useRef(openDay);
+  if (openDay) lastDay.current = openDay;
+  const day = openDay ?? lastDay.current;
+
   const targetDay = useCurrentDay();
   const { showToast } = useToast();
   const { copy, isCopying } = useCopyFoodLog();

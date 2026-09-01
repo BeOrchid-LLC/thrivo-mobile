@@ -361,6 +361,25 @@ describe("LogFoodScreen", () => {
     );
   });
 
+  it("adds a custom amount from the manual water sheet", () => {
+    const add = jest.fn();
+    mockUseAddWaterLog.mockReturnValue({ mutate: add, isPending: false, error: null });
+
+    const screen = render(<LogFoodScreen />);
+    fireEvent.press(screen.getByText("Water"));
+    fireEvent.press(screen.getByLabelText("Add water manually"));
+
+    for (let i = 0; i < 3; i += 1) {
+      fireEvent.press(screen.getByLabelText("Delete digit"));
+    }
+    fireEvent.press(screen.getByLabelText("Water amount 4"));
+    fireEvent.press(screen.getByLabelText("Water amount 0"));
+    fireEvent.press(screen.getByLabelText("Water amount 0"));
+    fireEvent.press(screen.getByText("Add water"));
+
+    expect(add).toHaveBeenCalledWith(400, expect.any(Object));
+  });
+
   it("restates the water quick-add amounts when the unit system changes", () => {
     const settings: { data: { unitSystem: "metric" | "imperial" } } = {
       data: { unitSystem: "metric" },

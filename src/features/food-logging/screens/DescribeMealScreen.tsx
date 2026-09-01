@@ -10,6 +10,7 @@ import {
   Segmented,
   StepperButton,
   Text,
+  useToast,
 } from "@/components";
 import { useEntitlement } from "@/hooks/useEntitlement";
 import { isNetworkReachable } from "@/lib";
@@ -41,6 +42,12 @@ const DEFAULT_QUANTITY_BY_MEASURE: Record<PortionMeasure, string> = {
 export interface DescribeMealScreenProps {
   day: string;
   onBack: () => void;
+  /**
+   * Where a logged estimate lands. The form has nothing left to say once the
+   * meal is saved, so the screen hands back to the food tracker, where the new
+   * entry heads the recent list.
+   */
+  onLogged: () => void;
 }
 
 /**
@@ -48,8 +55,9 @@ export interface DescribeMealScreenProps {
  * the Log tab: it is a form, and its actions are pinned to the bottom, where a
  * tab bar would otherwise sit.
  */
-export function DescribeMealScreen({ day, onBack }: DescribeMealScreenProps) {
+export function DescribeMealScreen({ day, onBack, onLogged }: DescribeMealScreenProps) {
   const entitlement = useEntitlement();
+  const { showToast } = useToast();
   const [name, setName] = useState("");
   const [ingredients, setIngredients] = useState("");
   const [method, setMethod] = useState("");
@@ -99,7 +107,10 @@ export function DescribeMealScreen({ day, onBack }: DescribeMealScreenProps) {
         servingUnit: estimateResult!.servingUnit,
       },
       {
-        onSuccess: () => setMessage("Estimate logged."),
+        onSuccess: () => {
+          showToast({ message: "Estimate logged", variant: "success" });
+          onLogged();
+        },
         onError: () => setMessage("Could not log estimate. Try again."),
       }
     );

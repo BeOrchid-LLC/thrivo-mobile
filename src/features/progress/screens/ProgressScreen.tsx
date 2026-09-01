@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
-import { Modal, Pressable, ScrollView, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Modal, Pressable, ScrollView, View, type LayoutChangeEvent } from "react-native";
 import Svg, { Circle, G, Line, Path, Polyline, Text as SvgText } from "react-native-svg";
 import { CaretDown, Lock, Warning } from "phosphor-react-native";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { queryClient, queryKeys } from "@/api";
 import {
   Button,
@@ -21,7 +21,7 @@ import { isApiError } from "@/api/errors";
 import { useCountUp } from "@/hooks/useCountUp";
 import { useCurrentDay } from "@/hooks/useCurrentDay";
 import { useEntitlement } from "@/hooks/useEntitlement";
-import { colors, fontFamilies } from "@/theme";
+import { colors, fontFamilies, spacing } from "@/theme";
 import {
   formatWeight,
   localDay,
@@ -80,6 +80,14 @@ function ProgressHome({ day }: { day: string }) {
   const [premiumModalOpen, setPremiumModalOpen] = useState(false);
   const [selectedCalendarDay, setSelectedCalendarDay] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
+  const calendarTop = useRef(0);
+  // The dashboard streak banner deep-links here asking for the calendar, which
+  // sits below the fold. The request is held in a ref rather than state because
+  // it is consumed by `onLayout` — as state it would re-render the page on
+  // every layout pass to say something nothing renders.
+  const params = useLocalSearchParams<{ section?: string }>();
+  const pendingCalendarScroll = useRef(params.section === "calendar");
   const progress = useProgress(day);
   const chart = useMetricChart(metric, period, day);
   const settings = useSettings();
@@ -107,6 +115,34 @@ function ProgressHome({ day }: { day: string }) {
     ]).finally(() => setRefreshing(false));
   };
 
+  // Arriving again with the same param would not re-run an effect keyed on it,
+  // so the request is consumed on arrival and the param cleared.
+  useEffect(() => {
+    if (params.section !== "calendar") return;
+    pendingCalendarScroll.current = true;
+    router.setParams({ section: "" });
+  }, [params.section]);
+
+  const scrollToCalendar = useCallback(() => {
+    scrollRef.current?.scrollTo({
+      y: Math.max(calendarTop.current - spacing.lg, 0),
+      animated: true,
+    });
+  }, []);
+
+  // The calendar's offset moves as the sections above it settle — skeletons are
+  // shorter than what replaces them — so the pending scroll is re-applied on
+  // every layout and only retired once the real calendar is the thing on screen.
+  const onCalendarLayout = useCallback(
+    (event: LayoutChangeEvent) => {
+      calendarTop.current = event.nativeEvent.layout.y;
+      if (!pendingCalendarScroll.current) return;
+      if (data) pendingCalendarScroll.current = false;
+      scrollToCalendar();
+    },
+    [data, scrollToCalendar]
+  );
+
   return (
     <Screen
       scroll
@@ -115,6 +151,7 @@ function ProgressHome({ day }: { day: string }) {
       header={<PageHeader title="Progress" showBack={false} />}
       refreshing={refreshing}
       onRefresh={refresh}
+      scrollRef={scrollRef}
     >
       {data ? (
         <SummaryCards data={data} unitSystem={unitSystem} />
@@ -236,16 +273,18 @@ function ProgressHome({ day }: { day: string }) {
         className="rounded-pill"
         onPress={() => router.push("/(app)/log-weight")}
       />
-      {data ? (
-        <StreakCalendar
-          days={data.calendar.days}
-          currentStreakDays={data.summary.currentStreakDays}
-          longestStreakDays={data.summary.longestStreakDays}
-          onSelectDay={setSelectedCalendarDay}
-        />
-      ) : (
-        <CalendarSkeleton />
-      )}
+      <View onLayout={onCalendarLayout}>
+        {data ? (
+          <StreakCalendar
+            days={data.calendar.days}
+            currentStreakDays={data.summary.currentStreakDays}
+            longestStreakDays={data.summary.longestStreakDays}
+            onSelectDay={setSelectedCalendarDay}
+          />
+        ) : (
+          <CalendarSkeleton />
+        )}
+      </View>
       <Button
         label="Log something you ate"
         // The frame draws this one as a soft-green pill rather than the grey
