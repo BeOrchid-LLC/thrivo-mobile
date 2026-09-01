@@ -6,7 +6,7 @@ import { DescribeMealScreen } from "@/features/food-logging";
 export default function DescribeMeal() {
   const day = useCurrentDay();
 
-  const back = () => {
+  const toLog = () => {
     if (router.canGoBack()) router.back();
     else router.replace("/(app)/(tabs)/log");
   };
@@ -15,5 +15,5 @@ export default function DescribeMeal() {
   // the food tracker the same way the back arrow does — the meal is already at
   // the head of the recent list there, which is the confirmation the screen
   // itself used to have to fake with a line of text.
-  return <DescribeMealScreen day={day} onBack={back} onLogged={back} />;
+  return <DescribeMealScreen day={day} onBack={toLog} onLogged={toLog} />;
 }

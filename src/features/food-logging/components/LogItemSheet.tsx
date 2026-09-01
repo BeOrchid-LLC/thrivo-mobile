@@ -39,6 +39,13 @@ export interface LogItemSheetProps {
   day: string;
   visible: boolean;
   onClose: () => void;
+  /**
+   * Called after the food is logged, once the sheet has been asked to close.
+   * Screens that exist only to produce this one log (create-food) use it to
+   * hand back to the food tracker; the ones the sheet is opened from and
+   * returned to (search, barcode) leave it out.
+   */
+  onLogged?: () => void;
 }
 
 function scaleNutrients(
@@ -62,7 +69,13 @@ function scaleNutrients(
  * Bottom sheet shown before a NEW catalog food gets logged — servings/time,
  * optional favorite, and quantity-scaled macros (premium for P/C/F).
  */
-export function LogItemSheet({ item: openItem, day, visible, onClose }: LogItemSheetProps) {
+export function LogItemSheet({
+  item: openItem,
+  day,
+  visible,
+  onClose,
+  onLogged,
+}: LogItemSheetProps) {
   // Callers clear the item in the same breath as they hide the sheet, but the
   // sheet has to stay mounted until it has finished animating closed (see
   // `BottomSheetShell`) — so the last item is held for the way down.
@@ -158,6 +171,7 @@ export function LogItemSheet({ item: openItem, day, visible, onClose }: LogItemS
             });
           }
           onClose();
+          onLogged?.();
         },
       }
     );

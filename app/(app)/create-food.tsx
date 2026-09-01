@@ -10,10 +10,13 @@ import { CreateFoodScreen } from "@/features/food-logging";
 export default function CreateFood() {
   const day = useCurrentDay();
 
-  const back = () => {
+  const toLog = () => {
     if (router.canGoBack()) router.back();
     else router.replace("/(app)/(tabs)/log");
   };
 
-  return <CreateFoodScreen day={day} onBack={back} />;
+  // Logging the food it just created leaves the form with nothing left to do,
+  // so it returns to the food tracker the same way the back arrow does — the
+  // new entry is already at the head of the recent list there.
+  return <CreateFoodScreen day={day} onBack={toLog} onLogged={toLog} />;
 }
