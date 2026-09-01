@@ -19,8 +19,14 @@ jest.mock("@/features/profile", () => ({
 
 jest.mock("@/lib", () => ({
   analytics: { track: (...args: unknown[]) => mockTrack(...args) },
-  registerForPushNotifications: (...args: unknown[]) => mockRegister(...args),
+  monitoring: { captureException: jest.fn() },
+  requestNotificationPermission: (...args: unknown[]) => mockRequestPermission(...args),
+  scheduleDailyReminders: (...args: unknown[]) => mockScheduleReminders(...args),
+  syncPushRegistration: (...args: unknown[]) => mockRegister(...args),
 }));
+
+const mockRequestPermission = jest.fn();
+const mockScheduleReminders = jest.fn();
 
 jest.mock("../hooks/useSettings", () => ({
   useSettings: () => mockUseSettings(),
@@ -35,6 +41,8 @@ beforeEach(() => {
   mockUseSettings.mockReturnValue({ data: { dailyFoodLogReminderTime: "08:00" } });
   mockUpdateProfileAsync.mockResolvedValue(undefined);
   mockRegister.mockResolvedValue("token");
+  mockRequestPermission.mockResolvedValue({ granted: true, canAskAgain: true });
+  mockScheduleReminders.mockResolvedValue(2);
 });
 
 describe("FoodLogReminderScreen", () => {
@@ -59,11 +67,37 @@ describe("FoodLogReminderScreen", () => {
       })
     );
     expect(mockRegister).toHaveBeenCalledWith(["09:15", "13:00"]);
+    // The device-local schedule is what actually delivers the reminder.
+    expect(mockScheduleReminders).toHaveBeenCalledWith(["09:15", "13:00"]);
     expect(mockTrack).toHaveBeenCalledWith("thrivo.reminder_set", {
       reminder: "notifyTimes",
       count: 2,
     });
     await waitFor(() => expect(router.back).toHaveBeenCalled());
+  });
+
+  it("leaves for the settings list even when the token cannot be registered", async () => {
+    // The iOS Simulator has no APNs, and Android has no FCM credentials yet, so
+    // this call fails on every device we test on. It used to strand the user on
+    // "push notifications couldn't be enabled" over reminders that were armed.
+    mockRegister.mockRejectedValue(new Error("no push credentials"));
+    const screen = render(<FoodLogReminderScreen />);
+
+    fireEvent.press(screen.getByText("Enable notifications"));
+
+    await waitFor(() => expect(mockScheduleReminders).toHaveBeenCalled());
+    await waitFor(() => expect(router.back).toHaveBeenCalled());
+    expect(screen.queryByText(/couldn't switch reminders on/)).toBeNull();
+  });
+
+  it("arms nothing when notification permission is refused", async () => {
+    mockRequestPermission.mockResolvedValue({ granted: false, canAskAgain: false });
+    const screen = render(<FoodLogReminderScreen />);
+
+    fireEvent.press(screen.getByText("Enable notifications"));
+
+    await waitFor(() => expect(router.back).toHaveBeenCalled());
+    expect(mockScheduleReminders).not.toHaveBeenCalled();
   });
 
   it("keeps the user on the page when the save fails", async () => {
