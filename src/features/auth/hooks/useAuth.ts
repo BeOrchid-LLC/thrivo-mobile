@@ -7,7 +7,13 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { clearPersistedQueryCache } from "@/api";
 import { ApiError } from "@/api/errors";
 import { env } from "@/config/env";
-import { analytics, clearUserScopedStorage, monitoring, subscription } from "@/lib";
+import {
+  analytics,
+  cancelDailyReminders,
+  clearUserScopedStorage,
+  monitoring,
+  subscription,
+} from "@/lib";
 import { resetUserScopedStores, useBiometricUnlockActions, useSessionActions } from "@/stores";
 import { logAuthError } from "../auth-debug";
 
@@ -158,6 +164,12 @@ export function useLogout() {
         }),
         subscription.logOut().catch((error: unknown) => {
           monitoring.captureException(error, { seam: "billing-logout" });
+        }),
+        // Local reminders outlive the session otherwise, and the next user on
+        // the device inherits someone else's nudges — the same class of bug
+        // already fixed for the offline barcode queue.
+        cancelDailyReminders().catch((error: unknown) => {
+          monitoring.captureException(error, { seam: "logout-reminder-cancel" });
         }),
       ]);
     },

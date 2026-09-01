@@ -33,6 +33,7 @@ jest.mock("expo-auth-session", () => ({ makeRedirectUri: jest.fn(() => "thrivo:/
 jest.mock("@/api", () => ({
   clearPersistedQueryCache: (...a: unknown[]) => mockClearPersistedCache(...a),
 }));
+const mockCancelReminders = jest.fn((..._args: unknown[]) => Promise.resolve());
 jest.mock("@/lib", () => ({
   analytics: { reset: (...a: unknown[]) => mockAnalyticsReset(...a) },
   clearUserScopedStorage: (...a: unknown[]) => mockClearUserScopedStorage(...a),
@@ -41,6 +42,7 @@ jest.mock("@/lib", () => ({
     setUser: (...a: unknown[]) => mockSetUser(...a),
   },
   subscription: { logOut: (...a: unknown[]) => mockBillingLogOut(...a) },
+  cancelDailyReminders: (...a: unknown[]) => mockCancelReminders(...a),
 }));
 jest.mock("@/stores", () => ({
   resetUserScopedStores: (...a: unknown[]) => mockResetStores(...a),

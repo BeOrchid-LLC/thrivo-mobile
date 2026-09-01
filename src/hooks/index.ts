@@ -5,6 +5,7 @@ export {
 } from "./usePermission";
 export { useBillingSync } from "./useBillingSync";
 export { usePushRegistration } from "./usePushRegistration";
+export { useReminderScheduling } from "./useReminderScheduling";
 export { useSessionInit } from "./useSessionInit";
 export { useTimezoneSync } from "./useTimezoneSync";
 export { useSessionRefresh } from "./useSessionRefresh";

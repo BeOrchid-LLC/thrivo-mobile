@@ -1,7 +1,21 @@
 # Reminder scheduling — design options and the decisions needed
 
 **Scope:** Step 3 of [remaining-scope-plan.md](remaining-scope-plan.md) ·
-**Status:** decision required (mobile side of Step 3 is otherwise complete)
+**Status:** Decision 2 answered in code — **on-device scheduling is implemented
+and shipping**. Decision 1 is still open.
+
+> **Update.** Reminders now fire from the device (`scheduleDailyReminders` in
+> `src/lib/notifications.ts`, re-armed by `useReminderScheduling`). This is *not*
+> the option recommended below — server-side push remains the better end state —
+> but it was the only one that could deliver anything: the backend scheduler is
+> unconfirmed and the project still has no FCM/APNs credentials, so on Android
+> `getExpoPushTokenAsync` throws and nothing can be pushed at all. The push
+> registration is still performed, best-effort, so the backend can take over by
+> simply starting to send; the only change needed here then is to stop arming
+> local triggers. The `notifyTimes` field is what gets scheduled, which is
+> Decision 1 Option A in practice — but the Settings *Daily food log reminder*
+> row still writes a different field and still does nothing, so 3.1 is unchanged
+> and one screen is still lying to the user.
 
 The PRD's acceptance criterion is one sentence:
 
@@ -36,13 +50,19 @@ Everything below was read from the code, not assumed.
 - `expo-notifications` is configured with a `default` Android channel
   (`app.json`), and taps are routed via `addNotificationResponseListener`.
 
-### Nothing schedules anything, anywhere in this repo
+### Scheduling (superseded — see the update at the top)
 
-`scheduleNotificationAsync` has **no call sites**. The app tells the backend when
-the user wants to be nudged and what token to push to; every actual delivery
-decision is the backend's. That is a coherent design — it is simply not one that
-has been confirmed, and it is invisible from inside this repo whether the backend
-implements it.
+*As originally written:* `scheduleNotificationAsync` had **no call sites**; every
+delivery decision was the backend's, which was coherent but unconfirmed and
+invisible from inside this repo.
+
+*Now:* `src/lib/notifications.ts` arms one repeating `DAILY` trigger per slot in
+`notifyTimes`, cancelling its own previous ones first so re-arming is idempotent.
+`useReminderScheduling` re-arms on sign-in, on any change to `notifyTimes`, and
+on every foreground (which covers the OS clearing schedules, an app upgrade, and
+permission granted in OS settings after the fact). `useLogout` and
+`useDeleteAccount` cancel, so the next user on the device does not inherit
+someone else's nudges. Push registration still happens, best-effort.
 
 ### There are two reminder-time fields, not one
 
