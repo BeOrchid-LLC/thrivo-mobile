@@ -21,11 +21,15 @@ export interface SearchResultsSheetProps {
   onSelect: (item: FoodItem) => void;
   onDescribe: () => void;
   logging?: boolean;
+  /** Where the sheet's top edge sits — the bottom of the search field. */
+  topInset?: number;
 }
 
 /**
- * Search results live in a sheet so the home screen stays a log surface —
- * infinite scroll pages (limit 10) with a describe-meal escape hatch.
+ * Search results live in a sheet so the home screen stays a log surface — it
+ * hangs off the bottom of the search field and fills the rest of the screen,
+ * scrolling its infinite-scroll pages (limit 10) inside that frame, with a
+ * describe-meal escape hatch at the end.
  */
 export function SearchResultsSheet({
   query,
@@ -42,9 +46,12 @@ export function SearchResultsSheet({
   onSelect,
   onDescribe,
   logging = false,
+  topInset,
 }: SearchResultsSheetProps) {
-  const showEmpty =
-    canSearch && !isLoading && !isError && items.length === 0 && !isFetchingNextPage;
+  // The escape hatch is pinned under the list rather than scrolling with it, so
+  // it is reachable without paging to the end of the results.
+  const showDescribeEscape =
+    canSearch && !isLoading && !isError && (items.length > 0 || !isFetchingNextPage);
 
   return (
     <BottomSheetShell
@@ -52,6 +59,7 @@ export function SearchResultsSheet({
       onClose={onClose}
       title="Search results"
       closeLabel="Close search results"
+      topInset={topInset}
       subtitle={
         <Text variant="caption" color="muted" numberOfLines={2}>
           {`Showing results for "${query.trim()}"`}
@@ -59,7 +67,7 @@ export function SearchResultsSheet({
       }
     >
       <BottomSheetScrollView
-        style={{ maxHeight: 420 }}
+        style={topInset === undefined ? { maxHeight: 420 } : { flex: 1 }}
         contentContainerStyle={{ gap: 8, paddingBottom: 8 }}
         onMomentumScrollEnd={(event) => {
           const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
@@ -93,41 +101,24 @@ export function SearchResultsSheet({
             <ActivityIndicator color={colors.primary} />
           </View>
         ) : null}
-
-        {showEmpty ? (
-          <View className="items-center gap-xs py-md">
-            <Text variant="caption" color="muted">
-              {"Don't see it?"}
-            </Text>
-            <Pressable
-              accessibilityRole="button"
-              onPress={onDescribe}
-              className="min-h-touchTarget justify-center"
-            >
-              <Text variant="body" color="primary" className="font-semibold">
-                Describe the meal instead
-              </Text>
-            </Pressable>
-          </View>
-        ) : null}
-
-        {canSearch && !isLoading && !isError && items.length > 0 ? (
-          <View className="items-center gap-xs py-sm">
-            <Text variant="caption" color="muted">
-              {"Don't see it?"}
-            </Text>
-            <Pressable
-              accessibilityRole="button"
-              onPress={onDescribe}
-              className="min-h-touchTarget justify-center"
-            >
-              <Text variant="body" color="primary" className="font-semibold">
-                Describe the meal instead
-              </Text>
-            </Pressable>
-          </View>
-        ) : null}
       </BottomSheetScrollView>
+
+      {showDescribeEscape ? (
+        <View className="items-center gap-xs">
+          <Text variant="caption" color="muted">
+            {"Don't see it?"}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={onDescribe}
+            className="min-h-touchTarget justify-center"
+          >
+            <Text variant="body" color="primary" className="font-semibold">
+              Describe the meal instead
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
     </BottomSheetShell>
   );
 }

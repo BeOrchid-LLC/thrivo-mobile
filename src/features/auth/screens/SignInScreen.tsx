@@ -109,7 +109,7 @@ export function SignInScreen() {
   return (
     <AuthScreenShell
       title="Sign In to Thrivo"
-      subtitle={`Welcome back${firstName ? `, ${firstName}` : ""}! Request your magic link to continue.`}
+      subtitle={`Welcome back${firstName ? `, ${firstName}` : ""}! Request your verification code to continue.`}
       // Narrower than the shell default so the greeting breaks after "your",
       // the way the Sign In frame does.
       subtitleWidth={292}
@@ -138,7 +138,7 @@ export function SignInScreen() {
 
       <FormError message={errors.root?.message} />
 
-      <Button label="Request Magic Link" loading={isSubmitting} onPress={send} />
+      <Button label="Request Code" loading={isSubmitting} onPress={send} />
 
       {showGoogle || showApple ? (
         <>

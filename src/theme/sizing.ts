@@ -25,6 +25,13 @@ export const sizing = {
   controlLg: 52,
   /** Two-line control — a stacked value + unit tile (water quick add). */
   controlXl: 64,
+  /**
+   * Inline action sized to sit *within* body copy — the "Done" button beside a
+   * field label. Deliberately under `touchTarget`: at label height it cannot
+   * also be 48 tall, so anything drawn at this height must widen its hit area
+   * with `hitSlop` rather than leave a 36pt target.
+   */
+  controlSm: 36,
 
   /** Circular icon badge. */
   badge: 48,

@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ReactNode, RefObject } from "react";
 import {
   RefreshControl,
   ScrollView,
@@ -70,6 +70,12 @@ export interface ScreenProps {
   refreshing?: boolean;
   onRefresh?: () => void;
   refreshControlProps?: Partial<RefreshControlProps>;
+  /**
+   * Handle on the scroll view, for screens that have to move the page
+   * themselves — a deep link that lands on a section further down, say. Only
+   * meaningful with `scroll`.
+   */
+  scrollRef?: RefObject<ScrollView | null>;
 }
 
 /**
@@ -92,6 +98,7 @@ export function Screen({
   refreshing,
   onRefresh,
   refreshControlProps,
+  scrollRef,
 }: ScreenProps) {
   const padding: ViewStyle | undefined = padded
     ? { paddingHorizontal: spacing.lg, paddingVertical: spacing.lg }
@@ -133,6 +140,7 @@ export function Screen({
       ) : null}
       {scroll ? (
         <ScrollView
+          ref={scrollRef}
           style={{ flex: 1 }}
           contentContainerStyle={contentStyle}
           keyboardShouldPersistTaps="handled"

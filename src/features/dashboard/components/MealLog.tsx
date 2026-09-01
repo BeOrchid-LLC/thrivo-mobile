@@ -39,6 +39,25 @@ export function MealLog({ entries, onLogFood, onViewAll, onEntryPress }: MealLog
 
   return (
     <View className="gap-sm">
+      {/* Figma 371:560, but leading the section rather than closing it: a 44pt
+          row that centres the 24pt glyph and the label, an 8pt gap, then a
+          full-width rule. Logging is the section's first affordance, so it sits
+          directly under the water tracker instead of below the day's meals. The
+          rule belongs to this row rather than the first meal group, so an empty
+          day still renders it. */}
+      <View className="gap-sm border-b border-gray-200 pb-sm">
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Log food"
+          onPress={onLogFood}
+          className="h-tile flex-row items-center justify-center gap-sm"
+        >
+          <PlusCircle size={24} color={colors.primaryDeep} weight="regular" />
+          <Text variant="body" color="primaryDeep" className="font-semibold">
+            Log food
+          </Text>
+        </Pressable>
+      </View>
       {groups.map((group) => {
         const title = MEAL_TIME_TITLE[group.mealTime];
         return (
@@ -69,22 +88,6 @@ export function MealLog({ entries, onLogFood, onViewAll, onEntryPress }: MealLog
           </View>
         );
       })}
-      {/* Figma 371:560: a full-width rule, an 8pt gap, then a 44pt row that
-          centres the 24pt glyph and the label. The rule is part of this footer
-          rather than the last meal group, so an empty day still renders it. */}
-      <View className="gap-sm border-t border-gray-200 pt-sm">
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Log food"
-          onPress={onLogFood}
-          className="h-tile flex-row items-center justify-center gap-sm"
-        >
-          <PlusCircle size={24} color={colors.primaryDeep} weight="regular" />
-          <Text variant="body" color="primaryDeep" className="font-semibold">
-            Log food
-          </Text>
-        </Pressable>
-      </View>
     </View>
   );
 }

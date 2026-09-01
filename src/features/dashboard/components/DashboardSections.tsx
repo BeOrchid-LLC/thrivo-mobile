@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { router } from "expo-router";
-import { StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import {
   AnimatedNumber,
   Card,
@@ -40,8 +40,11 @@ const DEFAULT_TARGET_CALORIES = 1800;
 const ZERO_MACROS = { proteinG: 0, carbsG: 0, fatG: 0 };
 
 const goToLog = () => router.push("/(app)/(tabs)/log");
+const goToWaterLog = () => router.push("/(app)/(tabs)/log?segment=water");
 const goToHistory = () => router.push("/(app)/history");
 const goToCheckin = () => router.push("/(app)/checkin");
+const goToProgress = () => router.push("/(app)/(tabs)/metrics");
+const goToProgressCalendar = () => router.push("/(app)/(tabs)/metrics?section=calendar");
 
 const styles = StyleSheet.create({
   /**
@@ -235,20 +238,38 @@ export function MacrosSection() {
     );
   }
 
-  return <MacroCard consumed={macros.data.consumed} target={macros.data.target} />;
+  return (
+    <MacroCard consumed={macros.data.consumed} target={macros.data.target} onPress={goToProgress} />
+  );
 }
 
 function MacroCard({
   consumed,
   target,
+  onPress,
 }: {
   consumed: { proteinG: number; carbsG: number; fatG: number };
   target: { proteinG: number; carbsG: number; fatG: number };
+  // Only the real card opens Progress; the gated teaser behind the glass keeps
+  // the gate's own "view plans" as its single action.
+  onPress?: () => void;
 }) {
-  return (
+  const card = (
     <Card className="border-light" style={[styles.macroCard, styles.macroCardShadow]}>
       <MacroBars consumed={consumed} target={target} />
     </Card>
+  );
+
+  if (!onPress) return card;
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="View your macro progress"
+      onPress={onPress}
+    >
+      {card}
+    </Pressable>
   );
 }
 
@@ -279,7 +300,7 @@ export function StreakSection() {
   }
 
   return streak.data.currentStreakDays > 0 ? (
-    <StreakBanner days={streak.data.currentStreakDays} />
+    <StreakBanner days={streak.data.currentStreakDays} onPress={goToProgressCalendar} />
   ) : null;
 }
 
@@ -331,6 +352,7 @@ export function WaterSection() {
       adding={addWater.isPending}
       error={addWater.error?.message ?? null}
       onAdd={() => addWater.mutate()}
+      onOpen={goToWaterLog}
     />
   );
 }
