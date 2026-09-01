@@ -27,7 +27,7 @@ import {
 import { queryClient, queryKeys } from "@/api";
 import { useCurrentDay } from "@/hooks/useCurrentDay";
 import { useSettings } from "@/features/settings";
-import { colors, spacing } from "@/theme";
+import { colors, sizing, spacing } from "@/theme";
 import { subscribeTabRootReset } from "@/navigation/tab-root-reset";
 import { addDays, formatWater, isToday, roundTo, waterFromMl, waterUnitFor } from "@/utils";
 import type { FoodItem, FoodLogEntry, WaterEntry } from "@/contracts";
@@ -446,17 +446,25 @@ function WaterHome({ day }: { day: string }) {
         </View>
       </View>
       {data.alert ? (
-        <Card className="gap-sm border-accent bg-accentSoft px-lg py-lg">
+        // Figma `Log Water` 100:849: the accent at 18% behind a 1px 'Clicked'
+        // Orange edge, 12pt corners, 16 all round, 8 between the rows.
+        //
+        // Deliberately not a `Card`. `Card` paints `bg-white` in its own class
+        // string, and appending `bg-accentSoft` to it does not win — NativeWind
+        // resolves two conflicting utilities by their order in the generated
+        // stylesheet, not by their order in the className — so this panel was
+        // rendering white, which is what made it read as a different design.
+        <View className="gap-sm rounded-tile border border-accentDeep bg-accent/[0.18] p-lg">
           <View className="flex-row items-center gap-sm">
-            <Warning size={20} color={colors.accent} />
-            <Text variant="heading3" color="accent">
+            <Warning size={sizing.icon} color={colors.accentDeep} />
+            <Text variant="body" color="accentDeep" className="font-semibold">
               {data.alert.title}
             </Text>
           </View>
-          <Text variant="body" color="accent">
+          <Text variant="note" color="accentDeep">
             {data.alert.message}
           </Text>
-        </Card>
+        </View>
       ) : null}
       <View className="gap-sm">
         <Text variant="body-sm" color="gray500">
