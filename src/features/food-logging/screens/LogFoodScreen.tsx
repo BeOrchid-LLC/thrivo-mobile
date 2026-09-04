@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { router } from "expo-router";
-import { Pressable, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { router, useLocalSearchParams } from "expo-router";
+import { Dimensions, Pressable, View } from "react-native";
 import {
   ChatText,
   Heart,
@@ -27,7 +27,7 @@ import {
 import { queryClient, queryKeys } from "@/api";
 import { useCurrentDay } from "@/hooks/useCurrentDay";
 import { useSettings } from "@/features/settings";
-import { colors } from "@/theme";
+import { colors, sizing, spacing } from "@/theme";
 import { subscribeTabRootReset } from "@/navigation/tab-root-reset";
 import { addDays, formatWater, isToday, roundTo, waterFromMl, waterUnitFor } from "@/utils";
 import type { FoodItem, FoodLogEntry, WaterEntry } from "@/contracts";
@@ -51,6 +51,13 @@ import {
 
 type Segment = "food" | "water";
 
+/**
+ * Fallback top edge for the search-results sheet, used only until the search
+ * field reports its real position: the share of the screen the header, quick
+ * actions and the field itself take up on a stock phone.
+ */
+const DEFAULT_SEARCH_FIELD_BOTTOM = Math.round(Dimensions.get("window").height * 0.4);
+
 function useDebouncedValue<T>(value: T, delayMs: number): T {
   const [debounced, setDebounced] = useState(value);
   useEffect(() => {
@@ -65,6 +72,7 @@ export function LogFoodScreen() {
   const [segment, setSegment] = useState<Segment>("food");
   const [resetVersion, setResetVersion] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  const params = useLocalSearchParams<{ segment?: string }>();
 
   useEffect(
     () =>
@@ -74,6 +82,16 @@ export function LogFoodScreen() {
       }),
     []
   );
+
+  // The dashboard water card opens this tab straight on Water. The param is
+  // cleared once applied, so arriving here a second time still switches — an
+  // effect keyed on an unchanged param would not fire — and so a later tab
+  // press lands on Food, the tab's own default.
+  useEffect(() => {
+    if (params.segment !== "water") return;
+    setSegment("water");
+    router.setParams({ segment: "" });
+  }, [params.segment]);
 
   const refresh = () => {
     setRefreshing(true);
@@ -100,6 +118,9 @@ export function LogFoodScreen() {
       onRefresh={refresh}
     >
       <Segmented
+        size="large"
+        fullWidth
+        equalSegments
         value={segment}
         onChange={setSegment}
         options={[
@@ -135,6 +156,13 @@ function FoodHome({
 }) {
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebouncedValue(query, 350);
+  const searchFieldRef = useRef<View>(null);
+  // The results sheet hangs off the bottom of the search field, so it needs
+  // where that field actually sits — the page scrolls and lifts for the
+  // keyboard, so the position is not a constant. Until the first measurement
+  // lands (and in test renderers, which do not measure) the sheet falls back to
+  // roughly where the field sits on a stock phone.
+  const [searchFieldBottom, setSearchFieldBottom] = useState<number | null>(null);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [editingEntry, setEditingEntry] = useState<FoodLogEntry | null>(null);
   const [loggingItem, setLoggingItem] = useState<FoodItem | null>(null);
@@ -163,6 +191,17 @@ function FoodHome({
     }
     return groups;
   }, [recent.data?.items]);
+
+  const measureSearchField = useCallback(() => {
+    searchFieldRef.current?.measureInWindow((_x, y, _width, height) => {
+      if (!Number.isFinite(y) || !Number.isFinite(height)) return;
+      setSearchFieldBottom(y + height + spacing.sm);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (hasQuery) measureSearchField();
+  }, [hasQuery, measureSearchField]);
 
   const openLogSheet = (food: FoodItem) => {
     setQuery("");
@@ -216,17 +255,19 @@ function FoodHome({
           onPress={onCreate}
         />
       </View>
-      <Input
-        value={query}
-        onChangeText={(value) => {
-          setQuery(value);
-          setShowFavoritesOnly(false);
-        }}
-        placeholder="Or, search food by name..."
-        autoCapitalize="none"
-        shape="pill"
-        leadingIcon={<MagnifyingGlass size={20} color={colors.gray[500]} />}
-      />
+      <View ref={searchFieldRef} collapsable={false} onLayout={measureSearchField}>
+        <Input
+          value={query}
+          onChangeText={(value) => {
+            setQuery(value);
+            setShowFavoritesOnly(false);
+          }}
+          placeholder="Or, search food by name..."
+          autoCapitalize="none"
+          shape="pill"
+          leadingIcon={<MagnifyingGlass size={20} color={colors.gray[500]} />}
+        />
+      </View>
       {showFavoritesOnly ? (
         <FoodListSection
           title="Favorites"
@@ -314,8 +355,14 @@ function FoodHome({
         onRetry={() => void search.refetch()}
         onFetchNextPage={() => void search.fetchNextPage()}
         onSelect={openLogSheet}
-        onDescribe={onDescribe}
+        onDescribe={() => {
+          // Leaving for the describe screen ends the search, so the sheet is
+          // not still sitting over the log tab on the way back.
+          setQuery("");
+          onDescribe();
+        }}
         logging={logFood.isPending}
+        topInset={searchFieldBottom ?? DEFAULT_SEARCH_FIELD_BOTTOM}
       />
       <EditFoodLogSheet
         entry={editingEntry}
@@ -332,6 +379,9 @@ function FoodHome({
   );
 }
 
+/** Which water sheet is open: a manual add, or an edit of an existing entry. */
+type WaterSheetState = { mode: "add" } | { mode: "edit"; entry: WaterEntry } | null;
+
 function WaterHome({ day }: { day: string }) {
   const water = useWater(day);
   const settings = useSettings();
@@ -342,10 +392,11 @@ function WaterHome({ day }: { day: string }) {
   const unitSystem = settings.data?.unitSystem ?? "metric";
   const waterUnit = waterUnitFor(unitSystem);
   const quickAddAmounts = [100, 250, 500];
-  const [editingEntry, setEditingEntry] = useState<WaterEntry | null>(null);
+  const [sheet, setSheet] = useState<WaterSheetState>(null);
   const data = water.data;
   const behind = Boolean(data?.alert);
   const canEditEntries = Boolean(data && isToday(data.day));
+  const editingEntry = sheet?.mode === "edit" ? sheet.entry : null;
 
   const showWaterToast = (message: string, variant: "success" | "error" = "success") => {
     showToast({ message, variant });
@@ -395,17 +446,25 @@ function WaterHome({ day }: { day: string }) {
         </View>
       </View>
       {data.alert ? (
-        <Card className="gap-sm border-accent bg-accentSoft px-lg py-lg">
+        // Figma `Log Water` 100:849: the accent at 18% behind a 1px 'Clicked'
+        // Orange edge, 12pt corners, 16 all round, 8 between the rows.
+        //
+        // Deliberately not a `Card`. `Card` paints `bg-white` in its own class
+        // string, and appending `bg-accentSoft` to it does not win — NativeWind
+        // resolves two conflicting utilities by their order in the generated
+        // stylesheet, not by their order in the className — so this panel was
+        // rendering white, which is what made it read as a different design.
+        <View className="gap-sm rounded-tile border border-accentDeep bg-accent/[0.18] p-lg">
           <View className="flex-row items-center gap-sm">
-            <Warning size={20} color={colors.accent} />
-            <Text variant="heading3" color="accent">
+            <Warning size={sizing.icon} color={colors.accentDeep} />
+            <Text variant="body" color="accentDeep" className="font-semibold">
               {data.alert.title}
             </Text>
           </View>
-          <Text variant="body" color="accent">
+          <Text variant="note" color="accentDeep">
             {data.alert.message}
           </Text>
-        </Card>
+        </View>
       ) : null}
       <View className="gap-sm">
         <Text variant="body-sm" color="gray500">
@@ -443,6 +502,17 @@ function WaterHome({ day }: { day: string }) {
             );
           })}
         </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Add water manually"
+          hitSlop={8}
+          onPress={() => setSheet({ mode: "add" })}
+          className="self-end py-xs"
+        >
+          <Text variant="body-sm" color="primary" className="font-semibold">
+            Add water manually
+          </Text>
+        </Pressable>
       </View>
       <View>
         <View className="border-b border-gray-200 pb-md">
@@ -456,7 +526,7 @@ function WaterHome({ day }: { day: string }) {
             accessibilityRole="button"
             accessibilityLabel="Edit water entry"
             disabled={!canEditEntries}
-            onPress={() => setEditingEntry(entry)}
+            onPress={() => setSheet({ mode: "edit", entry })}
             className="min-h-touchTarget flex-row items-center justify-between border-b border-gray-200 py-md"
           >
             <View>
@@ -504,22 +574,25 @@ function WaterHome({ day }: { day: string }) {
         ) : null}
       </View>
       <WaterAmountSheet
-        visible={editingEntry !== null}
-        title="Glass of water"
-        submitLabel="Save changes"
+        visible={sheet !== null}
+        title={editingEntry ? "Glass of water" : "Add water manually"}
+        submitLabel={editingEntry ? "Save changes" : "Add water"}
         initialAmountMl={editingEntry?.amountMl ?? data.glassMl}
         initialRecordedAt={editingEntry?.recordedAt}
         unitSystem={unitSystem}
-        loading={updateWater.isPending}
-        error={updateWater.error?.message ?? null}
-        onClose={() => setEditingEntry(null)}
+        loading={editingEntry ? updateWater.isPending : addWater.isPending}
+        error={(editingEntry ? updateWater.error : addWater.error)?.message ?? null}
+        onClose={() => setSheet(null)}
         onSubmit={({ amountMl, recordedAt }) => {
-          if (!editingEntry) return;
+          if (!editingEntry) {
+            addWaterAmount(amountMl, () => setSheet(null));
+            return;
+          }
           updateWater.mutate(
             { id: editingEntry.id, amountMl, recordedAt },
             {
               onSuccess: () => {
-                setEditingEntry(null);
+                setSheet(null);
                 showWaterToast("Water entry updated");
               },
               onError: () => showWaterToast("Could not update water. Try again.", "error"),

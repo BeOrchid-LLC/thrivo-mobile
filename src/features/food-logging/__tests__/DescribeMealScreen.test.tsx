@@ -24,7 +24,8 @@ const estimate = {
   servingUnit: "g",
 };
 
-const renderScreen = () => render(<DescribeMealScreen day="2026-06-21" onBack={jest.fn()} />);
+const renderScreen = (onLogged: () => void = jest.fn()) =>
+  render(<DescribeMealScreen day="2026-06-21" onBack={jest.fn()} onLogged={onLogged} />);
 
 describe("DescribeMealScreen", () => {
   beforeEach(() => {
@@ -85,5 +86,24 @@ describe("DescribeMealScreen", () => {
       }),
       expect.any(Object)
     );
+  });
+
+  it("leaves for the food tracker once the estimate is logged", () => {
+    const mutate = jest.fn();
+    const onLogged = jest.fn();
+    mockUseEstimateFood.mockReturnValue({
+      mutate: jest.fn(),
+      isPending: false,
+      data: { estimate },
+    });
+    mockUseLogEstimate.mockReturnValue({ mutate, isPending: false });
+
+    const screen = renderScreen(onLogged);
+    fireEvent.changeText(screen.getByPlaceholderText("Chicken breast, grilled"), "Greek yoghurt");
+    fireEvent.press(screen.getByText("Log estimate"));
+
+    expect(onLogged).not.toHaveBeenCalled();
+    mutate.mock.calls[0][1].onSuccess();
+    expect(onLogged).toHaveBeenCalledTimes(1);
   });
 });

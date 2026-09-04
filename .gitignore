@@ -34,3 +34,5 @@ coverage/
 
 expo-env.d.ts
 # @end expo-cli
+# Stray media dropped into the repo root — never part of the app bundle.
+*.mp3

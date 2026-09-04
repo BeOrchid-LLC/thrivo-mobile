@@ -123,7 +123,7 @@ describe("WelcomeScreen", () => {
     render(<WelcomeScreen />);
 
     await waitFor(() => expect(mockAuthenticateBiometric).toHaveBeenCalledTimes(1));
-    expect(router.replace).toHaveBeenCalledWith("/(onboarding)/goal");
+    expect(router.replace).toHaveBeenCalledWith("/(onboarding)/name");
   });
 
   it("keeps regular auth usable when biometric unlock is cancelled", async () => {

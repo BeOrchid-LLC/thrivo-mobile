@@ -47,7 +47,7 @@ export function CalorieRing({
           strokeWidth={strokeWidth}
           fill="none"
         />
-        {!isEmpty ? (
+        {!isEmpty && drawnRatio > 0 ? (
           <Circle
             cx={center}
             cy={center}

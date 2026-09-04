@@ -1,6 +1,11 @@
 import * as Notifications from "expo-notifications";
 import { callApi } from "@/api";
-import { registerForPushNotifications, syncPushRegistration } from "../notifications";
+import {
+  cancelDailyReminders,
+  registerForPushNotifications,
+  scheduleDailyReminders,
+  syncPushRegistration,
+} from "../notifications";
 
 /**
  * Two entry points share one registration body. The distinction between them is
@@ -17,6 +22,12 @@ jest.mock("expo-notifications", () => ({
   getExpoPushTokenAsync: jest.fn(),
   addPushTokenListener: jest.fn(() => ({ remove: jest.fn() })),
   addNotificationResponseReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
+  scheduleNotificationAsync: jest.fn(async () => "id"),
+  cancelScheduledNotificationAsync: jest.fn(async () => undefined),
+  getAllScheduledNotificationsAsync: jest.fn(async () => []),
+  setNotificationChannelAsync: jest.fn(async () => null),
+  AndroidImportance: { HIGH: 4 },
+  SchedulableTriggerInputTypes: { DAILY: "daily" },
 }));
 jest.mock("expo-constants", () => ({
   __esModule: true,
@@ -116,5 +127,103 @@ describe("push registration", () => {
 
       expect(viaSync).toEqual(viaOnboarding);
     });
+  });
+});
+
+const schedule = Notifications.scheduleNotificationAsync as unknown as jest.Mock;
+const cancelOne = Notifications.cancelScheduledNotificationAsync as unknown as jest.Mock;
+const getAllScheduled = Notifications.getAllScheduledNotificationsAsync as unknown as jest.Mock;
+
+/**
+ * The local schedule is the half that actually delivers today, and every one of
+ * its failure modes is silent — the symptom is "reminders stopped" weeks later.
+ */
+describe("local daily reminders", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    getAllScheduled.mockResolvedValue([]);
+  });
+
+  it("arms one repeating daily trigger per time", async () => {
+    getPermissions.mockResolvedValue({ granted: true });
+
+    const armed = await scheduleDailyReminders(["08:00", "20:30:00"]);
+
+    expect(armed).toBe(2);
+    expect(schedule).toHaveBeenCalledTimes(2);
+    expect(schedule.mock.calls[0][0].trigger).toEqual(
+      expect.objectContaining({ type: "daily", hour: 8, minute: 0 })
+    );
+    // `HH:mm:ss` is as valid in the profile as `HH:mm`.
+    expect(schedule.mock.calls[1][0].trigger).toEqual(
+      expect.objectContaining({ type: "daily", hour: 20, minute: 30 })
+    );
+  });
+
+  it("routes a tap to the log tab", async () => {
+    getPermissions.mockResolvedValue({ granted: true });
+
+    await scheduleDailyReminders(["08:00"]);
+
+    expect(schedule.mock.calls[0][0].content.data).toEqual(
+      expect.objectContaining({ screen: "log" })
+    );
+  });
+
+  it("replaces the previous schedule rather than stacking onto it", async () => {
+    // Re-arming runs on every foreground, so a non-idempotent version would
+    // multiply the user's reminders every time they opened the app.
+    getPermissions.mockResolvedValue({ granted: true });
+    getAllScheduled.mockResolvedValue([
+      { identifier: "old-1", content: { data: { kind: "food-log-reminder" } } },
+      { identifier: "someone-elses", content: { data: { kind: "other" } } },
+    ]);
+
+    await scheduleDailyReminders(["09:00"]);
+
+    expect(cancelOne).toHaveBeenCalledWith("old-1");
+    expect(cancelOne).not.toHaveBeenCalledWith("someone-elses");
+  });
+
+  it("clears the schedule when permission has been revoked", async () => {
+    // Permission can be withdrawn in OS settings long after the times were set;
+    // leaving a schedule armed that can never be delivered hides the breakage.
+    getPermissions.mockResolvedValue({ granted: false });
+    getAllScheduled.mockResolvedValue([
+      { identifier: "old-1", content: { data: { kind: "food-log-reminder" } } },
+    ]);
+
+    const armed = await scheduleDailyReminders(["08:00"]);
+
+    expect(armed).toBe(0);
+    expect(schedule).not.toHaveBeenCalled();
+    expect(cancelOne).toHaveBeenCalledWith("old-1");
+  });
+
+  it("arms nothing for empty or malformed times", async () => {
+    getPermissions.mockResolvedValue({ granted: true });
+
+    expect(await scheduleDailyReminders([])).toBe(0);
+    expect(await scheduleDailyReminders(null)).toBe(0);
+    expect(await scheduleDailyReminders(["25:00", "nonsense"])).toBe(0);
+    expect(schedule).not.toHaveBeenCalled();
+  });
+
+  it("caps at the three slots the contract allows", async () => {
+    getPermissions.mockResolvedValue({ granted: true });
+
+    expect(await scheduleDailyReminders(["07:00", "12:00", "18:00", "22:00"])).toBe(3);
+  });
+
+  it("cancels only its own notifications on sign-out", async () => {
+    getAllScheduled.mockResolvedValue([
+      { identifier: "mine", content: { data: { kind: "food-log-reminder" } } },
+      { identifier: "theirs", content: { data: {} } },
+    ]);
+
+    await cancelDailyReminders();
+
+    expect(cancelOne).toHaveBeenCalledWith("mine");
+    expect(cancelOne).toHaveBeenCalledTimes(1);
   });
 });

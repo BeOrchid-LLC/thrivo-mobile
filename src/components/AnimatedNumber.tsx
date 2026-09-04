@@ -1,9 +1,10 @@
 import { useCountUp, type CountUpOptions } from "@/hooks/useCountUp";
+import { formatNumber } from "@/utils";
 import { Text, type TextProps } from "./Text";
 
 export interface AnimatedNumberProps extends Omit<TextProps, "children">, CountUpOptions {
   value: number;
-  /** Rendered around the counting value, e.g. `(n) => `${n.toLocaleString()} kcal``. */
+  /** Rendered around the counting value, e.g. `(n) => `${formatNumber(n)} kcal``. */
   format?: (value: number) => string;
 }
 
@@ -15,7 +16,7 @@ export interface AnimatedNumberProps extends Omit<TextProps, "children">, CountU
  */
 export function AnimatedNumber({
   value,
-  format = (n) => n.toLocaleString(),
+  format = formatNumber,
   duration,
   decimals,
   enabled,

@@ -78,15 +78,24 @@ export async function callApi<K extends EndpointKey>(
   };
 
   let response: Response;
+  // The token actually presented on the attempt `response` came from. Null when
+  // the call is unauthed, or when the token seam had nothing to give.
+  let presentedToken: string | null = null;
   try {
-    response = await send(
-      config.auth ? (config.freshAuth ? await refreshAuthToken() : await getAuthToken()) : null
-    );
+    presentedToken = config.auth
+      ? config.freshAuth
+        ? await refreshAuthToken()
+        : await getAuthToken()
+      : null;
+    response = await send(presentedToken);
     // On a 401 for an authed call, rotate the refresh token once and retry —
     // so a routinely-expired 15-minute access token never logs the user out.
     if (response.status === 401 && config.auth) {
       const refreshed = await refreshAuthToken();
-      if (refreshed) response = await send(refreshed);
+      if (refreshed) {
+        response = await send(refreshed);
+        presentedToken = refreshed;
+      }
     }
   } catch (cause) {
     throw networkError(cause instanceof Error ? cause.message : "Network request failed");
@@ -97,7 +106,13 @@ export async function callApi<K extends EndpointKey>(
   const bodyData: unknown = text ? safeJsonParse(text) : undefined;
 
   if (!response.ok) {
-    if (response.status === 401) handleUnauthenticated();
+    // Only a 401 against a token we actually presented means the session is
+    // gone. A request that went out with no Authorization header proves nothing
+    // about the session — the token seam may not be wired yet (ClerkTokenBridge
+    // registers it in an effect, after the persisted query cache rehydrates and
+    // starts refetching), or the query fired while genuinely signed out. Signing
+    // out on those tore down the session immediately after a successful sign-in.
+    if (response.status === 401 && presentedToken) handleUnauthenticated();
     throw apiErrorFromResponse(response.status, bodyData);
   }
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import {
   CameraView,
@@ -20,6 +20,7 @@ import { colors } from "@/theme";
 import type { FoodItem } from "@/contracts";
 import { FoodResultRow } from "../components/FoodResultRow";
 import { LogItemSheet } from "../components/LogItemSheet";
+import { ScanFrame } from "../components/ScanFrame";
 import { useBarcodeLookup } from "../hooks/useFoodLogging";
 
 function normalizeBarcode(value: string): string | null {
@@ -28,6 +29,11 @@ function normalizeBarcode(value: string): string | null {
 }
 
 const barcodeTypes: BarcodeType[] = ["ean13", "ean8", "upc_a", "upc_e", "code128"];
+// Hoisted: passing fresh object literals reconfigures the native camera on
+// every render of this screen, and the screen re-renders on every lookup state
+// change and every keystroke in the dev barcode field.
+const cameraStyle = { flex: 1 } as const;
+const barcodeScannerSettings = { barcodeTypes };
 
 export interface ScanBarcodeScreenProps {
   day: string;
@@ -85,37 +91,43 @@ export function ScanBarcodeScreen({ day, onBack }: ScanBarcodeScreenProps) {
     // would leave the scan queued and replay it again on the next visit.
   }, [food, lookupBarcode, ownerId]);
 
-  const handleScan = (result: BarcodeScanningResult) => {
-    const value = result.raw ?? result.data;
-    if (!value) return;
-    const normalized = normalizeBarcode(value);
-    if (!normalized) {
-      setMessage("That barcode format is not supported. Try another packaged food.");
-      return;
-    }
-    if (lastScanRef.current === normalized) return;
-    lastScanRef.current = normalized;
-    setScanned(true);
-    setBarcode(normalized);
-    setFormat(result.type);
-    setMessage("Barcode captured. Looking up nutrition...");
-    // A decoded barcode, not a lookup result — the funnel step is the scan
-    // itself. The `lastScanRef` guard above keeps a steady camera to one event.
-    analytics.track("thrivo.barcode_scanned", { format: result.type });
-    void (async () => {
-      const online = await isNetworkReachable();
-      if (!online) {
-        if (ownerId) {
-          await queueBarcodeScan(ownerId, {
-            barcode: normalized,
-            format: result.type,
-            scannedAt: new Date().toISOString(),
-          });
-        }
-        setMessage("You are offline. The decoded barcode was saved for lookup later.");
+  const handleScan = useCallback(
+    (result: BarcodeScanningResult) => {
+      const value = result.raw ?? result.data;
+      if (!value) return;
+      const normalized = normalizeBarcode(value);
+      if (!normalized) {
+        setMessage("That barcode format is not supported. Try another packaged food.");
+        return;
       }
-    })();
-  };
+      if (lastScanRef.current === normalized) return;
+      lastScanRef.current = normalized;
+      setScanned(true);
+      setBarcode(normalized);
+      setFormat(result.type);
+      setMessage("Barcode captured. Looking up nutrition...");
+      // A decoded barcode, not a lookup result — the funnel step is the scan
+      // itself. The `lastScanRef` guard above keeps a steady camera to one event.
+      analytics.track("thrivo.barcode_scanned", { format: result.type });
+      void (async () => {
+        const online = await isNetworkReachable();
+        if (!online) {
+          if (ownerId) {
+            await queueBarcodeScan(ownerId, {
+              barcode: normalized,
+              format: result.type,
+              scannedAt: new Date().toISOString(),
+            });
+          }
+          setMessage("You are offline. The decoded barcode was saved for lookup later.");
+        }
+      })();
+      // Only `ownerId` is closed over; the setters and the ref are stable. Kept
+      // referentially stable so `CameraView` is not handed a new scan callback on
+      // every render of the screen.
+    },
+    [ownerId]
+  );
 
   return (
     <Screen
@@ -129,17 +141,17 @@ export function ScanBarcodeScreen({ day, onBack }: ScanBarcodeScreenProps) {
         />
       }
     >
-      <View className="h-[220px] overflow-hidden rounded-lg bg-dark">
+      <ScanFrame scanning={Boolean(permission?.granted) && !scanned}>
         {permission?.granted ? (
           <CameraView
-            style={{ flex: 1 }}
+            style={cameraStyle}
             facing="back"
-            barcodeScannerSettings={{ barcodeTypes }}
+            barcodeScannerSettings={barcodeScannerSettings}
             onBarcodeScanned={scanned ? undefined : handleScan}
           />
         ) : (
           <View className="flex-1 items-center justify-center gap-sm p-lg">
-            <Barcode size={32} color={colors.primaryBright} />
+            <Barcode size={32} color={colors.scanFrame} />
             <Text variant="caption" color="inverse" className="text-center">
               Camera access is needed to scan packaged foods.
             </Text>
@@ -151,18 +163,7 @@ export function ScanBarcodeScreen({ day, onBack }: ScanBarcodeScreenProps) {
             />
           </View>
         )}
-        <View className="absolute inset-0 justify-between p-lg" pointerEvents="none">
-          <View className="flex-row justify-between">
-            <Corner />
-            <Barcode size={28} color={colors.primaryBright} />
-            <Corner right />
-          </View>
-          <View className="h-[1px] bg-primaryBright" />
-          <Text variant="caption" color="inverse" className="text-center">
-            Align barcode with frame
-          </Text>
-        </View>
-      </View>
+      </ScanFrame>
       {barcode ? (
         <Card className="gap-xs bg-primarySoft">
           <Text variant="caption" color="muted">
@@ -231,13 +232,5 @@ export function ScanBarcodeScreen({ day, onBack }: ScanBarcodeScreenProps) {
         onClose={() => setLoggingItem(null)}
       />
     </Screen>
-  );
-}
-
-function Corner({ right }: { right?: boolean }) {
-  return (
-    <View
-      className={`h-[24px] w-[24px] border-primaryBright ${right ? "border-r border-t" : "border-l border-t"}`}
-    />
   );
 }

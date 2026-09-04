@@ -2,7 +2,13 @@ import { useEffect, useState } from "react";
 import { router } from "expo-router";
 import { Button, Text } from "@/components";
 import { localTimezone } from "@/utils";
-import { analytics, registerForPushNotifications } from "@/lib";
+import {
+  analytics,
+  monitoring,
+  requestNotificationPermission,
+  scheduleDailyReminders,
+  syncPushRegistration,
+} from "@/lib";
 import {
   DEFAULT_REMINDER_TIMES,
   MAX_REMINDER_TIMES,
@@ -12,8 +18,10 @@ import { type OnboardingDraft, useOnboardingDraftActions, useSessionActions } fr
 import { OnboardingStep } from "@/features/onboarding/components/OnboardingStep";
 import { useSubmitOnboarding } from "@/features/onboarding/hooks/useCompleteOnboarding";
 import { useOnboardingPrefill } from "@/features/onboarding/hooks/useOnboardingPrefill";
-import { ONBOARDING_COMPLETE_STEP } from "../config";
+import { STEP_NUMBER, ONBOARDING_COMPLETE_STEP } from "../config";
 import type { OnboardingStepProps } from "../types";
+
+const STEP = STEP_NUMBER.notifications;
 
 export default function NotificationsStep({
   mode = "initial",
@@ -44,7 +52,7 @@ export default function NotificationsStep({
   const fieldsToSave = (): Partial<OnboardingDraft> => ({
     notifyTimes: selectedTimes,
     timezone: draft.timezone ?? localTimezone(),
-    onboardingStep: 6,
+    onboardingStep: STEP,
   });
 
   /**
@@ -80,14 +88,25 @@ export default function NotificationsStep({
       return;
     }
     try {
-      // Persist the local schedule before associating the device token with it.
-      // Permission denial is a supported offline/in-app fallback; registration
-      // failures surface so the user can retry the backend operation.
-      await registerForPushNotifications(next.notifyTimes);
-    } catch {
-      setError(
-        "Your reminder times were saved, but push notifications couldn't be enabled. Please try again."
-      );
+      // The device-local schedule is what actually delivers a reminder today,
+      // so it is armed here and must not be lost to a backend failure. This is
+      // the screen the user agreed to be asked on, so it is the one that
+      // prompts; denial degrades to no reminders rather than an error, which is
+      // the documented fallback.
+      const { granted } = await requestNotificationPermission();
+      if (granted) await scheduleDailyReminders(next.notifyTimes);
+
+      // Best effort, and deliberately not awaited. The backend cannot push
+      // until it has store credentials and a scheduler, and until then a
+      // failure here is not something to ask the user to retry — their
+      // reminders are already armed on the device. Registering anyway means the
+      // token is in place the day the backend can use it.
+      void syncPushRegistration(next.notifyTimes).catch((error: unknown) => {
+        monitoring.captureException(error, { seam: "push-registration" });
+      });
+    } catch (error) {
+      monitoring.captureException(error, { seam: "reminder-scheduling" });
+      setError("Your reminder times were saved, but we couldn't switch reminders on. Try again.");
       return;
     }
     // The Settings revisit host owns its own navigation — only the onboarding
@@ -105,27 +124,23 @@ export default function NotificationsStep({
     router.replace("/(app)/(tabs)/dashboard");
     void submit("skip", {
       silent: true,
-      onboardingStep: 6,
+      onboardingStep: STEP,
       fields: { notifyTimes: undefined, timezone: undefined },
     });
   };
 
   return (
     <OnboardingStep
-      step={6}
-      title="Food log reminders"
-      subtitle="Pick 1–3 local times a day to remember your food log."
+      step={STEP}
+      title="Daily food log reminder"
+      subtitle="Pick 1–3 reminder times a day. We'll check in — not spam you."
       onBack={mode === "revisit" ? onBack : undefined}
       variant={variant}
       footer={
         <>
+          <Button label="Continue" loading={isPending || isSaving} onPress={() => void finish()} />
           <Button
-            label={mode === "revisit" ? "Save and finish" : "Enable notifications"}
-            loading={isPending || isSaving}
-            onPress={() => void finish()}
-          />
-          <Button
-            label={mode === "revisit" ? "Done later" : "Skip for now"}
+            label="Skip for now"
             variant="ghost"
             disabled={isPending || isSaving}
             onPress={skip}

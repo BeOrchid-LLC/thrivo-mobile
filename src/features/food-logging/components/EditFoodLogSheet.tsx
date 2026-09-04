@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Pressable, View } from "react-native";
 import { router } from "expo-router";
 import {
@@ -73,7 +73,14 @@ function scaleCatalogNutrients(
  * favorite toggle - re-deriving their macros from a servings edit would touch
  * an already-settled day's totals.
  */
-export function EditFoodLogSheet({ entry, visible, onClose }: EditFoodLogSheetProps) {
+export function EditFoodLogSheet({ entry: openEntry, visible, onClose }: EditFoodLogSheetProps) {
+  // Callers clear the entry in the same breath as they hide the sheet, but the
+  // sheet has to stay mounted until it has finished animating closed (see
+  // `BottomSheetShell`) — so the last entry is held for the way down.
+  const lastEntry = useRef(openEntry);
+  if (openEntry) lastEntry.current = openEntry;
+  const entry = openEntry ?? lastEntry.current;
+
   useFavorites();
   const updateLog = useUpdateFoodLog();
   const deleteLog = useDeleteFoodLog();

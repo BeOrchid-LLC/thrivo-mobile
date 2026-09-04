@@ -1,5 +1,6 @@
 import type { User, UserSettings } from "@/contracts";
 import type { OnboardingDraft } from "@/stores";
+import { typedName } from "./name";
 
 function parseNumber(value: string | null | undefined): number | undefined {
   if (value === null || value === undefined) return undefined;
@@ -21,7 +22,7 @@ export function buildOnboardingPrefill(
   const settingsTime = settings?.dailyFoodLogReminderTime?.slice(0, 5);
 
   return {
-    firstName: draft.firstName ?? user?.name ?? undefined,
+    firstName: draft.firstName ?? typedName(user),
     goal: draft.goal ?? user?.goal ?? undefined,
     currentWeightKg: draft.currentWeightKg ?? parseNumber(user?.weightKg),
     targetWeightKg: draft.targetWeightKg ?? parseNumber(user?.targetWeightKg),

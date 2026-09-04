@@ -27,12 +27,14 @@ jest.mock("@clerk/expo", () => ({
   useClerk: () => ({ signOut: mockSignOut }),
 }));
 
+const mockCancelReminders = jest.fn((..._args: unknown[]) => Promise.resolve());
 jest.mock("@/lib", () => ({
   clearUserScopedStorage: (...args: unknown[]) => mockClearStorage(...args),
   monitoring: {
     captureException: (...args: unknown[]) => mockCaptureException(...args),
     setUser: jest.fn(),
   },
+  cancelDailyReminders: (...a: unknown[]) => mockCancelReminders(...a),
 }));
 
 jest.mock("@/stores", () => ({

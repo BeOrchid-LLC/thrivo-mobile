@@ -196,9 +196,27 @@ describe("Dashboard graceful degradation", () => {
     expect(screen.getByText("Hi, Ada")).toBeTruthy();
   });
 
-  it("renders the premium macro gate for free users", () => {
+  // Both arms stay covered whichever way `DASHBOARD_MACROS_GATED` is set, so
+  // flipping the flag can never silently drop a branch from the suite.
+  it("renders the real macro card for free users when the gate is off", () => {
     mockUseDashboardMacros.mockReturnValue({
       ...successQuery(emptyMacros),
+      isGated: false,
+      isPremium: false,
+      isEntitlementLoading: false,
+    });
+
+    const screen = renderDashboard();
+
+    expect(screen.getByText("Protein")).toBeTruthy();
+    expect(screen.getByText("0/135g")).toBeTruthy();
+    expect(screen.queryByText("Subscribe to see your macros")).toBeNull();
+  });
+
+  it("renders the premium macro gate for free users when the gate is on", () => {
+    mockUseDashboardMacros.mockReturnValue({
+      ...successQuery(emptyMacros),
+      isGated: true,
       isPremium: false,
       isEntitlementLoading: false,
     });
@@ -241,12 +259,14 @@ describe("Dashboard graceful degradation", () => {
     expect(screen.queryByText("Could not load meals")).toBeNull();
   });
 
-  it("renders the empty meal state and opens the log tab from the first-meal CTA", () => {
+  // An empty day renders the same meal-log block as a full one (Figma 371:445),
+  // not a separate empty-state card — so the only affordance is "Log food".
+  it("renders the meal-log block on an empty day and opens the log tab from it", () => {
     const screen = renderDashboard();
 
-    expect(screen.getByText("Nothing logged yet")).toBeTruthy();
+    expect(screen.queryByText("Nothing logged yet")).toBeNull();
 
-    fireEvent.press(screen.getByText("Log first meal"));
+    fireEvent.press(screen.getByText("Log food"));
 
     expect(mockPush).toHaveBeenCalledWith("/(app)/(tabs)/log");
   });

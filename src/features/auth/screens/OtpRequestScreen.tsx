@@ -84,7 +84,7 @@ export function OtpRequestScreen() {
   return (
     <AuthScreenShell
       title="Welcome to Thrivo!"
-      subtitle="Enter your details to receive a magic link and get started."
+      subtitle="Enter your details to receive a verification code and get started."
     >
       <View style={{ gap: FIELD_GAP }}>
         <Controller
@@ -129,7 +129,7 @@ export function OtpRequestScreen() {
 
       <FormError message={errors.root?.message} />
 
-      <Button label="Request Magic Link" loading={isSubmitting} onPress={send} />
+      <Button label="Request Code" loading={isSubmitting} onPress={send} />
 
       <AuthSwitchLink
         prompt="Already have an account?"

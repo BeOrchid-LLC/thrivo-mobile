@@ -14,6 +14,8 @@ type Variant = keyof Typography;
  */
 export type TextColor =
   | "primary"
+  | "primaryDeep"
+  | "primaryBright"
   | "dark"
   | "muted"
   | "subtle"
@@ -22,13 +24,17 @@ export type TextColor =
   | "light"
   | "light70"
   | "accent"
+  | "accentDeep"
   | "accentText"
   | "warning"
   | "warningText"
   | "error"
   | "success"
   | "successBright"
-  | "targetGreen";
+  | "targetGreen"
+  | "tdeeNumber"
+  | "tdeeValue"
+  | "tdeeLabel";
 
 // Variant carries size + line height (text-*) and the Inter family weight
 // (font-*); both come from the tailwind theme, which is sourced from src/theme.
@@ -37,6 +43,7 @@ const variantClass: Record<Variant, string> = {
   heading1: "text-heading1 font-semibold",
   heading2: "text-heading2 font-semibold",
   heading3: "text-heading3 font-semibold",
+  pageTitle: "text-pageTitle font-bold",
   title: "text-title font-semibold",
   metric: "text-metric font-semibold",
   otp: "text-otp font-semibold",
@@ -45,11 +52,14 @@ const variantClass: Record<Variant, string> = {
   "body-sm": "text-body-sm font-regular",
   label: "text-label font-regular",
   caption: "text-caption font-semibold",
+  note: "text-note font-regular",
   micro: "text-micro font-regular",
 };
 
 const colorValue: Record<TextColor, string> = {
   primary: colors.primary,
+  primaryDeep: colors.primaryDeep,
+  primaryBright: colors.primaryBright,
   dark: colors.dark,
   muted: colors.gray[600],
   subtle: colors.muted,
@@ -58,6 +68,7 @@ const colorValue: Record<TextColor, string> = {
   light: colors.light,
   light70: "rgba(244, 246, 249, 0.7)",
   accent: colors.accent,
+  accentDeep: colors.accentDeep,
   accentText: colors.accentText,
   warning: colors.warning,
   warningText: colors.warningText,
@@ -65,6 +76,9 @@ const colorValue: Record<TextColor, string> = {
   success: colors.success,
   successBright: colors.successBright,
   targetGreen: colors.targetGreen,
+  tdeeNumber: colors.tdeeNumber,
+  tdeeValue: colors.tdeeValue,
+  tdeeLabel: colors.tdeeLabel,
 };
 
 export interface TextProps extends RNTextProps {

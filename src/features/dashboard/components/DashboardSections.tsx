@@ -1,10 +1,8 @@
 import { useState } from "react";
 import { router } from "expo-router";
-import { StyleSheet, View } from "react-native";
-import { ForkKnife } from "phosphor-react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import {
   AnimatedNumber,
-  Button,
   Card,
   CalorieRing,
   PremiumGate,
@@ -20,8 +18,9 @@ import type { FoodLogEntry, Mood } from "@/contracts";
 import { useCheckins, useCreateCheckin } from "@/features/checkin/hooks/useCheckin";
 import { EditFoodLogSheet } from "@/features/food-logging";
 import { deriveMacroTargets } from "@/features/onboarding/utils/tdee";
-import { colors } from "@/theme";
+import { colors, spacing } from "@/theme";
 import { useCurrentDay } from "@/hooks/useCurrentDay";
+import { formatNumber } from "@/utils";
 import { MacroBars } from "./MacroBars";
 import { MoodCheckinRow, MoodCheckinSummary } from "./MoodCheckinRow";
 import { MealLog } from "./MealLog";
@@ -41,10 +40,24 @@ const DEFAULT_TARGET_CALORIES = 1800;
 const ZERO_MACROS = { proteinG: 0, carbsG: 0, fatG: 0 };
 
 const goToLog = () => router.push("/(app)/(tabs)/log");
+const goToWaterLog = () => router.push("/(app)/(tabs)/log?segment=water");
 const goToHistory = () => router.push("/(app)/history");
 const goToCheckin = () => router.push("/(app)/checkin");
+const goToProgress = () => router.push("/(app)/(tabs)/metrics");
+const goToProgressCalendar = () => router.push("/(app)/(tabs)/metrics?section=calendar");
 
 const styles = StyleSheet.create({
+  /**
+   * Figma 371:337: a 2px `light` border with 12/20 padding. These are inline
+   * because `Card` sets `borderWidth: hairlineWidth` and `p-lg` itself — an
+   * inline style is the only thing that reliably beats both, and a `border-2`
+   * className was silently losing to the hairline.
+   */
+  macroCard: {
+    borderWidth: 2,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 20,
+  },
   macroCardShadow: {
     shadowColor: colors.dark,
     shadowOffset: { width: 0, height: 4 },
@@ -67,16 +80,28 @@ export function MoodCheckinSection() {
   // round-trip is long enough that waiting for it leaves the row sitting there
   // looking like the tap missed. It is dropped again if the write fails, which
   // is the only case where the row has anything left to say.
-  const optimistic =
-    create.variables?.day === day && !create.isError ? create.variables.mood : null;
+  const optimistic = create.variables?.day === day ? create.variables.mood : null;
   const todaysMood =
     optimistic ??
     (submitted?.day === day ? submitted.mood : null) ??
     (checkins.data ?? []).find((checkin) => checkin.day === day)?.mood ??
     null;
 
+  // One check-in per day: once a face is tapped the row collapses and stays
+  // collapsed, including while the write is still in flight or has failed. The
+  // failure is reported under the summary rather than by re-asking the question
+  // — re-asking is what turned a slow write into repeated taps and a 429.
   if (todaysMood) {
-    return <MoodCheckinSummary mood={todaysMood} onPress={goToCheckin} />;
+    return (
+      <View className="gap-xs">
+        <MoodCheckinSummary mood={todaysMood} onPress={goToCheckin} />
+        {create.isError ? (
+          <Text variant="micro" color="error">
+            {create.error?.message ?? "Could not save that"} — open check-in to retry.
+          </Text>
+        ) : null}
+      </View>
+    );
   }
 
   if (checkins.isLoading) {
@@ -91,7 +116,10 @@ export function MoodCheckinSection() {
   // is offering a check-in that is already recorded, which the screen reconciles.
   return (
     <View className="gap-xs">
-      <MoodCheckinRow onSelect={(mood: Mood) => create.mutate({ mood, day })} />
+      <MoodCheckinRow
+        onSelect={(mood: Mood) => create.mutate({ mood, day })}
+        disabled={create.isPending}
+      />
       {create.isError ? (
         <Text variant="micro" color="error">
           {create.error?.message ?? "Could not save that"} — tap a face to try again.
@@ -106,18 +134,18 @@ export function CaloriesSummarySection() {
 
   if (calories.isLoading) {
     return (
-      <Card
+      <View
         accessibilityRole="progressbar"
         accessibilityLabel="Loading calorie summary"
-        className="flex-row items-center gap-lg"
+        className="flex-row items-center gap-xl"
       >
-        <SkeletonBlock className="h-[132px] w-[132px] rounded-pill" />
-        <View className="flex-1 gap-sm">
+        <SkeletonBlock className="h-[100px] w-[100px] rounded-pill" />
+        <View className="flex-1 gap-xs">
           <SkeletonText size="heading" className="w-2/3" />
           <SkeletonText className="w-full" />
           <SkeletonText className="w-1/2" />
         </View>
-      </Card>
+      </View>
     );
   }
 
@@ -134,16 +162,15 @@ export function CaloriesSummarySection() {
   const { consumedCalories, targetCalories, remainingCalories } = calories.data;
 
   return (
-    <Card className="flex-row items-center gap-lg border-transparent pl-0">
-      <CalorieRing
-        consumed={consumedCalories}
-        target={targetCalories}
-        emptyLabel="Log your first meal"
-      />
+    <View className="flex-row items-center gap-xl">
+      {/* No `emptyLabel`: the Figma frames show the ring reading "0% Used" at
+          zero, not a prompt. `CalorieRing` still supports the prompt for any
+          caller that wants it. */}
+      <CalorieRing consumed={consumedCalories} target={targetCalories} />
       <View className="flex-1 gap-xs">
         <View className="flex-row items-baseline gap-xs">
-          <AnimatedNumber variant="heading1" color="dark" value={consumedCalories} />
-          <Text variant="body-lg" color="subtle" className="mb-2 font-normal">
+          <AnimatedNumber variant="heading2" color="dark" value={consumedCalories} />
+          <Text variant="body" color="subtle">
             kcal
           </Text>
         </View>
@@ -151,16 +178,16 @@ export function CaloriesSummarySection() {
           variant="body"
           color="muted"
           value={targetCalories}
-          format={(n) => `of ${n.toLocaleString()} daily target`}
+          format={(n) => `of ${formatNumber(n)} daily target`}
         />
         <AnimatedNumber
           variant="body"
           color="primary"
           value={remainingCalories}
-          format={(n) => `${n.toLocaleString()} remaining`}
+          format={(n) => `${formatNumber(n)} remaining`}
         />
       </View>
-    </Card>
+    </View>
   );
 }
 
@@ -187,7 +214,9 @@ export function MacrosSection() {
     );
   }
 
-  if (macros.isPremium === false) {
+  // Macros are premium. The teaser behind the glass is a zeroed card at derived
+  // targets, not the user's real numbers — the gate must not leak what it hides.
+  if (macros.isGated) {
     return (
       <PremiumGate
         title="Subscribe to see your macros"
@@ -209,20 +238,38 @@ export function MacrosSection() {
     );
   }
 
-  return <MacroCard consumed={macros.data.consumed} target={macros.data.target} />;
+  return (
+    <MacroCard consumed={macros.data.consumed} target={macros.data.target} onPress={goToProgress} />
+  );
 }
 
 function MacroCard({
   consumed,
   target,
+  onPress,
 }: {
   consumed: { proteinG: number; carbsG: number; fatG: number };
   target: { proteinG: number; carbsG: number; fatG: number };
+  // Only the real card opens Progress; the gated teaser behind the glass keeps
+  // the gate's own "view plans" as its single action.
+  onPress?: () => void;
 }) {
-  return (
-    <Card className="border-2 border-light" style={styles.macroCardShadow}>
+  const card = (
+    <Card className="border-light" style={[styles.macroCard, styles.macroCardShadow]}>
       <MacroBars consumed={consumed} target={target} />
     </Card>
+  );
+
+  if (!onPress) return card;
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="View your macro progress"
+      onPress={onPress}
+    >
+      {card}
+    </Pressable>
   );
 }
 
@@ -253,7 +300,7 @@ export function StreakSection() {
   }
 
   return streak.data.currentStreakDays > 0 ? (
-    <StreakBanner days={streak.data.currentStreakDays} />
+    <StreakBanner days={streak.data.currentStreakDays} onPress={goToProgressCalendar} />
   ) : null;
 }
 
@@ -305,6 +352,7 @@ export function WaterSection() {
       adding={addWater.isPending}
       error={addWater.error?.message ?? null}
       onAdd={() => addWater.mutate()}
+      onOpen={goToWaterLog}
     />
   );
 }
@@ -346,7 +394,10 @@ export function TodayMealLogSection() {
 
   const entries = foodLog.data?.entries ?? [];
 
-  return entries.length > 0 ? (
+  // An empty day renders the same meal-log block as a full one — the rule and
+  // the "Log food" row (Figma 371:445) — rather than a separate empty-state
+  // card. One layout, so the section does not change shape as the day fills up.
+  return (
     <>
       <MealLog
         entries={entries}
@@ -360,16 +411,5 @@ export function TodayMealLogSection() {
         onClose={() => setEditingEntry(null)}
       />
     </>
-  ) : (
-    <View className="items-center gap-md rounded-lg bg-primaryBright/10 px-xl py-xl">
-      <ForkKnife size={32} color={colors.primary} weight="regular" />
-      <Text variant="heading3" color="dark" className="text-center">
-        Nothing logged yet
-      </Text>
-      <Text variant="body" color="subtle" className="text-center">
-        Scan a barcode, search the database or describe what you ate to get started.
-      </Text>
-      <Button label="Log first meal" onPress={() => goToLog()} />
-    </View>
   );
 }

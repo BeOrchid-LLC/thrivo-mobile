@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
 import { router } from "expo-router";
-import { Button, Input } from "@/components";
+import { Button, Input, Segmented } from "@/components";
 import type { UnitSystem } from "@/contracts";
 import { kgToLb, lbToKg, roundTo } from "@/utils";
 import { type OnboardingDraft, useOnboardingDraftActions, useSessionActions } from "@/stores";
 import { OnboardingStep } from "@/features/onboarding/components/OnboardingStep";
 import { InsightPill } from "@/features/onboarding/components/InsightPill";
-import { UnitChips } from "@/features/onboarding/components/UnitChips";
 import { useSubmitOnboarding } from "@/features/onboarding/hooks/useCompleteOnboarding";
 import { useOnboardingPrefill } from "@/features/onboarding/hooks/useOnboardingPrefill";
 import {
@@ -14,14 +13,18 @@ import {
   isValidWeightKg,
   parseDecimal,
 } from "@/features/onboarding/utils/validation";
+import { STEP_NUMBER } from "../config";
 import type { OnboardingStepProps } from "../types";
+
+const STEP = STEP_NUMBER.weight;
 
 type Unit = "kg" | "lb";
 
-// Both fields carry the chips in the frame, and both drive the one unit.
+// One control above both fields in the frame, imperial first, driving the unit
+// every weight on the page is read and written in.
 const UNIT_OPTIONS = [
-  { label: "kg", value: "kg" },
   { label: "lbs", value: "lb" },
+  { label: "kg", value: "kg" },
 ] as const satisfies readonly { label: string; value: Unit }[];
 
 const toDisplay = (kg: number | undefined, unit: Unit): string => {
@@ -107,7 +110,7 @@ export default function WeightStep({
       currentWeightKg: currentNum > 0 ? roundTo(toKg(currentNum)) : undefined,
       targetWeightKg: needsTarget && targetNum > 0 ? roundTo(toKg(targetNum)) : undefined,
       unitSystem: (unit === "kg" ? "metric" : "imperial") satisfies UnitSystem,
-      onboardingStep: 2,
+      onboardingStep: STEP,
     };
   };
 
@@ -131,48 +134,41 @@ export default function WeightStep({
     setFields(fields);
     setIsOnboardingSkipped(true);
     router.replace("/(app)/(tabs)/dashboard");
-    void submit("skip", { silent: true, onboardingStep: 2, fields });
+    void submit("skip", { silent: true, onboardingStep: STEP, fields });
   };
 
   return (
     <OnboardingStep
-      step={2}
+      step={STEP}
       // The frame sets the two field groups further apart than the option cards.
       contentGap={22}
-      title="Tell us about your weight"
-      subtitle="We listen, we don't judge."
+      title="Let's talk weight"
+      subtitle="We'll calculate how far you are from your goal."
       onBack={mode === "revisit" ? onBack : undefined}
       variant={variant}
       footer={
         <>
           <Button
-            label={mode === "revisit" ? "Save and continue" : "Continue"}
+            label="Continue"
             disabled={!valid}
             loading={isPending || isSaving}
             onPress={next}
           />
           <Button
-            label={mode === "revisit" ? "Done later" : "Skip For Now"}
-            variant="outline"
+            label="Skip for now"
+            variant="ghost"
             loading={mode === "initial" && isPending}
             onPress={skip}
           />
         </>
       }
     >
+      <Segmented fullWidth options={UNIT_OPTIONS} value={unit} onChange={switchUnit} />
       <Input
         variant="onboarding"
-        label="Current Weight"
-        hint="How much do you weigh at the moment?"
+        label="Current weight"
+        uppercaseLabel
         trailingText={unitLabel}
-        trailingAccessory={
-          <UnitChips
-            options={UNIT_OPTIONS}
-            value={unit}
-            onChange={switchUnit}
-            accessibilityLabel="Weight unit"
-          />
-        }
         numeric="decimal"
         value={current}
         onChangeText={setCurrent}
@@ -181,17 +177,9 @@ export default function WeightStep({
       {needsTarget ? (
         <Input
           variant="onboarding"
-          label="Target Weight"
-          hint="What's your ideal weight?"
+          label="Target weight"
+          uppercaseLabel
           trailingText={unitLabel}
-          trailingAccessory={
-            <UnitChips
-              options={UNIT_OPTIONS}
-              value={unit}
-              onChange={switchUnit}
-              accessibilityLabel="Target weight unit"
-            />
-          }
           numeric="decimal"
           value={target}
           onChangeText={setTarget}

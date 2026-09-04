@@ -16,6 +16,12 @@ import {
 export interface CreateFoodScreenProps {
   day: string;
   onBack: () => void;
+  /**
+   * Where a logged food lands. Once the created food has been logged the form
+   * has nothing left to do, so the screen hands back to the food tracker,
+   * where the new entry heads the recent list.
+   */
+  onLogged: () => void;
 }
 
 /**
@@ -29,7 +35,7 @@ export interface CreateFoodScreenProps {
  * field is empty — "required" is a question for the first save attempt, which
  * is also when the text fields answer.
  */
-export function CreateFoodScreen({ day, onBack }: CreateFoodScreenProps) {
+export function CreateFoodScreen({ day, onBack, onLogged }: CreateFoodScreenProps) {
   const [form, setForm] = useState<CustomFoodForm>(EMPTY_CUSTOM_FOOD);
   const [submitted, setSubmitted] = useState(false);
   const [createdItem, setCreatedItem] = useState<FoodItem | null>(null);
@@ -59,7 +65,8 @@ export function CreateFoodScreen({ day, onBack }: CreateFoodScreenProps) {
   };
 
   // The sheet closes both after a successful log and on cancel; either way the
-  // food itself is already saved, so clear the form for the next one.
+  // food itself is already saved, so clear the form for the next one. Only a
+  // log leaves the screen (see `onLogged`) — cancelling keeps you here.
   const closeLogSheet = () => {
     setCreatedItem(null);
     setForm(EMPTY_CUSTOM_FOOD);
@@ -177,6 +184,7 @@ export function CreateFoodScreen({ day, onBack }: CreateFoodScreenProps) {
         day={day}
         visible={createdItem !== null}
         onClose={closeLogSheet}
+        onLogged={onLogged}
       />
     </Screen>
   );

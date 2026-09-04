@@ -77,7 +77,9 @@ describe("CreateFoodScreen", () => {
     const mutate = jest.fn();
     mockUseCreateFood.mockReturnValue({ mutate, isPending: false, error: null, reset: jest.fn() });
 
-    const screen = render(<CreateFoodScreen day="2026-06-21" onBack={jest.fn()} />);
+    const screen = render(
+      <CreateFoodScreen day="2026-06-21" onBack={jest.fn()} onLogged={jest.fn()} />
+    );
     fireEvent.press(screen.getByText("Save food"));
 
     expect(mutate).not.toHaveBeenCalled();
@@ -89,7 +91,9 @@ describe("CreateFoodScreen", () => {
     const mutate = jest.fn();
     mockUseCreateFood.mockReturnValue({ mutate, isPending: false, error: null, reset: jest.fn() });
 
-    const screen = render(<CreateFoodScreen day="2026-06-21" onBack={jest.fn()} />);
+    const screen = render(
+      <CreateFoodScreen day="2026-06-21" onBack={jest.fn()} onLogged={jest.fn()} />
+    );
     fillValidForm(screen);
     fireEvent.press(screen.getByText("Save food"));
 
@@ -106,7 +110,9 @@ describe("CreateFoodScreen", () => {
   });
 
   it("keeps what was typed in a number field and says what is wrong with it", () => {
-    const screen = render(<CreateFoodScreen day="2026-06-21" onBack={jest.fn()} />);
+    const screen = render(
+      <CreateFoodScreen day="2026-06-21" onBack={jest.fn()} onLogged={jest.fn()} />
+    );
     const calories = screen.getByLabelText("Calories");
 
     // The keypad is only a hint, so the field explains rather than silently
@@ -124,7 +130,9 @@ describe("CreateFoodScreen", () => {
   });
 
   it("says nothing about an untouched number field", () => {
-    const screen = render(<CreateFoodScreen day="2026-06-21" onBack={jest.fn()} />);
+    const screen = render(
+      <CreateFoodScreen day="2026-06-21" onBack={jest.fn()} onLogged={jest.fn()} />
+    );
 
     expect(screen.queryByText("Numbers only")).toBeNull();
     expect(screen.queryByText("Add the calories per serving.")).toBeNull();
@@ -134,11 +142,39 @@ describe("CreateFoodScreen", () => {
     const mutate = jest.fn((_payload, options) => options.onSuccess({ food: createdFood }));
     mockUseCreateFood.mockReturnValue({ mutate, isPending: false, error: null, reset: jest.fn() });
 
-    const screen = render(<CreateFoodScreen day="2026-06-21" onBack={jest.fn()} />);
+    const screen = render(
+      <CreateFoodScreen day="2026-06-21" onBack={jest.fn()} onLogged={jest.fn()} />
+    );
     fillValidForm(screen);
     fireEvent.press(screen.getByText("Save food"));
 
     expect(screen.getByText("Jollof rice")).toBeTruthy();
     expect(screen.getByText("Log food")).toBeTruthy();
+  });
+
+  it("hands back to the food tracker once the created food is logged", () => {
+    const createMutate = jest.fn((_payload, options) => options.onSuccess({ food: createdFood }));
+    mockUseCreateFood.mockReturnValue({
+      mutate: createMutate,
+      isPending: false,
+      error: null,
+      reset: jest.fn(),
+    });
+    mockUseLogFood.mockReturnValue({
+      mutate: jest.fn((_payload, options) => options.onSuccess({ entry: { foodItemId: null } })),
+      isPending: false,
+      error: null,
+      reset: jest.fn(),
+    });
+    const onLogged = jest.fn();
+
+    const screen = render(
+      <CreateFoodScreen day="2026-06-21" onBack={jest.fn()} onLogged={onLogged} />
+    );
+    fillValidForm(screen);
+    fireEvent.press(screen.getByText("Save food"));
+    fireEvent.press(screen.getByText("Log food"));
+
+    expect(onLogged).toHaveBeenCalled();
   });
 });

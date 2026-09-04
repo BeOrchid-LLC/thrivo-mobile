@@ -4,6 +4,7 @@ import { Pressable, View } from "react-native";
 import {
   AthleteIcon,
   Button,
+  ChevronDownIcon,
   Input,
   IntenseIcon,
   PencilIcon,
@@ -15,7 +16,7 @@ import {
 } from "@/components";
 import type { ActivityLevel } from "@/contracts";
 import type { ComponentType } from "react";
-import { colors, sizing } from "@/theme";
+import { colors } from "@/theme";
 import { useOnboardingDraftActions, useSessionActions } from "@/stores";
 import { OnboardingStep } from "@/features/onboarding/components/OnboardingStep";
 import { SelectCard } from "@/features/onboarding/components/SelectCard";
@@ -28,25 +29,20 @@ import {
   type CalorieBreakdown,
 } from "@/features/onboarding/utils/tdee";
 import { TARGET_RANGE_KCAL, parsePositiveInteger } from "@/features/onboarding/utils/validation";
+import { STEP_NUMBER } from "../config";
 import type { OnboardingStepProps } from "../types";
+
+const STEP = STEP_NUMBER.target;
 
 /**
  * Figma-exact metrics for "Onboarding S5" (393pt wide). Literals for the same
  * reason the shell uses them: the scales have no 20, 92, 116 or 168.
  */
-const CARD_PADDING = 24;
-const READOUT_TO_EDIT = 20;
-const EDIT_WIDTH = 168;
-const EDIT_ICON = 18;
-const HEADING_TO_ROWS = 16;
-const ROW_PADDING_Y = 8;
-/**
- * The breakdown is two fixed columns with air between them, not a stretched
- * row: the frame wraps every label ("Basal / metabolic rate") and the activity
- * value ("x1.2 / (sedentary)") at these widths.
- */
-const ROW_LABEL_WIDTH = 116;
-const ROW_VALUE_WIDTH = 92;
+const CARD_PADDING_X = 21.333;
+const CARD_PADDING_Y = 25.333;
+/** Headline block → the ledger panel. */
+const HEADLINE_TO_LEDGER = 20;
+const LEDGER_ROW_GAP = 7;
 /** This frame sets the actions closer to the content than the earlier steps. */
 const CONTENT_TO_FOOTER = 32;
 
@@ -167,7 +163,7 @@ export default function TargetStep({
   const buildFields = () => ({
     activityLevel,
     manualDailyTargetKcal: isEditing && manualInRange ? manualNum : null,
-    onboardingStep: 4 as const,
+    onboardingStep: STEP,
   });
 
   const next = () => {
@@ -190,13 +186,12 @@ export default function TargetStep({
     setFields(fields);
     setIsOnboardingSkipped(true);
     router.replace("/(app)/(tabs)/dashboard");
-    void submit("skip", { silent: true, onboardingStep: 4, fields });
+    void submit("skip", { silent: true, onboardingStep: STEP, fields });
   };
 
   return (
     <OnboardingStep
-      step={4}
-      sectionTitle="Almost done"
+      step={STEP}
       title="Your daily calorie target"
       subtitle="Calculated using Mifflin-St Jeor formula from your height, weight, age, & goal."
       contentToFooter={CONTENT_TO_FOOTER}
@@ -205,148 +200,167 @@ export default function TargetStep({
       footer={
         <>
           <Button
-            label={mode === "revisit" ? "Save and continue" : "This looks right - Continue"}
+            label="Continue"
             disabled={!valid}
             loading={isPending || isSaving}
             onPress={next}
           />
           <Button
-            label={mode === "revisit" ? "Done later" : "Skip For Now"}
-            variant="outline"
+            label="Skip for now"
+            variant="ghost"
             loading={mode === "initial" && isPending}
             onPress={skip}
           />
         </>
       }
     >
-      <TargetReadout
+      <TdeeCard
+        preview={preview}
         target={displayedTarget}
         isEditing={isEditing}
         onToggleEdit={() => setIsEditing((editing) => !editing)}
       />
 
       {isEditing ? (
-        <View className="gap-lg">
-          <Input
-            variant="onboarding"
-            label="Daily calorie target"
-            hint="Leave empty to keep the calculated number."
-            trailingText="kcal"
-            placeholder={preview ? String(preview.dailyTargetKcal) : "2000"}
-            numeric="integer"
-            value={manualTarget}
-            onChangeText={setManualTarget}
-            error={manualError}
-          />
-          <View className="gap-sm">
-            <Text variant="body" color="dark" className="font-semibold">
-              How active are you?
-            </Text>
-            {ACTIVITY_OPTIONS.map((option) => (
-              <SelectCard
-                key={option.value}
-                label={option.label}
-                description={option.description}
-                icon={option.icon}
-                trailingText={`×${ACTIVITY_FACTORS[option.value]}`}
-                selected={activityLevel === option.value}
-                onPress={() => setActivityLevel(option.value)}
-              />
-            ))}
-          </View>
-        </View>
+        <Input
+          variant="onboarding"
+          label="Daily calorie target"
+          uppercaseLabel
+          hint="Leave empty to keep the calculated number."
+          trailingText="kcal"
+          placeholder={preview ? String(preview.dailyTargetKcal) : "2000"}
+          numeric="integer"
+          value={manualTarget}
+          onChangeText={setManualTarget}
+          error={manualError}
+          labelAccessory={
+            <Button
+              label="Done"
+              size="compact"
+              fullWidth={false}
+              disabled={!manualValid}
+              onPress={() => setIsEditing(false)}
+            />
+          }
+        />
       ) : null}
 
-      {preview ? <Breakdown preview={preview} target={displayedTarget} /> : null}
+      {/* The activity list is not behind the editor in the frame — it is the
+          screen's second half, and picking a level recalculates the card above. */}
+      <View className="gap-xs">
+        <Text variant="body" color="dark" className="font-semibold">
+          Want a more accurate target?
+        </Text>
+        <Text variant="caption" color="subtle" className="font-regular">
+          Pick your typical activity level. Recalculates live.
+        </Text>
+      </View>
+
+      <View className="gap-md">
+        {ACTIVITY_OPTIONS.map((option) => (
+          <SelectCard
+            key={option.value}
+            size="compact"
+            label={option.label}
+            description={option.description}
+            icon={option.icon}
+            trailingText={`×${ACTIVITY_FACTORS[option.value]}`}
+            selected={activityLevel === option.value}
+            onPress={() => setActivityLevel(option.value)}
+          />
+        ))}
+      </View>
     </OnboardingStep>
   );
 }
 
-/** The bordered card: the number, what it is, and the way back to editing it. */
-function TargetReadout({
+const kcal = (n: number): string => `${Math.round(n).toLocaleString("en-US")} kcal`;
+
+/** One ledger line inside the TDEE card. */
+function LedgerRow({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+  return (
+    <View className="flex-row items-center justify-between gap-md">
+      <Text variant="caption" color="tdeeLabel" className="font-regular">
+        {label}
+      </Text>
+      <Text
+        variant="caption"
+        color={strong ? "tdeeNumber" : "tdeeValue"}
+        className={strong ? "font-bold" : "font-medium"}
+      >
+        {value}
+      </Text>
+    </View>
+  );
+}
+
+/**
+ * Figma "Onboarding S5" TDEE card: the number, what it is, the formula it came
+ * from, the four-line derivation, and the way into editing it by hand — one
+ * tinted panel, not the two white cards this screen used to draw.
+ */
+function TdeeCard({
+  preview,
   target,
   isEditing,
   onToggleEdit,
 }: {
+  preview: CalorieBreakdown | null | undefined;
   target: number | undefined;
   isEditing: boolean;
   onToggleEdit: () => void;
 }) {
   return (
     <View
-      style={{ padding: CARD_PADDING }}
-      className="items-center rounded-lg border-2 border-targetGreenBorder bg-white"
+      style={{ paddingHorizontal: CARD_PADDING_X, paddingVertical: CARD_PADDING_Y }}
+      className="overflow-hidden rounded-panel border-[1.333px] border-primaryBright/[0.18] bg-primaryBright/[0.05]"
     >
-      <Text variant="hero" color="targetGreen">
-        {target !== undefined ? target.toLocaleString() : "—"}
+      <Text variant="heading1" color="tdeeNumber" className="font-bold tracking-tdee">
+        {target !== undefined ? target.toLocaleString("en-US") : "—"}
       </Text>
-      <Text variant="body" color="targetGreen">
-        {target !== undefined ? "Calories per day" : "Complete your body details first"}
+      <Text variant="body" color="primaryDeep">
+        {target !== undefined ? "kcal / day" : "Complete your body details first"}
       </Text>
+
+      {preview ? (
+        <>
+          <View className="mt-sm flex-row items-center gap-xs">
+            <Text variant="caption" color="primaryDeep" className="font-regular">
+              Based on Mifflin-St Jeor formula
+            </Text>
+            <ChevronDownIcon size={13} color={colors.primaryDeep} />
+          </View>
+
+          <View
+            style={{ marginTop: HEADLINE_TO_LEDGER, gap: LEDGER_ROW_GAP }}
+            className="rounded-tile bg-primaryBright/[0.07] px-[14px] py-md"
+          >
+            <LedgerRow label="BMR" value={kcal(preview.bmr)} />
+            <LedgerRow
+              label={`× Activity (${preview.activity.replace("_", " ")})`}
+              value={kcal(preview.maintenanceKcal)}
+            />
+            <LedgerRow
+              label={preview.goalAdjustmentKcal < 0 ? "− Goal deficit" : "+ Goal surplus"}
+              value={kcal(preview.goalAdjustmentKcal)}
+            />
+            <LedgerRow label="Target" value={kcal(target ?? preview.dailyTargetKcal)} strong />
+          </View>
+        </>
+      ) : null}
 
       <Pressable
         accessibilityRole="button"
         accessibilityState={{ expanded: isEditing }}
         onPress={onToggleEdit}
-        style={{ marginTop: READOUT_TO_EDIT, width: EDIT_WIDTH, height: sizing.controlLg }}
-        className="flex-row items-center justify-center gap-md rounded-group border border-gray-200 bg-white active:opacity-[0.85]"
+        hitSlop={8}
+        className="mt-lg flex-row items-center justify-center gap-sm active:opacity-[0.6]"
       >
-        <PencilIcon size={EDIT_ICON} color={colors.dark} />
-        <Text variant="body" color="dark" className="font-semibold">
-          {isEditing ? "Done" : "Edit"}
+        <PencilIcon size={20} color={colors.primaryDeep} />
+        <Text variant="caption" color="primaryDeep" className="font-semibold">
+          {isEditing ? "Done editing" : "Edit target manually"}
         </Text>
       </Pressable>
-    </View>
-  );
-}
-
-/** "How we calculated this" — the four lines behind the number. */
-function Breakdown({ preview, target }: { preview: CalorieBreakdown; target: number | undefined }) {
-  const rows = [
-    { label: "Basal metabolic rate", value: `${Math.round(preview.bmr).toLocaleString()} kcal` },
-    {
-      label: "Activity multiplier",
-      value: `x${preview.activityFactor} (${preview.activity.replace("_", " ")})`,
-    },
-    {
-      label: "Goal adjustment",
-      value: `${preview.goalAdjustmentKcal > 0 ? "+" : ""}${preview.goalAdjustmentKcal.toLocaleString()} kcal`,
-    },
-    {
-      label: "Final daily target",
-      value: `${(target ?? preview.dailyTargetKcal).toLocaleString()} kcal`,
-    },
-  ];
-
-  return (
-    <View style={{ padding: CARD_PADDING }} className="rounded-panel bg-white">
-      <Text variant="heading3" color="dark">
-        How we calculated this
-      </Text>
-
-      <View style={{ marginTop: HEADING_TO_ROWS }}>
-        {rows.map((row, index) => (
-          <View
-            key={row.label}
-            style={{ paddingVertical: ROW_PADDING_Y }}
-            className={`flex-row items-start justify-between ${
-              index > 0 ? "border-t border-gray-200" : ""
-            }`}
-          >
-            <Text variant="body" color="subtle" style={{ width: ROW_LABEL_WIDTH }}>
-              {row.label}
-            </Text>
-            <Text
-              variant="body"
-              color="dark"
-              style={{ width: ROW_VALUE_WIDTH }}
-              className="text-right"
-            >
-              {row.value}
-            </Text>
-          </View>
-        ))}
-      </View>
     </View>
   );
 }

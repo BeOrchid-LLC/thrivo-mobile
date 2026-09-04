@@ -1,6 +1,18 @@
 import { useMemo, useState } from "react";
+import { router } from "expo-router";
 import { TextInput, View } from "react-native";
-import { Button, Input, PageHeader, Screen, Segmented, StepperButton, Text } from "@/components";
+import {
+  Button,
+  Input,
+  PageHeader,
+  PremiumGate,
+  Screen,
+  Segmented,
+  StepperButton,
+  Text,
+  useToast,
+} from "@/components";
+import { useEntitlement } from "@/hooks/useEntitlement";
 import { isNetworkReachable } from "@/lib";
 import { colors, inputFont } from "@/theme";
 import type { PortionMeasure } from "@/contracts";
@@ -30,6 +42,12 @@ const DEFAULT_QUANTITY_BY_MEASURE: Record<PortionMeasure, string> = {
 export interface DescribeMealScreenProps {
   day: string;
   onBack: () => void;
+  /**
+   * Where a logged estimate lands. The form has nothing left to say once the
+   * meal is saved, so the screen hands back to the food tracker, where the new
+   * entry heads the recent list.
+   */
+  onLogged: () => void;
 }
 
 /**
@@ -37,7 +55,9 @@ export interface DescribeMealScreenProps {
  * the Log tab: it is a form, and its actions are pinned to the bottom, where a
  * tab bar would otherwise sit.
  */
-export function DescribeMealScreen({ day, onBack }: DescribeMealScreenProps) {
+export function DescribeMealScreen({ day, onBack, onLogged }: DescribeMealScreenProps) {
+  const entitlement = useEntitlement();
+  const { showToast } = useToast();
   const [name, setName] = useState("");
   const [ingredients, setIngredients] = useState("");
   const [method, setMethod] = useState("");
@@ -87,7 +107,10 @@ export function DescribeMealScreen({ day, onBack }: DescribeMealScreenProps) {
         servingUnit: estimateResult!.servingUnit,
       },
       {
-        onSuccess: () => setMessage("Estimate logged."),
+        onSuccess: () => {
+          showToast({ message: "Estimate logged", variant: "success" });
+          onLogged();
+        },
         onError: () => setMessage("Could not log estimate. Try again."),
       }
     );
@@ -186,7 +209,21 @@ export function DescribeMealScreen({ day, onBack }: DescribeMealScreenProps) {
               Estimated
             </Text>
           </View>
-          <MacroCards nutrients={estimateResult.nutrients} />
+          {/* Macros are premium wherever they appear — an estimate screen is no
+              exception, or the gate elsewhere is just a detour. */}
+          {entitlement.isLoading ? (
+            <View className="h-24" />
+          ) : entitlement.isPremium ? (
+            <MacroCards nutrients={estimateResult.nutrients} />
+          ) : (
+            <PremiumGate
+              title="Subscribe to see macros"
+              subtitle="Protein, carbs, and fat unlock with Premium."
+              onViewPlans={() => router.push("/(app)/subscription")}
+            >
+              <MacroCards nutrients={estimateResult.nutrients} />
+            </PremiumGate>
+          )}
         </View>
       ) : null}
     </Screen>

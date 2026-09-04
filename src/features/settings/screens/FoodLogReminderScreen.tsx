@@ -5,7 +5,13 @@ import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button, PageHeader, Text } from "@/components";
 import { useMe, useUpdateProfile } from "@/features/profile";
-import { analytics, registerForPushNotifications } from "@/lib";
+import {
+  analytics,
+  monitoring,
+  requestNotificationPermission,
+  scheduleDailyReminders,
+  syncPushRegistration,
+} from "@/lib";
 import { colors, spacing } from "@/theme";
 import { localTimezone } from "@/utils";
 import {
@@ -89,14 +95,22 @@ export function FoodLogReminderScreen() {
       count: selectedTimes.length,
     });
     try {
-      // Persist the schedule before associating the device token with it.
-      // Permission denial is a supported fallback; a failed registration
-      // surfaces so the user can retry.
-      await registerForPushNotifications(selectedTimes);
-    } catch {
-      setError(
-        "Your reminder times were saved, but push notifications couldn't be enabled. Please try again."
-      );
+      // The device-local schedule is what actually delivers a reminder today,
+      // so it is armed here and must not be lost to a backend failure. This
+      // screen is an explicit "Enable notifications", so it is allowed to
+      // prompt; denial degrades to no reminders rather than an error.
+      const { granted } = await requestNotificationPermission();
+      if (granted) await scheduleDailyReminders(selectedTimes);
+
+      // Best effort, and deliberately not awaited — see the same call in the
+      // onboarding step. On the iOS Simulator this always fails (no APNs), and
+      // it used to be the only thing the user was told about.
+      void syncPushRegistration(selectedTimes).catch((error: unknown) => {
+        monitoring.captureException(error, { seam: "push-registration" });
+      });
+    } catch (error) {
+      monitoring.captureException(error, { seam: "reminder-scheduling" });
+      setError("Your reminder times were saved, but we couldn't switch reminders on. Try again.");
       return;
     }
     router.back();

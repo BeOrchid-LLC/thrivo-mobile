@@ -8,6 +8,22 @@ import { callApi } from "@/api";
 
 const PUSH_DEVICE_ID_KEY = "thrivo.push.device-id";
 
+/**
+ * The last token this module obtained, and the registration in flight.
+ *
+ * `getExpoPushTokenAsync` **emits a push-token event of its own**, so a rotation
+ * listener wired straight to a re-register call feeds itself: fetch → event →
+ * fetch → event, forever. On a simulator, where the fetch also warns on every
+ * attempt, that shows up as the warning repeating without end.
+ *
+ * Two guards break it. `lastObtainedToken` lets the listener ignore an event
+ * carrying the token we just fetched — a real rotation carries a different one.
+ * `inFlightSync` collapses overlapping syncs onto one promise, so an event that
+ * lands mid-fetch joins that fetch instead of starting another.
+ */
+let lastObtainedToken: string | null = null;
+let inFlightSync: Promise<string | null> | null = null;
+
 async function resolvePushDeviceId(): Promise<string> {
   const platformId =
     Platform.OS === "android"
@@ -86,6 +102,7 @@ async function registerToken(
   const { data: expoPushToken } = await Notifications.getExpoPushTokenAsync(
     projectId ? { projectId } : undefined
   );
+  lastObtainedToken = expoPushToken;
   const deviceId = await resolvePushDeviceId();
 
   await callApi("PUSH_REGISTER", {
@@ -140,10 +157,18 @@ export async function syncPushRegistration(notifyTimes?: string[]): Promise<stri
   const Notifications = getNotifications();
   if (!Notifications) return null;
 
-  const { granted } = await Notifications.getPermissionsAsync();
-  if (!granted) return null;
+  // Join the sync already running rather than starting a second one.
+  if (inFlightSync) return inFlightSync;
 
-  return registerToken(Notifications, notifyTimes);
+  inFlightSync = (async () => {
+    const { granted } = await Notifications.getPermissionsAsync();
+    if (!granted) return null;
+    return registerToken(Notifications, notifyTimes);
+  })().finally(() => {
+    inFlightSync = null;
+  });
+
+  return inFlightSync;
 }
 
 /** Permission snapshot, in the shape screens need. */
@@ -185,7 +210,12 @@ export function addPushTokenChangeListener(handler: () => void): () => void {
   const Notifications = getNotifications();
   if (!Notifications) return noop;
 
-  const subscription = Notifications.addPushTokenListener(() => handler());
+  const subscription = Notifications.addPushTokenListener((token) => {
+    // Our own `getExpoPushTokenAsync` raises this event too. Only a token we
+    // did not just obtain is an actual rotation worth re-registering.
+    if (token.data && token.data === lastObtainedToken) return;
+    handler();
+  });
   return () => subscription.remove();
 }
 
@@ -203,4 +233,131 @@ export function addNotificationResponseListener(
     handler(response.notification.request.content.data ?? {});
   });
   return () => subscription.remove();
+}
+
+/* -------------------------------------------------------------------------- */
+/* Local daily reminders                                                       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * On-device scheduling for the daily food-log reminder.
+ *
+ * The push seam above hands the schedule to the backend, which is the design
+ * `docs/reminder-scheduling-design.md` recommends — but nothing arrives until a
+ * backend scheduler exists *and* the project has FCM/APNs credentials, and
+ * neither is true yet. A local daily trigger needs neither: the OS fires it at
+ * local wall-clock time, offline, following the device across DST and travel.
+ *
+ * The two coexist on purpose. `notifyTimes` stays the single source of truth
+ * (Decision 1, Option A), so when the backend does start sending, the only
+ * change needed here is to stop arming these.
+ *
+ * A `DAILY` trigger is one repeating notification per slot rather than one per
+ * day, so three slots cost three of the iOS 64-notification budget, not three a
+ * day until it overflows.
+ */
+
+/** Marks a scheduled notification as ours, so re-arming clears only our own. */
+const REMINDER_KIND = "food-log-reminder";
+
+/**
+ * Android delivers on a channel, and importance is fixed when the channel is
+ * created — a reminder on the default channel arrives silently in the tray.
+ * This one is its own channel so it can be HIGH without making every other
+ * notification heads-up too.
+ */
+const REMINDER_CHANNEL_ID = "food-log-reminders";
+
+/** The contract's ceiling — `notifyTimes` carries at most three. */
+const MAX_REMINDER_SLOTS = 3;
+
+/** `HH:mm` or `HH:mm:ss` → trigger fields. Returns null for anything else. */
+function parseReminderTime(value: string): { hour: number; minute: number } | null {
+  const match = /^(\d{1,2}):(\d{2})/.exec(value.trim());
+  if (!match) return null;
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (!Number.isInteger(hour) || !Number.isInteger(minute)) return null;
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+  return { hour, minute };
+}
+
+async function ensureReminderChannel(Notifications: typeof NotificationsModule): Promise<void> {
+  if (Platform.OS !== "android") return;
+  await Notifications.setNotificationChannelAsync(REMINDER_CHANNEL_ID, {
+    name: "Food log reminders",
+    importance: Notifications.AndroidImportance.HIGH,
+    sound: "default",
+  });
+}
+
+/**
+ * Cancel every reminder this module scheduled, leaving anything else alone.
+ *
+ * Identified by `data.kind` rather than by a stored list of ids: a stored list
+ * goes stale the moment the OS clears schedules or the app is reinstalled, and
+ * the leak is silent. Reading what is actually scheduled cannot drift.
+ */
+export async function cancelDailyReminders(): Promise<void> {
+  const Notifications = getNotifications();
+  if (!Notifications) return;
+
+  const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+  await Promise.all(
+    scheduled
+      .filter((request) => request.content.data?.kind === REMINDER_KIND)
+      .map((request) => Notifications.cancelScheduledNotificationAsync(request.identifier))
+  );
+}
+
+/**
+ * Re-arm the daily reminders from `times`, replacing whatever was armed before.
+ *
+ * Idempotent: it always cancels ours first, so calling it on every sign-in and
+ * foreground converges rather than accumulating duplicates. Returns how many
+ * slots are now armed — 0 when push is unavailable, permission is not granted,
+ * or `times` is empty, all of which also clear any stale schedule.
+ */
+export async function scheduleDailyReminders(times: string[] | null | undefined): Promise<number> {
+  const Notifications = getNotifications();
+  if (!Notifications) return 0;
+
+  // Never prompts. Arming is a background consequence of a saved preference,
+  // and the prompt belongs to the screen where the user agreed to be asked.
+  const { granted } = await Notifications.getPermissionsAsync();
+  if (!granted) {
+    // Permission can be revoked in OS settings after times were saved; clear
+    // rather than leave a schedule that can no longer be delivered.
+    await cancelDailyReminders();
+    return 0;
+  }
+
+  await ensureReminderChannel(Notifications);
+  await cancelDailyReminders();
+
+  const slots = (times ?? [])
+    .map(parseReminderTime)
+    .filter((slot): slot is { hour: number; minute: number } => slot !== null)
+    .slice(0, MAX_REMINDER_SLOTS);
+
+  await Promise.all(
+    slots.map(({ hour, minute }) =>
+      Notifications.scheduleNotificationAsync({
+        content: {
+          title: "Time to log your food",
+          body: "Tap to record what you've eaten today.",
+          // `screen` is what the tap router in `app/_layout.tsx` reads.
+          data: { kind: REMINDER_KIND, screen: "log" },
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DAILY,
+          hour,
+          minute,
+          channelId: REMINDER_CHANNEL_ID,
+        },
+      })
+    )
+  );
+
+  return slots.length;
 }

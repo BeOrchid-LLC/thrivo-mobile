@@ -14,6 +14,8 @@ export {
   addNotificationResponseListener,
   getNotificationPermission,
   requestNotificationPermission,
+  scheduleDailyReminders,
+  cancelDailyReminders,
   type NotificationPermission,
 } from "./notifications";
 export { monitoring, withMonitoring, type Monitoring } from "./monitoring";

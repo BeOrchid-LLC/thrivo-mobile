@@ -54,11 +54,15 @@ function MacroBar({
     // Label, track and readout share one row (Figma). The label and readout
     // columns are fixed so all three tracks start and end on the same x —
     // ragged bar ends are what a flow layout would give.
+    //
+    // `label` (14/20), not `body` (16/24): the frames set this card's three rows
+    // a step below page body text, which is what keeps the card the height it is
+    // in the design rather than ~15pt taller.
     <View className="flex-row items-center gap-md">
-      <Text variant="body" color="dark" className="w-labelColumn">
+      <Text variant="label" color="subtle" className="w-labelColumn">
         {label}
       </Text>
-      <View className="h-[8px] flex-1 overflow-hidden rounded-pill bg-gray-200">
+      <View className="h-[6px] flex-1 overflow-hidden rounded-pill bg-gray-200">
         {/* Width + color are runtime values, so they stay inline. */}
         <View
           className="h-full rounded-pill"
@@ -66,7 +70,7 @@ function MacroBar({
         />
       </View>
       <AnimatedNumber
-        variant="body"
+        variant="label"
         color="muted"
         className="w-readoutColumn text-right"
         value={Math.round(consumed)}

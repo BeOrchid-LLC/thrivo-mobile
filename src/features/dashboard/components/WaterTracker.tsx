@@ -7,6 +7,8 @@ interface WaterTrackerProps {
   glasses: number;
   targetGlasses?: number;
   onAdd: () => void;
+  /** Open the full water log. Optional — without it the card is display-only. */
+  onOpen?: () => void;
   adding?: boolean;
   error?: string | null;
 }
@@ -16,17 +18,25 @@ export function WaterTracker({
   glasses,
   targetGlasses = 8,
   onAdd,
+  onOpen,
   adding = false,
   error,
 }: WaterTrackerProps) {
   const filled = Math.min(glasses, targetGlasses);
+  // The card opens the water log; the add button inside it stays a quick add.
+  // `Pressable` only when there is somewhere to go, so a display-only card does
+  // not announce itself as a button.
+  const Container = onOpen ? Pressable : View;
   return (
-    <View
-      className={`gap-lg rounded-lg ${glasses > 0 ? "bg-primaryTint" : "bg-light"} px-lg py-[20px]`}
+    <Container
+      accessibilityRole={onOpen ? "button" : undefined}
+      accessibilityLabel={onOpen ? "Open water log" : undefined}
+      onPress={onOpen}
+      className="gap-lg rounded-lg bg-primaryTint p-lg"
     >
       <View className="flex-row items-center">
-        <PintGlassIcon size={22} color={colors.primary} weight="regular" />
-        <Text variant="body" color="primary" className="ml-sm flex-1 font-semibold">
+        <PintGlassIcon size={20} color={colors.primaryDeep} weight="regular" />
+        <Text variant="body" color="primaryDeep" className="ml-sm flex-1 font-semibold">
           Drink water
         </Text>
         <Pressable
@@ -36,19 +46,19 @@ export function WaterTracker({
           disabled={adding}
           hitSlop={8}
         >
-          <PlusCircle size={24} color={colors.primary} weight="regular" />
+          <PlusCircle size={24} color={colors.primaryDeep} weight="regular" />
         </Pressable>
       </View>
       <View className="flex-row items-center">
-        <Text variant="body" color="muted" className="flex-1">
+        <Text variant="label" color="primaryDeep" className="flex-1">
           {glasses} of {targetGlasses} glasses
         </Text>
-        <View className="flex-row gap-xs">
+        <View className="flex-row">
           {Array.from({ length: targetGlasses }).map((_, i) => (
             <Drop
               key={i}
-              size={20}
-              color={colors.primary}
+              size={16}
+              color={colors.primaryDeep}
               weight={i < filled ? "fill" : "regular"}
             />
           ))}
@@ -59,6 +69,6 @@ export function WaterTracker({
           {error}
         </Text>
       ) : null}
-    </View>
+    </Container>
   );
 }

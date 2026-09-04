@@ -4,6 +4,8 @@ import NotificationsStep from "../screens/NotificationsStep";
 const mockTrack = jest.fn();
 const mockSubmit = jest.fn();
 const mockRegister = jest.fn();
+const mockRequestPermission = jest.fn();
+const mockScheduleReminders = jest.fn();
 
 jest.mock("expo-router", () => ({
   router: { push: jest.fn(), replace: jest.fn(), canGoBack: jest.fn(() => false) },
@@ -11,7 +13,10 @@ jest.mock("expo-router", () => ({
 
 jest.mock("@/lib", () => ({
   analytics: { track: (...args: unknown[]) => mockTrack(...args) },
-  registerForPushNotifications: (...args: unknown[]) => mockRegister(...args),
+  monitoring: { captureException: jest.fn() },
+  requestNotificationPermission: (...args: unknown[]) => mockRequestPermission(...args),
+  scheduleDailyReminders: (...args: unknown[]) => mockScheduleReminders(...args),
+  syncPushRegistration: (...args: unknown[]) => mockRegister(...args),
 }));
 
 jest.mock("@/features/onboarding/hooks/useCompleteOnboarding", () => ({
@@ -42,12 +47,14 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockSubmit.mockResolvedValue(undefined);
   mockRegister.mockResolvedValue("token");
+  mockRequestPermission.mockResolvedValue({ granted: true, canAskAgain: true });
+  mockScheduleReminders.mockResolvedValue(2);
 });
 
 describe("NotificationsStep analytics", () => {
   it("emits thrivo.reminder_set once the schedule is saved", async () => {
     const screen = await renderStep();
-    fireEvent.press(screen.getByText("Enable notifications"));
+    fireEvent.press(screen.getByText("Continue"));
 
     await waitFor(() =>
       expect(mockTrack).toHaveBeenCalledWith("thrivo.reminder_set", {
@@ -62,7 +69,7 @@ describe("NotificationsStep analytics", () => {
   it("emits from the Settings revisit path too", async () => {
     const onNext = jest.fn().mockResolvedValue(undefined);
     const screen = await renderStep({ mode: "revisit", onNext });
-    fireEvent.press(screen.getByText("Save and finish"));
+    fireEvent.press(screen.getByText("Continue"));
 
     await waitFor(() => expect(onNext).toHaveBeenCalled());
     expect(mockTrack).toHaveBeenCalledWith(
@@ -75,7 +82,7 @@ describe("NotificationsStep analytics", () => {
     mockSubmit.mockRejectedValue(new Error("offline"));
 
     const screen = await renderStep();
-    fireEvent.press(screen.getByText("Enable notifications"));
+    fireEvent.press(screen.getByText("Continue"));
 
     await waitFor(() =>
       expect(screen.getByText("We couldn't save your reminder preferences. Please try again."))
@@ -90,12 +97,46 @@ describe("NotificationsStep analytics", () => {
     expect(mockTrack).not.toHaveBeenCalled();
   });
 
+  it("arms the reminders on the device, which is what actually delivers them", async () => {
+    const screen = await renderStep();
+    fireEvent.press(screen.getByText("Continue"));
+
+    await waitFor(() => expect(mockScheduleReminders).toHaveBeenCalledWith(["08:00", "20:00"]));
+  });
+
+  it("arms nothing when notification permission is refused", async () => {
+    mockRequestPermission.mockResolvedValue({ granted: false, canAskAgain: false });
+
+    const screen = await renderStep();
+    fireEvent.press(screen.getByText("Continue"));
+
+    await waitFor(() => expect(mockSubmit).toHaveBeenCalled());
+    expect(mockScheduleReminders).not.toHaveBeenCalled();
+  });
+
+  it("keeps the armed schedule when registering the token with the backend fails", async () => {
+    // The backend cannot push until it has store credentials and a scheduler,
+    // and this used to surface as "push notifications couldn't be enabled" over
+    // reminders that were in fact working. Local delivery must not depend on it.
+    mockRegister.mockRejectedValue(new Error("no FCM credentials"));
+
+    const screen = await renderStep();
+    fireEvent.press(screen.getByText("Continue"));
+
+    await waitFor(() => expect(mockScheduleReminders).toHaveBeenCalled());
+    expect(
+      screen.queryByText(
+        "Your reminder times were saved, but we couldn't switch reminders on. Try again."
+      )
+    ).toBeNull();
+  });
+
   it("still saves when the push permission prompt is declined", async () => {
     // Permission denial must not block the schedule — nor swallow the event.
     mockRegister.mockRejectedValue(new Error("denied"));
 
     const screen = await renderStep();
-    fireEvent.press(screen.getByText("Enable notifications"));
+    fireEvent.press(screen.getByText("Continue"));
 
     await waitFor(() => expect(mockSubmit).toHaveBeenCalled());
     expect(mockTrack).toHaveBeenCalledWith(

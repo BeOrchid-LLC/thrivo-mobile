@@ -34,6 +34,7 @@ import {
   useBillingSync,
   useHasDismissedOnboarding,
   usePushRegistration,
+  useReminderScheduling,
   useSessionInit,
   useSessionRefresh,
   useTimezoneSync,
@@ -123,6 +124,7 @@ function RootNavigator({
   useBillingSync();
   useTimezoneSync();
   usePushRegistration();
+  useReminderScheduling();
 
   useEffect(() => {
     const capture = async (url: string | null) => {

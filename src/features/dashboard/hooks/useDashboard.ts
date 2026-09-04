@@ -5,6 +5,7 @@ import { useAddWaterLog, useSyncFavoriteStatusesFromEntries } from "@/features/f
 import { useEntitlement } from "@/hooks/useEntitlement";
 import { localDay } from "@/utils";
 import type { FoodLogHistoryFilters } from "../api/dashboard.api";
+import { DASHBOARD_MACROS_GATED } from "../flags";
 import {
   getDashboardCalories,
   getDashboardMacros,
@@ -26,17 +27,22 @@ export function useDashboardCalories(day = localDay()) {
 
 export function useDashboardMacros(day = localDay()) {
   const entitlement = useEntitlement();
+  // Gated users never fetch: `enabled: !gated` keeps the real macros off the
+  // device entirely, so the blurred teaser cannot be read out of the cache.
+  const gated = DASHBOARD_MACROS_GATED && !entitlement.isPremium;
   const query = useQuery({
     queryKey: queryKeys.dashboard.macros(day),
     queryFn: () => getDashboardMacros(day),
-    enabled: entitlement.isPremium,
+    enabled: !gated,
     staleTime: 1000 * 60,
   });
 
   return {
     ...query,
+    /** True only while the gate is on *and* the user is outside it. */
+    isGated: gated,
     isPremium: entitlement.isPremium,
-    isEntitlementLoading: entitlement.isLoading,
+    isEntitlementLoading: DASHBOARD_MACROS_GATED && entitlement.isLoading,
   };
 }
 

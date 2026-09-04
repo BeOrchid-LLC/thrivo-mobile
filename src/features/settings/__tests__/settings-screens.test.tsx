@@ -34,6 +34,8 @@ jest.mock("@/features/profile", () => ({
 
 jest.mock("@/features/subscription", () => ({
   useSubscription: () => mockUseSubscription(),
+  useOfferings: () => ({ data: undefined }),
+  productForPlan: () => undefined,
 }));
 
 jest.mock("@/features/subscription/hooks/useCancelSubscription", () => ({

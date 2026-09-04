@@ -42,6 +42,8 @@ export type { PremiumSurfaceProps } from "./PremiumSurface";
 export type { PremiumGateProps } from "./PremiumGate";
 export { BrandSplash } from "./BrandSplash";
 export type { BrandSplashProps } from "./BrandSplash";
+export { BlockingLoader } from "./BlockingLoader";
+export type { BlockingLoaderProps } from "./BlockingLoader";
 export { ThrivoMark } from "./ThrivoMark";
 export type { ThrivoMarkProps } from "./ThrivoMark";
 export { BackButton } from "./BackButton";

@@ -20,7 +20,7 @@ describe("resolveRootRedirect", () => {
         isOnboarded: false,
         isOnboardingSkipped: false,
       })
-    ).toBe("/(onboarding)/goal");
+    ).toBe("/(onboarding)/name");
   });
 
   it("sends onboarded authenticated root visitors to dashboard", () => {
@@ -92,7 +92,7 @@ describe("resolveRootRedirect", () => {
         isOnboardingSkipped: false,
         hasDismissedOnboarding: false,
       })
-    ).toBe("/(onboarding)/goal");
+    ).toBe("/(onboarding)/name");
   });
 
   it("does not let the dismissal outrank the biometric lock", () => {

@@ -1,7 +1,7 @@
 /**
- * The env module validates `EXPO_PUBLIC_*` at import and throws on invalid config
- * (fail fast). These tests re-import it under controlled globals to prove the
- * production-build requirement for observability vars.
+ * The env module validates `EXPO_PUBLIC_*` at import and throws on invalid config.
+ * These tests re-import it under controlled globals to prove that observability
+ * is optional while production billing remains required.
  */
 describe("env bootstrap validation", () => {
   const original = { ...process.env };
@@ -24,14 +24,15 @@ describe("env bootstrap validation", () => {
     }).not.toThrow();
   });
 
-  it("throws in a production build when Sentry/PostHog are unset", () => {
+  it("allows missing Sentry/PostHog in a production build when billing is configured", () => {
     (global as { __DEV__?: boolean }).__DEV__ = false;
     delete process.env.EXPO_PUBLIC_SENTRY_DSN;
     delete process.env.EXPO_PUBLIC_POSTHOG_KEY;
+    process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY = "appl_live_key";
 
     expect(() => {
       jest.isolateModules(() => require("../env"));
-    }).toThrow(/EXPO_PUBLIC_SENTRY_DSN|EXPO_PUBLIC_POSTHOG_KEY/);
+    }).not.toThrow();
   });
 
   it("throws in a production build when the billing key is unset", () => {

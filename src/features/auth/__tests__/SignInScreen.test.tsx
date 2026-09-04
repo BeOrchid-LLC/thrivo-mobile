@@ -53,7 +53,7 @@ describe("SignInScreen", () => {
     const screen = render(<SignInScreen />);
 
     fireEvent.changeText(screen.getByLabelText("Email"), "ada@example.com");
-    fireEvent.press(screen.getByText("Request Magic Link"));
+    fireEvent.press(screen.getByText("Request Code"));
 
     await waitFor(() => {
       expect(mockSignInCreate).toHaveBeenCalledWith({ identifier: "ada@example.com" });
@@ -75,7 +75,7 @@ describe("SignInScreen", () => {
     const screen = render(<SignInScreen />);
 
     fireEvent.changeText(screen.getByLabelText("Email"), "unknown@example.com");
-    fireEvent.press(screen.getByText("Request Magic Link"));
+    fireEvent.press(screen.getByText("Request Code"));
 
     await waitFor(() => {
       expect(screen.getByText("No account found with that email.")).toBeTruthy();

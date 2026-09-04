@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { router } from "expo-router";
 import { View } from "react-native";
-import { Button, Input, SelectInput, SelectSheet, Text } from "@/components";
+import { Button, Input, NoteBox, RadioGroup, Segmented, Text } from "@/components";
 import type { Sex, UnitSystem } from "@/contracts";
 import { roundTo } from "@/utils";
+import { spacing } from "@/theme";
 import { type OnboardingDraft, useOnboardingDraftActions, useSessionActions } from "@/stores";
 import { OnboardingStep } from "@/features/onboarding/components/OnboardingStep";
-import { UnitChips } from "@/features/onboarding/components/UnitChips";
 import { useSubmitOnboarding } from "@/features/onboarding/hooks/useCompleteOnboarding";
 import { useOnboardingPrefill } from "@/features/onboarding/hooks/useOnboardingPrefill";
 import {
@@ -17,14 +17,18 @@ import {
   parseDecimal,
   parsePositiveInteger,
 } from "@/features/onboarding/utils/validation";
+import { STEP_NUMBER } from "../config";
 import type { OnboardingStepProps } from "../types";
+
+const STEP = STEP_NUMBER.body;
 
 type HeightUnit = "metric" | "imperial";
 const CM_PER_IN = 2.54;
 
+// Figma S4 states imperial first, and spells it "ft + in".
 const HEIGHT_UNITS = [
+  { label: "ft + in", value: "imperial" },
   { label: "cm", value: "metric" },
-  { label: "ft. in.", value: "imperial" },
 ] as const satisfies readonly { label: string; value: HeightUnit }[];
 
 const SEX_OPTIONS = [
@@ -63,7 +67,6 @@ export default function BodyStep({
   const [inch, setInch] = useState(initialFtIn ? String(initialFtIn.inch) : "");
   const [age, setAge] = useState(draft.ageYears ? String(draft.ageYears) : "");
   const [sex, setSex] = useState<Sex | undefined>(draft.sex);
-  const [sexSheetOpen, setSexSheetOpen] = useState(false);
 
   useEffect(() => {
     if (!cm && draft.heightCm && heightUnit === "metric") setCm(String(roundTo(draft.heightCm)));
@@ -133,7 +136,7 @@ export default function BodyStep({
     ageYears: ageNum >= 13 ? ageNum : undefined,
     sex,
     unitSystem: heightUnit satisfies UnitSystem,
-    onboardingStep: 3,
+    onboardingStep: STEP,
   });
 
   const next = () => {
@@ -156,116 +159,113 @@ export default function BodyStep({
     setFields(fields);
     setIsOnboardingSkipped(true);
     router.replace("/(app)/(tabs)/dashboard");
-    void submit("skip", { silent: true, onboardingStep: 3, fields });
+    void submit("skip", { silent: true, onboardingStep: STEP, fields });
   };
 
   return (
     <OnboardingStep
-      step={3}
-      contentGap={22}
-      title="A bit more about you"
-      subtitle="This will help us customize a path for your fitness journey"
+      step={STEP}
+      contentGap={spacing.xl}
+      title="A bit more about your body"
+      subtitle="Used only for your calorie formula."
       onBack={mode === "revisit" ? onBack : undefined}
       variant={variant}
       footer={
         <>
           <Button
-            label={mode === "revisit" ? "Save and continue" : "Continue"}
+            label="Continue"
             disabled={!valid}
             loading={isPending || isSaving}
             onPress={next}
           />
           <Button
-            label={mode === "revisit" ? "Done later" : "Skip For Now"}
-            variant="outline"
+            label="Skip for now"
+            variant="ghost"
             loading={mode === "initial" && isPending}
             onPress={skip}
           />
         </>
       }
     >
-      <View className="gap-xs">
-        <Text variant="caption" color="dark">
-          Height
-        </Text>
-        <View className="flex-row items-center gap-xs">
-          {heightUnit === "imperial" ? (
-            <View className="flex-1 flex-row gap-xs">
-              <View className="flex-1">
-                <Input
-                  variant="onboarding"
-                  accessibilityLabel="Height in feet"
-                  trailingText="ft"
-                  numeric="integer"
-                  value={ft}
-                  onChangeText={setFt}
-                />
-              </View>
-              <View className="flex-1">
-                <Input
-                  variant="onboarding"
-                  accessibilityLabel="Height in inches"
-                  trailingText="in"
-                  numeric="integer"
-                  value={inch}
-                  onChangeText={setInch}
-                />
-              </View>
-            </View>
-          ) : (
-            <View className="flex-1">
-              <Input
-                variant="onboarding"
-                accessibilityLabel="Height in centimetres"
-                trailingText="cm"
-                numeric="integer"
-                value={cm}
-                onChangeText={setCm}
-              />
-            </View>
-          )}
-          <UnitChips
+      {/* Height. The unit switch sits on the label row in the frame, not beside
+          the field, because in feet + inches the field is two boxes. */}
+      <View className="gap-sm">
+        <View className="flex-row items-center justify-between">
+          <Text variant="caption" color="subtle" className="uppercase tracking-label">
+            Height
+          </Text>
+          <Segmented
+            size="compact"
             options={HEIGHT_UNITS}
             value={heightUnit}
             onChange={switchHeightUnit}
-            accessibilityLabel="Height unit"
           />
         </View>
+
+        {heightUnit === "imperial" ? (
+          <View className="flex-row gap-md">
+            <View className="flex-1">
+              <Input
+                variant="onboarding"
+                accessibilityLabel="Height in feet"
+                trailingText="ft"
+                numeric="integer"
+                value={ft}
+                onChangeText={setFt}
+              />
+            </View>
+            <View className="flex-1">
+              <Input
+                variant="onboarding"
+                accessibilityLabel="Height in inches"
+                trailingText="in"
+                numeric="integer"
+                value={inch}
+                onChangeText={setInch}
+              />
+            </View>
+          </View>
+        ) : (
+          <Input
+            variant="onboarding"
+            accessibilityLabel="Height in centimetres"
+            trailingText="cm"
+            numeric="integer"
+            value={cm}
+            onChangeText={setCm}
+          />
+        )}
+
         {/* One line under the whole group, because in feet + inches the height
             is two fields and the problem belongs to neither on its own. */}
-        <Text variant="caption" color={heightError() ? "error" : "dark"}>
-          {heightError() ?? "How tall are you?"}
-        </Text>
+        {heightError() ? (
+          <Text variant="caption" color="error">
+            {heightError()}
+          </Text>
+        ) : null}
       </View>
 
-      {/* The frame sets these two closer together than it sets them from the
-          height group, which carries a hint under its field. */}
-      <View className="gap-lg">
-        <Input
-          variant="onboarding"
-          label="Age"
-          numeric="integer"
-          value={age}
-          onChangeText={setAge}
-          error={ageError()}
-        />
-
-        <SelectInput
-          variant="onboarding"
-          label="Gender"
-          value={SEX_OPTIONS.find((option) => option.value === sex)?.label ?? ""}
-          onPress={() => setSexSheetOpen(true)}
-        />
-      </View>
-
-      <SelectSheet<Sex>
-        title="Gender"
-        options={SEX_OPTIONS}
-        value={sex ?? "prefer_not_to_say"}
-        visible={sexSheetOpen}
-        onChange={setSex}
-        onClose={() => setSexSheetOpen(false)}
+      <Input
+        variant="onboarding"
+        label="Age"
+        uppercaseLabel
+        trailingText="yrs"
+        numeric="integer"
+        value={age}
+        onChangeText={setAge}
+        error={ageError()}
       />
+
+      <View className="gap-sm">
+        <Text variant="caption" color="subtle" className="uppercase tracking-label">
+          Sex
+        </Text>
+        <RadioGroup options={SEX_OPTIONS} value={sex} onChange={setSex} />
+      </View>
+
+      <NoteBox>
+        {`We ask about biological sex because it affects metabolic rate. "Prefer not to say" uses an averaged BMR.`}
+      </NoteBox>
     </OnboardingStep>
   );
 }
