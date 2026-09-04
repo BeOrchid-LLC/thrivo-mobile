@@ -111,6 +111,19 @@ export const typography = {
     fontWeight: "600" as const,
     lineHeight: 18,
   },
+  /**
+   * Supporting copy inside a tinted alert panel — the water "Drink up" note.
+   * Figma draws it Inter Regular 13/23: `caption`'s size at regular weight with
+   * much looser leading. Neither `caption` (13/18 semibold) nor `body-sm`
+   * (15/22) can stand in, because both move where the paragraph wraps and the
+   * panel is sized around that wrap.
+   */
+  note: {
+    fontFamily: regular,
+    fontSize: 13,
+    fontWeight: "400" as const,
+    lineHeight: 23,
+  },
   micro: {
     fontFamily: regular,
     fontSize: 12,

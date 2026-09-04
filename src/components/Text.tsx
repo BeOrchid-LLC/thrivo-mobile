@@ -24,6 +24,7 @@ export type TextColor =
   | "light"
   | "light70"
   | "accent"
+  | "accentDeep"
   | "accentText"
   | "warning"
   | "warningText"
@@ -51,6 +52,7 @@ const variantClass: Record<Variant, string> = {
   "body-sm": "text-body-sm font-regular",
   label: "text-label font-regular",
   caption: "text-caption font-semibold",
+  note: "text-note font-regular",
   micro: "text-micro font-regular",
 };
 
@@ -66,6 +68,7 @@ const colorValue: Record<TextColor, string> = {
   light: colors.light,
   light70: "rgba(244, 246, 249, 0.7)",
   accent: colors.accent,
+  accentDeep: colors.accentDeep,
   accentText: colors.accentText,
   warning: colors.warning,
   warningText: colors.warningText,

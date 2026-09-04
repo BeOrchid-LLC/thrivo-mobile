@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useClerk } from "@clerk/expo";
 import { callApi, clearPersistedQueryCache } from "@/api";
-import { analytics, clearUserScopedStorage, monitoring } from "@/lib";
+import { analytics, cancelDailyReminders, clearUserScopedStorage, monitoring } from "@/lib";
 import { resetUserScopedStores, useBiometricUnlockActions, useSessionActions } from "@/stores";
 
 /**
@@ -54,6 +54,12 @@ export function useDeleteAccount() {
         }),
         clearPersistedQueryCache().catch((error: unknown) => {
           monitoring.captureException(error, { seam: "clear-query-cache" });
+        }),
+        // Scheduled reminders live in the OS, not in storage or the cache, so
+        // nothing above reaches them — a deleted account would keep nudging
+        // this device forever.
+        cancelDailyReminders().catch((error: unknown) => {
+          monitoring.captureException(error, { seam: "delete-reminder-cancel" });
         }),
       ]);
     },

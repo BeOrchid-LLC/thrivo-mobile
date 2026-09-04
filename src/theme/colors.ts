@@ -59,6 +59,13 @@ export const colors = {
   accent: "#F39C12", // Figma variable "Orange" (read from Dev Mode, V2 frames)
   accentSoft: "#FEF5E7", // light amber tint — warning/expired badges (V2 auth screens)
   accentText: "#8A6A2A", // amber-dark — tint-on-tint note copy on accentSoft (onboarding NoteBox)
+  /**
+   * Deep amber — the border and copy of the "Drink up" water alert. Figma
+   * variable **'Clicked' Orange** (read from Dev Mode on `Log Water`, node
+   * 100:849). Darker than `accent`, which is that panel's *fill*: the panel is
+   * `accent` at 18%, and the text has to carry contrast against the tint.
+   */
+  accentDeep: "#B26D00",
   warningText: "#854D0E", // Tailwind yellow-800 equivalent for the subscription preview notice
   /** Unselected slot badge on the S7 reminder rows. */
   numberBadge: "#EEF0F4",
