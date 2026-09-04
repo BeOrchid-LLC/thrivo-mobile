@@ -45,17 +45,20 @@ The project is already linked (`app.json` → `extra.eas.projectId`), so no `eas
 
 ### Observability env vars
 
-Preview and production builds must have these Expo environment variables configured before building:
+Preview and production builds may configure these Expo environment variables before building. All are
+optional at runtime; omitting the Sentry DSN or PostHog key disables that integration without blocking
+the app.
 
 ```bash
 EXPO_PUBLIC_SENTRY_DSN=...      # public runtime crash-reporting DSN
 EXPO_PUBLIC_POSTHOG_KEY=...     # public runtime product analytics key
 EXPO_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
-SENTRY_AUTH_TOKEN=...           # secret build-time token for source map upload
+SENTRY_AUTH_TOKEN=...           # optional secret build-time token for source map upload
 ```
 
 `app.json` already pins the Sentry source map upload target to organization `beorchid-llc` and project
-`thrivo`; keep `SENTRY_AUTH_TOKEN` out of source control and set it as a Secret in Expo/EAS.
+`thrivo`; keep `SENTRY_AUTH_TOKEN` out of source control and set it as a Secret in Expo/EAS only when
+source map upload is enabled.
 
 ---
 
@@ -227,6 +230,6 @@ eas submit --profile production --platform android
 | OTA applied but native feature crashes           | You shipped JS that needs a native change — rebuild instead.                                          |
 | Google sign-in button missing / "not configured" | `EXPO_PUBLIC_GOOGLE_*_CLIENT_ID` unset at build time — see the auth setup notes. Rebuild after setting. |
 | Android build OK but Google OAuth fails          | The signing key's SHA-1 isn't registered in the Google Android OAuth client — get it via `eas credentials`. |
-| Preview app crashes before welcome screen        | Missing required release env, usually `EXPO_PUBLIC_POSTHOG_KEY` or `EXPO_PUBLIC_SENTRY_DSN`; set it in Expo and rebuild. |
+| Preview app crashes before welcome screen        | Check the actual startup error and required app configuration. Missing `EXPO_PUBLIC_POSTHOG_KEY` or `EXPO_PUBLIC_SENTRY_DSN` disables optional telemetry but must not crash the app. |
 | Sentry warns about organization/project          | `@sentry/react-native/expo` config or `SENTRY_AUTH_TOKEN` is missing; verify `app.json` and Expo/EAS env vars. |
 ```

@@ -6,8 +6,8 @@ import { env } from "@/config/env";
  * first-class Expo support; the funnel and event names are unchanged). The
  * `Analytics` interface is the seam feature code calls; the implementation is the
  * real PostHog client when `EXPO_PUBLIC_POSTHOG_KEY` is set, and a no-op (dev
- * console) otherwise. A production build without a key never reaches here — `env`
- * throws at bootstrap (fail fast).
+ * console) otherwise. PostHog is optional and must never prevent the app from
+ * starting or a user action from completing.
  *
  * Event names follow the platform-wide `thrivo.<object>_<action>` convention and
  * are fixed by the Remaining Scope PRD — see docs/naming-conventions-plan.md.
@@ -37,12 +37,18 @@ export interface Analytics {
 }
 
 let client: PostHog | null = null;
+let clientInitializationAttempted = false;
 let signupPending = false;
 
 function getClient(): PostHog | null {
   if (!env.posthogKey) return null;
-  if (!client) {
+  if (client || clientInitializationAttempted) return client;
+
+  clientInitializationAttempted = true;
+  try {
     client = new PostHog(env.posthogKey, { host: env.posthogHost });
+  } catch (error) {
+    if (__DEV__) console.warn("[analytics] PostHog initialization failed", error);
   }
   return client;
 }
@@ -57,10 +63,14 @@ const posthogAnalytics: Analytics = {
   identify: (userId) => {
     const instance = getClient();
     if (instance) {
-      instance.identify(userId);
-      if (signupPending) {
-        instance.capture("thrivo.signup", { method: "email_code" });
-        signupPending = false;
+      try {
+        instance.identify(userId);
+        if (signupPending) {
+          instance.capture("thrivo.signup", { method: "email_code" });
+          signupPending = false;
+        }
+      } catch (error) {
+        if (__DEV__) console.warn("[analytics] PostHog identify failed", error);
       }
       return;
     }
@@ -70,9 +80,13 @@ const posthogAnalytics: Analytics = {
   track: (event, properties) => {
     const instance = getClient();
     if (instance) {
-      // Our seam allows arbitrary `unknown` values; PostHog narrows to JSON. We
-      // only ever pass JSON-serializable funnel props, so the cast is safe.
-      instance.capture(event, properties as Parameters<typeof instance.capture>[1]);
+      try {
+        // Our seam allows arbitrary `unknown` values; PostHog narrows to JSON. We
+        // only ever pass JSON-serializable funnel props, so the cast is safe.
+        instance.capture(event, properties as Parameters<typeof instance.capture>[1]);
+      } catch (error) {
+        if (__DEV__) console.warn("[analytics] PostHog capture failed", error);
+      }
       return;
     }
     if (__DEV__) console.info("[analytics] track", event, properties ?? {});
@@ -81,7 +95,11 @@ const posthogAnalytics: Analytics = {
     signupPending = false;
     const instance = getClient();
     if (instance) {
-      instance.reset();
+      try {
+        instance.reset();
+      } catch (error) {
+        if (__DEV__) console.warn("[analytics] PostHog reset failed", error);
+      }
       return;
     }
     if (__DEV__) console.info("[analytics] reset");

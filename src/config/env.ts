@@ -7,9 +7,9 @@ import { z } from "zod";
  * The API URL defaults to production so store/preview builds do not crash when
  * the local `.env` file is absent in EAS.
  *
- * Policy (ADR — fail fast): feature vars are optional in development but
- * **required in a production build** — a release bundle without crash reporting
- * or analytics configured throws at bootstrap rather than shipping blind.
+ * Observability is deliberately optional: a release without Sentry or PostHog
+ * still starts and runs normally. RevenueCat remains fail-fast in production
+ * because missing store credentials disable purchases rather than telemetry.
  */
 const DEFAULT_API_URL = "https://api.thrivo.fit";
 const DEFAULT_POSTHOG_HOST = "https://us.i.posthog.com";
@@ -35,7 +35,7 @@ const envSchema = z
     // entitlement), so its button is gated by an explicit feature flag rather than
     // a credential. Default OFF: only the literal string "true" shows the button.
     EXPO_PUBLIC_APPLE_AUTH_ENABLED: z.string().optional(),
-    // Observability (Sentry crash reporting + PostHog product analytics).
+    // Optional observability (Sentry crash reporting + PostHog product analytics).
     EXPO_PUBLIC_SENTRY_DSN: z.string().url().optional(),
     EXPO_PUBLIC_POSTHOG_KEY: z.string().min(1).optional(),
     EXPO_PUBLIC_POSTHOG_HOST: z.string().url().default(DEFAULT_POSTHOG_HOST),
@@ -51,21 +51,6 @@ const envSchema = z
   })
   .superRefine((parsed, ctx) => {
     if (!isProductionBuild) return;
-    // A production build must ship observability configured — fail fast.
-    if (!parsed.EXPO_PUBLIC_SENTRY_DSN) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["EXPO_PUBLIC_SENTRY_DSN"],
-        message: "Required in production builds (crash reporting).",
-      });
-    }
-    if (!parsed.EXPO_PUBLIC_POSTHOG_KEY) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["EXPO_PUBLIC_POSTHOG_KEY"],
-        message: "Required in production builds (product analytics).",
-      });
-    }
     // Only the running platform's key matters — an iOS release does not need the
     // Play key to be present. A release build that shipped without its own key
     // would show an empty paywall and take no payment, so fail fast instead.

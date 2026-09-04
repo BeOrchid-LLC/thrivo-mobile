@@ -90,8 +90,8 @@ validates the response against the contract, and throws a typed `ApiError`.
 - Navigation params carry IDs only; fetch on mount.
 - Secrets only in `expo-secure-store`; never AsyncStorage or logs.
 - `EXPO_PUBLIC_*` values are inlined into the bundle — never put a secret there.
-  Config is Zod-validated at startup in `src/config/env.ts`; a production build
-  missing Sentry/PostHog keys throws at bootstrap by design (fail fast).
+  Config is Zod-validated at startup in `src/config/env.ts`; Sentry and PostHog
+  are optional and missing keys disable telemetry without blocking app startup.
 
 ## Naming (binding — see docs/naming-conventions-plan.md)
 
